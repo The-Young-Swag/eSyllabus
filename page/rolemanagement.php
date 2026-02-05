@@ -1,153 +1,88 @@
 <div class="container-fluid mt-4">
-
-  <!-- Header -->
-<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap">
-
-    <!-- Left -->
-    <h4 class="font-weight-bold text-dark mb-0">
-        <i class="fas fa-user-tag mr-2 text-primary"></i> Role Access Menu
-    </h4>
-
-    <!-- Right -->
-    <div class="d-flex align-items-center">
-
-        <select id="prvroleSelect"
-                class="form-control form-control-sm mr-3"
-                style="width: 200px;">
-            <option value="">-- Select Role --</option>
-            <option value="admin">Administrator</option>
-            <option value="manager">Manager</option>
-            <option value="staff">Staff</option>
-        </select>
-
-        <button type="button"
-                class="btn btn-primary btn-sm"
-                id="addRoleModal">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="font-weight-bold text-dark">
+            <i class="fas fa-user-tag mr-2 text-primary"></i> Role Management
+        </h4>
+        <button class="btn btn-primary" id="addRoleModal">
             <i class="fas fa-plus mr-1"></i> Add Role
         </button>
-
+    </div>
+    
+    <!-- Table Card -->
+    <div class="card card-primary card-outline">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover table-bordered mb-0">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Role Name</th>
+                            <th>Role Code</th>
+                            <th>Status</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tblviewRoles">
+                        <!-- Table loads here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 </div>
 
-
-
-  <!-- Card -->
-  <div class="card card-primary card-outline">
-    <div class="card-body p-0">
-
-      <div class="table-responsive">
-        <table class="table table-hover table-bordered mb-0 align-middle">
-          <thead class="thead-light">
-            <tr>
-              <th style="width: 50px;">#</th>
-              <th>Menu</th>
-              <th>Description</th>
-              <th class="text-center" style="width: 120px;">Access</th>
-			  <th>Action</th>
-            </tr>
-          </thead>
-          <tbody id="tblviewMenus">
-            <tr>
-              <td>1</td>
-              <td>
-                <i class="fas fa-home mr-2"></i>
-                <b>Dashboard</b>
-              </td>
-              <td>Main overview page</td>
-              <td class="text-center">
-                <div class="custom-control custom-switch">
-                  <input class="custom-control-input toggle-switch"
-                         type="checkbox"
-                         id="menu1"
-                         checked>
-                  <label class="custom-control-label" for="menu1"></label>
-                </div>
-              </td>
-            </tr>
-
-            <tr>
-              <td>2</td>
-              <td>
-                <i class="fas fa-users mr-2"></i>
-                <b>User Management</b>
-              </td>
-              <td>Add, edit, and remove users</td>
-              <td class="text-center">
-                <div class="custom-control custom-switch">
-                  <input class="custom-control-input toggle-switch"
-                         type="checkbox"
-                         id="menu2">
-                  <label class="custom-control-label" for="menu2"></label>
-                </div>
-              </td>
-            </tr>
-
-            <tr>
-              <td>3</td>
-              <td>
-                <i class="fas fa-cogs mr-2"></i>
-                <b>Settings</b>
-              </td>
-              <td>System configurations</td>
-              <td class="text-center">
-                <div class="custom-control custom-switch">
-                  <input class="custom-control-input toggle-switch"
-                         type="checkbox"
-                         id="menu3"
-                         checked>
-                  <label class="custom-control-label" for="menu3"></label>
-                </div>
-              </td>
-            </tr>
-
-          </tbody>
-        </table>
-      </div>
-
-    </div>
-  </div>
-</div>
 <?php include 'modalContainer.php'; ?>
 
-
 <script>
-// ============================================
-// 1. LOAD INITIAL TABLE
-// ============================================
-/* function loadRoleTable() {
-    $.ajax({
-        type: "POST",
-        url: "backend/bk_rolemanagement.php",
-        data: { request: "viewRoles" },
-        beforeSend: function() {
-            $("#loadingSpinner").show();
-        },
-        success: function(dataResult) {
-            $("#loadingSpinner").hide();
-            $("#tblviewMenus").html(dataResult);
-        },
-        error: function(xhr, status, error) {
-            $("#loadingSpinner").hide();
-            console.error("AJAX error:", error);
-        }
-    });
-} */
-
-// Initial load
+// ============ INITIAL LOAD ============
 $(document).ready(function() {
-	loadTable("backend/bk_rolemanagement.php", "viewRoles", "#tblviewMenus");
+    loadRoles();
 });
 
-$(document).on('click', '#addRoleBtn', function () {
+// ============ LOAD ROLES ============
+function loadRoles() {
+    loadTable("backend/bk_rolemanagement.php", "viewRoles", "#tblviewRoles");
+}
+
+// ============ ADD ROLE MODAL ============
+$(document).on('click', '#addRoleModal', function() {
     openAddModal("page/modals.php", "rolemodal");
 });
 
-// Edit Role Modal
-$(document).on('click', '.btnEditRole', function() {
-    openEditModal("page/modals.php", "roleeditmodal", "roleID", $(this).data('id'));
+// ============ ADD ROLE ============
+$(document).on('click', '#r_submit', function(e) {
+    e.preventDefault();
+    
+    const formData = {
+        request: "addRole",
+        r_role: $("#r_role").val().trim(),
+        r_rolecode: $("#r_rolecode").val().trim(),
+        r_status: $("#r_status").val() || 0
+    };
+    
+    if (!validateRoleForm(formData)) return;
+    
+    const $btn = $(this).loading(true);
+    
+    $.ajax({
+        type: "POST",
+        url: "backend/bk_rolemanagement.php",
+        data: formData,
+        dataType: "json",
+        success: (response) => handleAddRoleResponse(response, $btn),
+        error: (xhr, status, error) => handleAjaxError(error, $btn)
+    });
 });
 
-$(document).on('click', '#btnUpdateRole', function () {
+// ============ EDIT ROLE ============
+$(document).on('click', '.btnEditRole', function() {
+    const roleID = $(this).data('id');
+    openEditModal("page/modals.php", "roleeditmodal", "roleID", roleID);
+});
+
+// ============ UPDATE ROLE ============
+$(document).on('click', '#btnUpdateRole', function() {
     const formData = {
         er_submit: $("#edit_roleID").val(),
         er_role: $("#edit_role").val().trim(),
@@ -155,115 +90,88 @@ $(document).on('click', '#btnUpdateRole', function () {
         er_status: $("#edit_role_status").val()
     };
     
-    if (!formData.er_role || !formData.er_rolecode) {
-        alert("Role name and code are required!");
-        return;
-    }
+    if (!validateRoleForm(formData)) return;
     
     saveData.call(
         this,
-        "backend/bk_addrole.php",
-        "saverole",
+        "backend/bk_rolemanagement.php",
+        "updateRole",
         formData,
-        function(updatedData) {
-            // Update only the edited role row
-            updateRoleRow(updatedData.er_submit, updatedData);
-        }
+        (updatedData) => updateRoleRow(updatedData.er_submit, updatedData)
     );
 });
 
-function updateRoleRow(roleID, updatedData) {
-    const $row = $("tr[data-role-id='" + roleID + "']");
+// ============ HELPER FUNCTIONS ============
+
+// Validate role form
+function validateRoleForm(data) {
+    const roleName = data.r_role || data.er_role;
+    const roleCode = data.r_rolecode || data.er_rolecode;
     
-    if ($row.length) {
-        const $cells = $row.find('td');
-        $cells.eq(1).text(updatedData.er_role);
-        $cells.eq(2).text(updatedData.er_rolecode);
-        $cells.eq(3).text(updatedData.er_status == 0 ? "Active" : "Inactive");
+    if (!roleName || !roleCode) {
+        alert("Role name and code are required!");
+        return false;
+    }
+    return true;
+}
+
+// Handle add role response
+function handleAddRoleResponse(response, $btn) {
+    $btn.loading(false);
+    
+    if (response.status === "success") {
+        $("#rolemodal").modal("hide");
+        alert(response.message);
+        
+        // Add new row to table
+        if (response.rowHtml) {
+            $("#tblviewRoles").append(response.rowHtml);
+            highlightRow($("#tblviewRoles tr:last-child"));
+        }
+        
+        // Clear form
+        $("#r_role, #r_rolecode").val("");
+        $("#r_status").val("0");
+        
     } else {
-        loadTable("backend/bk_rolemanagement.php", "viewRoles", "#tblviewMenus");
+        alert(response.message);
     }
 }
 
-
-// 6. ADD ROLE FUNCTIONALITY (Optional)
-$(document).on('click', '#addRoleModal', function () {
-    $.ajax({
-        type: "POST",
-        url: "page/modals.php",
-        data: { request: "rolemodal" },
-        beforeSend: function () {
-            $("#loadingSpinner").fadeIn(200);
-        },
-        success: function (html) {
-            $("#loadingSpinner").fadeOut(200);
-            
-            // Cleanup
-            if ($("#rolemodal").length) {
-                $("#rolemodal").remove();
-            }
-            $('.modal-backdrop').remove();
-            $('body').removeClass('modal-open');
-            
-            $("body").append(html);
-            $("#rolemodal").modal("show");
-        }
-    });
-});
-
-$(document).on('click', '#r_submit', function (e) {
-    e.preventDefault();
-    
-    const roleData = {
-        request: "addrole",
-        r_role: $("#r_role").val().trim(),
-        r_rolecode: $("#r_rolecode").val().trim(),
-        r_status: $("#r_status").val()
-    };
-    
-    if (!roleData.r_role || !roleData.r_rolecode) {
-        alert("Please fill in both fields!");
-        return;
-    }
-    
-    const $button = $(this);
-    $button.prop('disabled', true).text('Adding...');
-    
-    $.ajax({
-        type: "POST",
-        url: "backend/bk_addrole.php",
-        data: roleData,
-        success: function(response) {
-            $button.prop('disabled', false).text('Add Role');
-            
-            if (response.includes("success")) {
-                alert("Role added successfully!");
-                $("#rolemodal").modal("hide");
-                loadTable(); // Reload table for new role
-            } else {
-                alert("Error: " + response);
-            }
-        }
-    });
-});
-
-function updateSingleRow(roleID, roleName, roleCode, roleStatus) {
-    const $row = $("tr[data-role-id='" + roleID + "']");
+// Update existing role row
+function updateRoleRow(roleID, data) {
+    const $row = $(`tr[data-role-id="${roleID}"]`);
     
     if ($row.length) {
-        // Highlight the row briefly to show it was updated
-        $row.addClass('table-success');
+        $row.find("td:eq(1)").text(data.er_role);
+        $row.find("td:eq(2)").text(data.er_rolecode);
+        $row.find("td:eq(3)").text(data.er_status == 0 ? "Active" : "Inactive");
         
-        // Update cells
-        const $cells = $row.find('td');
-        $cells.eq(1).text(roleName);
-        $cells.eq(2).text(roleCode);
-        $cells.eq(3).text(roleStatus == 0 ? "Active" : "Inactive");
-        
-        // Remove highlight after 1.5 seconds
-        setTimeout(function() {
-            $row.removeClass('table-success');
-        }, 1500);
+        highlightRow($row);
+    } else {
+        // If row not found, reload table
+        loadRoles();
     }
+}
+
+// Highlight row temporarily
+function highlightRow($row) {
+    $row.addClass("table-success");
+    setTimeout(() => $row.removeClass("table-success"), 1500);
+}
+
+// Loading button helper
+$.fn.loading = function(isLoading) {
+    if (isLoading) {
+        return this.html('<i class="fas fa-spinner fa-spin"></i> Processing...').prop('disabled', true);
+    } else {
+        return this.html('Add Role').prop('disabled', false);
+    }
+};
+
+// Handle AJAX error
+function handleAjaxError(error, $btn) {
+    $btn.loading(false);
+    alert("Connection error: " + error);
 }
 </script>
