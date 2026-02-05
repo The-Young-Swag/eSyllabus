@@ -199,22 +199,26 @@ function validateMenuForm(data) {
 function handleAddResponse(response, $btn) {
     $btn.loading(false);
     
-    switch (response.status) {
-        case "success":
-            $("#menuAddmodal").modal("hide");
-            alert(response.message);
-            insertMenuRow(response.rowHtml, response.menuData?.Arrangement || 0);
-            clearMenuForm();
-            break;
-            
-        case "error":
-            if (response.message === "DUPLICATE_CODE") {
-                alert("Menu code already exists!");
-                $("#m_code").focus().select();
-            } else {
-                alert("Error: " + response.message);
-            }
-            break;
+    // Handle both "success" and "1" status
+    const isSuccess = response.status === "success" || response.status === "1";
+    
+    if (isSuccess) {
+        $("#menuAddmodal").modal("hide");
+        alert(response.message || "Menu added successfully!");
+        
+        if (response.rowHtml) {
+            insertMenuRow(response.rowHtml, response.menuData?.Arrangement || response.menuData?.arrangement || 0);
+        }
+        
+        clearMenuForm();
+        updateSidebar(); // Update sidebar in real-time
+    } else {
+        if (response.message === "DUPLICATE_CODE") {
+            alert("Menu code already exists!");
+            $("#m_code").focus().select();
+        } else {
+            alert("Error: " + (response.message || "Unknown error"));
+        }
     }
 }
 
@@ -276,6 +280,7 @@ $.fn.loading = function(isLoading) {
 // ============ UPDATE MENU ============
 $(document).on('click', '#btnUpdateMenu', function() {
     const formData = {
+        request: "updateMenu",
         menID: $("#edit_menID").val(),
         menu: $("#edit_menu").val().trim(),
         desc: $("#edit_desc").val(),
@@ -292,13 +297,44 @@ $(document).on('click', '#btnUpdateMenu', function() {
         return;
     }
     
-    saveData.call(
-        this,
-        "backend/bk_menumanagement.php",
-        "updateMenu",
-        formData,
-        (updatedData) => updateMenuRow(updatedData.menID, updatedData)
-    );
+    const $button = $(this);
+    const originalText = $button.html();
+    
+    $button.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Saving...');
+    
+    $.ajax({
+        type: "POST",
+        url: "backend/bk_menumanagement.php",
+        data: formData,
+        dataType: "json",
+        success: function(response) {
+            $button.prop('disabled', false).html(originalText);
+            
+            // Handle both "success" and "1" status
+            const isSuccess = response.status === "success" || response.status === "1";
+            
+            if (isSuccess) {
+                alert("Saved successfully!");
+                
+                // Update the specific row
+                updateMenuRow(response.menID || formData.menID, response);
+                
+                // Update sidebar in real-time
+                updateSidebar();
+                
+                $('.modal').modal('hide');
+            } else if (response.message === "DUPLICATE_CODE") {
+                alert("Menu code already exists! Please use a different code.");
+                $("#edit_code").focus().select();
+            } else {
+                alert("Error: " + (response.message || "Unknown error"));
+            }
+        },
+        error: function(xhr, status, error) {
+            $button.prop('disabled', false).html(originalText);
+            alert("Error saving: " + error);
+        }
+    });
 });
 
 // Update single row
@@ -315,7 +351,8 @@ function updateMenuRow(menID, data) {
         $row.find("td:eq(7)").text(data.icon);
         
         const $checkbox = $row.find('.toggleMenuStatus');
-        $checkbox.prop('checked', data.status == 0);
+        const isChecked = data.status == "0" || data.status === 0;
+        $checkbox.prop('checked', isChecked);
         
         highlightRow($row);
     } else {
@@ -328,21 +365,105 @@ function updateMenuRow(menID, data) {
 $(document).on('change', '.toggleMenuStatus', function() {
     const $checkbox = $(this);
     const menuID = $checkbox.data('id');
-    const isActive = $checkbox.is(':checked');
+    const isActive = $checkbox.is(':checked'); // true = active (UnActive = 0)
+    const newStatus = isActive ? 0 : 1; // 0 = active, 1 = inactive
     
     if (confirm(`Are you sure you want to ${isActive ? 'activate' : 'deactivate'} this menu?`)) {
-        $.post("backend/bk_menumanagement.php", {
-            request: "toggleMenuStatus",
-            menID: menuID,
-            status: isActive ? 0 : 1
-        }, function(response) {
-            if (response !== "SUCCESS") {
+        $.ajax({
+            url: "backend/bk_menumanagement.php",
+            method: "POST",
+            dataType: "json",
+            data: {
+                request: "toggleMenuStatus",
+                menID: menuID,
+                status: newStatus
+            },
+            success: function(response) {
+                // Handle both "success" and "1" status
+                const isSuccess = response.status === "success" || response.status === "1";
+                
+                if (isSuccess) {
+                    // Update sidebar in real-time
+                    updateSidebar();
+                } else {
+                    $checkbox.prop('checked', !isActive);
+                    alert("Update failed!");
+                }
+            },
+            error: function() {
                 $checkbox.prop('checked', !isActive);
-                alert("Update failed!");
+                alert("Error updating status!");
             }
         });
     } else {
+        // Revert checkbox if user cancels
         $checkbox.prop('checked', !isActive);
     }
 });
+
+// ============ REAL-TIME SIDEBAR UPDATES ============
+
+/**
+ * Update sidebar menu without page reload
+ */
+function updateSidebar() {
+    const currentRID = UserInfo["RID"] || 0;
+    
+    if (!currentRID) {
+        console.log("Cannot update sidebar: No RID available");
+        return;
+    }
+    
+    $.ajax({
+        url: "backend/bk_menumanagement.php",
+        method: "POST",
+        data: {
+            request: "getSidebarMenu",
+            RID: currentRID,
+            userRID: currentRID
+        },
+        success: function(html) {
+            if (html) {
+                $("#sidebarMenuContainer").html(html);
+                
+                // Reinitialize menu highlighting if function exists
+                if (typeof setupMenuHighlighting === "function") {
+                    setupMenuHighlighting();
+                }
+                
+                console.log("Sidebar updated successfully");
+            }
+        },
+        error: function(xhr, status, error) {
+            console.log("Sidebar update failed:", error);
+        }
+    });
+}
+
+// Toast notification helper (optional)
+function showToast(message, type = "success") {
+    // Remove existing toasts
+    $(".toast").remove();
+    
+    const toastClass = type === "success" ? "bg-success" : 
+                       type === "warning" ? "bg-warning" : 
+                       type === "error" ? "bg-danger" : "bg-info";
+    
+    const toastHtml = `
+        <div class="toast" style="position: fixed; top: 20px; right: 20px; z-index: 9999;">
+            <div class="toast-header ${toastClass} text-white">
+                <strong class="mr-auto">System</strong>
+                <button type="button" class="ml-2 mb-1 close text-white" data-dismiss="toast">
+                    &times;
+                </button>
+            </div>
+            <div class="toast-body">
+                ${message}
+            </div>
+        </div>
+    `;
+    
+    $("body").append(toastHtml);
+    $(".toast").toast({ delay: 2000 }).toast("show");
+}
 </script>

@@ -687,3 +687,77 @@ function saveData(saveURL, saveRequest, formData, updateRowCallback) {
         }
     });
 }
+
+// Add this to your custom reusable functions
+
+/**
+ * Updates sidebar menu in real-time after menu changes
+ * Similar to privilege management updates
+ * @param {number} RID - Role ID (optional, uses current user's RID if not provided)
+ */
+function updateSidebarMenu(RID = null) {
+    const currentRID = RID || UserInfo["RID"] || 0;
+    
+    if (!currentRID) {
+        console.log("No RID available for sidebar update");
+        return;
+    }
+    
+    $.ajax({
+        url: "backend/bk_menumanagement.php",
+        method: "POST",
+        data: {
+            request: "getSidebarMenu",
+            RID: currentRID
+        },
+        success: function(html) {
+            // Update sidebar container
+            $("#sidebarMenuContainer").html(html);
+            
+            // Re-run menu highlighting
+            if (typeof setupMenuHighlighting === "function") {
+                setupMenuHighlighting();
+            }
+            
+            // Show subtle notification
+            if (typeof showToast === "function") {
+                showToast("Menu updated");
+            }
+        },
+        error: function() {
+            console.log("Sidebar update failed");
+        }
+    });
+}
+
+/**
+ * Show toast notification
+ * @param {string} message - Message to display
+ * @param {string} type - "success", "warning", "error"
+ */
+function showToast(message, type = "success") {
+    const toastId = "toast-" + Date.now();
+    const bgColor = type === "success" ? "bg-success" : 
+                   type === "warning" ? "bg-warning" : 
+                   type === "error" ? "bg-danger" : "bg-info";
+    
+    const toastHtml = `
+        <div id="${toastId}" class="toast" style="position: fixed; top: 20px; right: 20px; z-index: 1060;">
+            <div class="toast-header ${bgColor} text-white">
+                <strong class="mr-auto">System</strong>
+                <button type="button" class="ml-2 mb-1 close text-white" data-dismiss="toast">
+                    &times;
+                </button>
+            </div>
+            <div class="toast-body">
+                ${message}
+            </div>
+        </div>
+    `;
+    
+    $("body").append(toastHtml);
+    $(`#${toastId}`).toast({ delay: 2000 }).toast("show");
+    
+    // Remove after animation
+    setTimeout(() => $(`#${toastId}`).remove(), 2500);
+}

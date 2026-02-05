@@ -15,6 +15,14 @@ switch ($request) {
     case "updateMenu":
         handleUpdateMenu();
         exit;
+        
+    case "toggleMenuStatus":
+        handleToggleStatus();
+        exit;
+        
+    case "getSidebarMenu":
+        echo getSidebarMenu();
+        exit;
 }
 
 // ============ FUNCTIONS ============
@@ -47,8 +55,9 @@ function showAll($MenID, $tab) {
             <td class='text-center'>
                 <div class='custom-control custom-switch'>
                     <input type='checkbox' class='custom-control-input toggleMenuStatus'
+                           id='menuStatus" . $menu["MenID"] . "'
                            data-id='" . $menu["MenID"] . "' " . ($menu["UnActive"] == 0 ? "checked" : "") . ">
-                    <label class='custom-control-label'></label>
+                    <label class='custom-control-label' for='menuStatus" . $menu["MenID"] . "'></label>
                 </div>
             </td>
             <td class='text-center'>
@@ -85,7 +94,7 @@ function handleAddMenu() {
         exit;
     }
     
-    // Insert menu (NO try-catch needed)
+    // Insert menu
     execsqlSRS("
         INSERT INTO Sys_Menu (Menu, MotherMenID, Description, Menucode, 
                              MenuLink, Arrangement, UnActive, MenIcon) 
@@ -98,8 +107,8 @@ function handleAddMenu() {
     ", "Search", [$code]);
     
     if (!empty($newMenu)) {
-        $menu = $newMenu[0];
-        $menuID = $menu['MenID'];
+        $menuData = $newMenu[0];
+        $menuID = $menuData['MenID'];
         
         // Assign to all roles
         $roles = execsqlSRS("SELECT RID FROM Sys_Role WHERE UnActive = '0'", "Search", []);
@@ -112,7 +121,8 @@ function handleAddMenu() {
         echo json_encode([
             "status" => "success",
             "message" => "Menu added successfully!",
-            "rowHtml" => generateMenuRow($menu, $mother)
+            "rowHtml" => generateMenuRow($menuData, $mother),
+            "menuData" => $menuData
         ]);
     } else {
         echo json_encode(["status" => "error", "message" => "INSERT_FAILED"]);
@@ -137,8 +147,9 @@ function generateMenuRow($menu, $motherID = 0) {
         <td class='text-center'>
             <div class='custom-control custom-switch'>
                 <input type='checkbox' class='custom-control-input toggleMenuStatus'
+                       id='menuStatus" . $menu["MenID"] . "'
                        data-id='" . $menu["MenID"] . "' " . ($menu["UnActive"] == 0 ? "checked" : "") . ">
-                <label class='custom-control-label'></label>
+                <label class='custom-control-label' for='menuStatus" . $menu["MenID"] . "'></label>
             </div>
         </td>
         <td class='text-center'>
@@ -159,7 +170,7 @@ function handleUpdateMenu() {
                        "Search", [$code, $menID]);
     
     if ($check[0]['count'] > 0) {
-        echo "DUPLICATE_CODE";
+        echo json_encode(["status" => "error", "message" => "DUPLICATE_CODE"]);
         exit;
     }
     
@@ -181,6 +192,109 @@ function handleUpdateMenu() {
         $menID
     ]);
     
-    echo "SUCCESS";
+    // Get updated menu data
+    $updatedMenu = execsqlSRS("SELECT * FROM Sys_Menu WHERE MenID = ?", "Search", [$menID]);
+    
+    if (!empty($updatedMenu)) {
+        echo json_encode([
+            "status" => "success",
+            "menID" => $menID,
+            "menu" => $_POST['menu'] ?? '',
+            "desc" => $_POST['desc'] ?? '',
+            "code" => $code,
+            "link" => $_POST['link'] ?? '',
+            "mother" => $_POST['mother'] ?? 0,
+            "arrangement" => $_POST['arrangement'] ?? 0,
+            "status" => $_POST['status'] ?? 0,
+            "icon" => $_POST['icon'] ?? ''
+        ]);
+    } else {
+        echo json_encode(["status" => "success", "message" => "Updated successfully"]);
+    }
+}
+
+function handleToggleStatus() {
+    $menID = $_POST['menID'] ?? 0;
+    $status = $_POST['status'] ?? 0;
+    
+    // Update menu status
+    execsqlSRS("UPDATE Sys_Menu SET UnActive = ? WHERE MenID = ?", "Update", [$status, $menID]);
+    
+    echo json_encode(["status" => "success", "message" => "Status updated"]);
+}
+
+function getSidebarMenu() {
+    $RID = $_POST['RID'] ?? 0;
+    
+    if (!$RID) {
+        // Try to get from session if available
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        $RID = $_SESSION['RID'] ?? 0;
+    }
+    
+    // If still no RID, try to get from global UserInfo if available
+    if (!$RID && isset($_POST['userRID'])) {
+        $RID = $_POST['userRID'];
+    }
+    
+    // If still no RID, return empty
+    if (!$RID) {
+        return '';
+    }
+    
+    $html = '';
+    $UserMenus = execsqlSRS("
+        SELECT m.* 
+        FROM Sys_Menu m 
+        INNER JOIN Sys_RoleMenu rm ON rm.MenID = m.MenID 
+        INNER JOIN Sys_Role r ON r.RID = rm.RID 
+        WHERE rm.RID = ? 
+        AND m.Unactive = 0 
+        AND rm.Unactive = 0 
+        AND r.Unactive = 0 
+        AND MotherMenID = 0
+        ORDER BY m.Arrangement ASC
+    ", "Select", [$RID]);
+
+    foreach ($UserMenus as $menuItem) {
+        $html .= "<li class='nav-item' data-read='{$menuItem["MenID"]}'>
+                <a href='#' class='nav-link' id='clckdropdown' data-IDsubmenu='{$menuItem["MenID"]}'>
+                    <i class='" . htmlspecialchars($menuItem["MenIcon"]) . "'></i>
+                    <p>
+                        {$menuItem["Menu"]}
+                        <i class='right fas fa-angle-left'></i>
+                    </p>
+                </a>
+                <ul class='nav nav-treeview' id='{$menuItem["MenID"]}'>";
+
+        $childMenus = execsqlSRS("SELECT m.* 
+                FROM Sys_Menu m 
+                INNER JOIN Sys_RoleMenu rm ON rm.MenID = m.MenID 
+                INNER JOIN Sys_Role r ON r.RID = rm.RID 
+                WHERE rm.RID = ? 
+                AND m.Unactive = 0 
+                AND rm.Unactive = 0 
+                AND r.Unactive = 0 
+                and MotherMenID = ?
+                ORDER BY m.Arrangement ASC
+            ", "Select", [$RID, $menuItem["MenID"]]);
+    
+        foreach ($childMenus as $childMenu) {
+            $logoutClass = htmlspecialchars($childMenu["Menucode"]) == "u_Logout" ? "bg-danger rounded" : "";
+            
+            $html .= "<li class='nav-item {$logoutClass}'>
+                    <a href='#' class='nav-link' id='callpages' data-pagename='{$childMenu["MenuLink"]}'>
+                        <i class='" . htmlspecialchars($childMenu["MenIcon"]) . "'></i>
+                        <p>{$childMenu["Menu"]}</p>
+                    </a>
+                  </li>";
+        }
+
+        $html .= "</ul></li>";
+    }
+    
+    return $html;
 }
 ?>
