@@ -1,0 +1,11 @@
+
+[HKEY_CLASSES_ROOT\tca-hr]
+@="URL:TCA HR System"
+"URL Protocol"=""
+
+[HKEY_CLASSES_ROOT\tca-hr\shell]
+
+[HKEY_CLASSES_ROOT\tca-hr\shell\open]
+
+[HKEY_CLASSES_ROOT\tca-hr\shell\open\command]
+@="\"C:\\Program Files (x86)\\Tarlac College of Agriculture\\TCA Integrated System\\HR Information System.exe\""
