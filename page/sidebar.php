@@ -72,17 +72,19 @@ $dashTitle = $dashTitle ?? 'Dashboard';
 
                 // Loop through the organized menu structure and create HTML
                 foreach ($UserMenus as $menuItem) {
+                    // Add icon with fallback
+                    $icon = !empty($menuItem["MenIcon"]) ? htmlspecialchars($menuItem["MenIcon"]) : 'fas fa-circle';
+                    
                     // Start a parent menu item
                     echo "<li class='nav-item' id='dropdown' data-read='{$menuItem["MenID"]}'>
                             <a href='#' class='nav-link' id='clckdropdown' data-IDsubmenu='{$menuItem["MenID"]}' data-Page='namepage'>
-                                <i class='" . htmlspecialchars($menuItem["MenIcon"]) . "'></i>
+                                <i class='{$icon}'></i>
                                 <p>
                                     {$menuItem["Menu"]}
                                     <i class='right fas fa-angle-left'></i> <!-- Indicates dropdown -->
                                 </p>
                             </a>
                             <ul class='nav nav-treeview' id='{$menuItem["MenID"]}'>";
-
 
                      $childMenus = execsqlSRS("SELECT m.* 
                             FROM Sys_Menu m 
@@ -98,21 +100,20 @@ $dashTitle = $dashTitle ?? 'Dashboard';
                 
                     // Loop through child menus and add them under the parent
                     foreach ($childMenus as $childMenu) {
+                        // Add icon with fallback for child menus
+                        $childIcon = !empty($childMenu["MenIcon"]) ? htmlspecialchars($childMenu["MenIcon"]) : 'fas fa-circle';
                         
                         if (htmlspecialchars($childMenu["Menucode"]) == "u_Logout") {
-                            
-                        echo "<li class='nav-item bg-danger rounded'>
-                                <a href='#' class='nav-link' id='callpages' data-pagename='{$childMenu["MenuLink"]}'>
-                                    <i class='" . htmlspecialchars($childMenu["MenIcon"]) . "'></i>
-                                    <p>{$childMenu["Menu"]}</p> <!-- Child menu -->
-                                </a>
-                              </li>";
-                            
+                            echo "<li class='nav-item bg-danger rounded'>
+                                    <a href='#' class='nav-link' id='callpages' data-pagename='{$childMenu["MenuLink"]}'>
+                                        <i class='{$childIcon}'></i>
+                                        <p>{$childMenu["Menu"]}</p> <!-- Child menu -->
+                                    </a>
+                                  </li>";
                         } else {
-                        
                             echo "<li class='nav-item'>
                                     <a href='#' class='nav-link' id='callpages' data-pagename='{$childMenu["MenuLink"]}'>
-                                        <i class='" . htmlspecialchars($childMenu["MenIcon"]) . "'></i>
+                                        <i class='{$childIcon}'></i>
                                         <p>{$childMenu["Menu"]}</p> <!-- Child menu -->
                                     </a>
                                   </li>";

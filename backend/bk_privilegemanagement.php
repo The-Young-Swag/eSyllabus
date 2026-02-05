@@ -314,9 +314,12 @@ function generateUserMenuHTML($roleID) {
     $html = '';
     
     foreach ($UserMenus as $menuItem) {
+        // Always include icon field - even if empty
+        $icon = !empty($menuItem["MenIcon"]) ? htmlspecialchars($menuItem["MenIcon"]) : 'fas fa-circle';
+        
         $html .= "<li class='nav-item' id='dropdown' data-read='{$menuItem["MenID"]}'>
                     <a href='#' class='nav-link' id='clckdropdown' data-IDsubmenu='{$menuItem["MenID"]}' data-Page='namepage'>
-                        <i class='" . htmlspecialchars($menuItem["MenIcon"]) . "'></i>
+                        <i class='{$icon}'></i>
                         <p>
                             {$menuItem["Menu"]}
                             <i class='right fas fa-angle-left'></i>
@@ -337,12 +340,14 @@ function generateUserMenuHTML($roleID) {
             ", "Select", array(":rid" => $roleID, ":motherID" => $menuItem["MenID"]));
     
         foreach ($childMenus as $childMenu) {
+            // Always include icon field for child menus too
+            $childIcon = !empty($childMenu["MenIcon"]) ? htmlspecialchars($childMenu["MenIcon"]) : 'fas fa-circle';
             $isLogout = (htmlspecialchars($childMenu["Menucode"]) == "u_Logout");
             $bgClass = $isLogout ? "bg-danger rounded" : "";
             
             $html .= "<li class='nav-item {$bgClass}'>
                         <a href='#' class='nav-link' id='callpages' data-pagename='{$childMenu["MenuLink"]}'>
-                            <i class='" . htmlspecialchars($childMenu["MenIcon"]) . "'></i>
+                            <i class='{$childIcon}'></i>
                             <p>{$childMenu["Menu"]}</p>
                         </a>
                       </li>";

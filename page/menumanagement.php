@@ -151,13 +151,21 @@ $(document).on('click', '.btnEditMenu', function() {
 // ============ ADD MENU (REAL-TIME) ============
 $(document).on('click', '#btnaddmenu', function(e) {
     e.preventDefault();
+    e.stopPropagation();
+    
+    const $btn = $(this);
+    
+    // Prevent double click
+    if ($btn.prop('disabled')) {
+        return false;
+    }
     
     // Get form data
     const formData = getMenuFormData();
-    if (!validateMenuForm(formData)) return;
+    if (!validateMenuForm(formData)) return false;
     
     // Submit
-    const $btn = $(this).loading(true);
+    $btn.loading(true);
     
     $.ajax({
         type: "POST",
@@ -167,6 +175,8 @@ $(document).on('click', '#btnaddmenu', function(e) {
         success: (response) => handleAddResponse(response, $btn),
         error: (xhr, status, error) => handleAjaxError(error, $btn)
     });
+    
+    return false;
 });
 
 // ============ HELPER FUNCTIONS ============
@@ -202,13 +212,19 @@ function handleAddResponse(response, $btn) {
     // Check for success using response.success
     if (response.success === true) {
         $("#menuAddmodal").modal("hide");
+        
+        // Clear form after modal is hidden
+        setTimeout(() => {
+            clearMenuForm();
+        }, 300);
+        
+        // Show success message
         alert(response.message || "Menu added successfully!");
         
         if (response.rowHtml) {
             insertMenuRow(response.rowHtml, response.menuData?.Arrangement || response.menuData?.arrangement || 0);
         }
         
-        clearMenuForm();
         updateSidebar();
     } else {
         if (response.message === "DUPLICATE_CODE") {
@@ -276,7 +292,17 @@ $.fn.loading = function(isLoading) {
 };
 
 // ============ UPDATE MENU ============
-$(document).on('click', '#btnUpdateMenu', function() {
+$(document).on('click', '#btnUpdateMenu', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const $button = $(this);
+    
+    // Prevent double click
+    if ($button.prop('disabled')) {
+        return false;
+    }
+    
     const formData = {
         request: "updateMenu",
         menID: $("#edit_menID").val(),
@@ -292,10 +318,9 @@ $(document).on('click', '#btnUpdateMenu', function() {
     
     if (!formData.menu || !formData.code) {
         alert("Menu name and code are required!");
-        return;
+        return false;
     }
     
-    const $button = $(this);
     const originalText = $button.html();
     
     $button.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Saving...');
@@ -310,24 +335,28 @@ $(document).on('click', '#btnUpdateMenu', function() {
             
             // Check for success using response.success instead of response.status
             if (response.success === true) {
-                alert("Saved successfully!");
-                
-                // Update the specific row - use menuStatus instead of status
-                updateMenuRow(response.menID || formData.menID, {
-                    menu: response.menu,
-                    desc: response.desc,
-                    code: response.code,
-                    link: response.link,
-                    mother: response.mother,
-                    arrangement: response.arrangement,
-                    status: response.menuStatus,  // Use menuStatus instead of status
-                    icon: response.icon
-                });
-                
-                // Update sidebar in real-time
-                updateSidebar();
-                
+                // Close modal first
                 $('.modal').modal('hide');
+                
+                // Wait for modal to close, then show alert
+                setTimeout(() => {
+                    alert("Saved successfully!");
+                    
+                    // Update the specific row
+                    updateMenuRow(response.menID || formData.menID, {
+                        menu: response.menu,
+                        desc: response.desc,
+                        code: response.code,
+                        link: response.link,
+                        mother: response.mother,
+                        arrangement: response.arrangement,
+                        status: response.menuStatus,
+                        icon: response.icon
+                    });
+                    
+                    // Update sidebar in real-time
+                    updateSidebar();
+                }, 300);
             } else if (response.message === "DUPLICATE_CODE") {
                 alert("Menu code already exists! Please use a different code.");
                 $("#edit_code").focus().select();
@@ -340,9 +369,11 @@ $(document).on('click', '#btnUpdateMenu', function() {
             alert("Connection Error: " + error);
         }
     });
+    
+    return false;
 });
 
-// Update single row
+// REMOVE THE DUPLICATE FUNCTION - Keep only one updateMenuRow function
 function updateMenuRow(menID, data) {
     const $row = $(`#tblviewMenus tr:has(td:first-child:contains('${menID}'))`);
     
@@ -356,33 +387,8 @@ function updateMenuRow(menID, data) {
         $row.find("td:eq(7)").text(data.icon);
         
         const $checkbox = $row.find('.toggleMenuStatus');
-        // Use menuStatus if available, otherwise use status
         const menuStatus = data.menuStatus !== undefined ? data.menuStatus : data.status;
         const isChecked = menuStatus == "0" || menuStatus === 0;
-        $checkbox.prop('checked', isChecked);
-        
-        highlightRow($row);
-    } else {
-        // Fallback: reload table
-        loadTable("backend/bk_menumanagement.php", "viewMenus", "#tblviewMenus");
-    }
-}
-
-// Update single row
-function updateMenuRow(menID, data) {
-    const $row = $(`#tblviewMenus tr:has(td:first-child:contains('${menID}'))`);
-    
-    if ($row.length) {
-        $row.find("td:eq(1)").text(data.menu);
-        $row.find("td:eq(2)").text(data.mother);
-        $row.find("td:eq(3)").text(data.desc);
-        $row.find("td:eq(4)").text(data.code);
-        $row.find("td:eq(5)").text(data.link);
-        $row.find("td:eq(6)").text(data.arrangement);
-        $row.find("td:eq(7)").text(data.icon);
-        
-        const $checkbox = $row.find('.toggleMenuStatus');
-        const isChecked = data.status == "0" || data.status === 0;
         $checkbox.prop('checked', isChecked);
         
         highlightRow($row);
@@ -433,6 +439,7 @@ $(document).on('change', '.toggleMenuStatus', function() {
         $checkbox.prop('checked', !isActive);
     }
 });
+
 // ============ REAL-TIME SIDEBAR UPDATES ============
 
 /**
@@ -470,32 +477,5 @@ function updateSidebar() {
             console.log("Sidebar update failed:", error);
         }
     });
-}
-
-// Toast notification helper (optional)
-function showToast(message, type = "success") {
-    // Remove existing toasts
-    $(".toast").remove();
-    
-    const toastClass = type === "success" ? "bg-success" : 
-                       type === "warning" ? "bg-warning" : 
-                       type === "error" ? "bg-danger" : "bg-info";
-    
-    const toastHtml = `
-        <div class="toast" style="position: fixed; top: 20px; right: 20px; z-index: 9999;">
-            <div class="toast-header ${toastClass} text-white">
-                <strong class="mr-auto">System</strong>
-                <button type="button" class="ml-2 mb-1 close text-white" data-dismiss="toast">
-                    &times;
-                </button>
-            </div>
-            <div class="toast-body">
-                ${message}
-            </div>
-        </div>
-    `;
-    
-    $("body").append(toastHtml);
-    $(".toast").toast({ delay: 2000 }).toast("show");
 }
 </script>
