@@ -151,19 +151,22 @@ function getUserTableHTML($isActive = 0) {
     $html = '';
     foreach ($users as $index => $user) {
         $statusClass = $isActive == 1 ? 'table-danger' : '';
-        $password = str_repeat('•', 8); // Password dots instead of asterisks
+        $maskedPassword = str_repeat('•', 8); // Masked dots
+        
+        // Get the actual password - escape it for HTML attribute
+        $actualPassword = htmlspecialchars($user['Password'], ENT_QUOTES);
         
         $html .= "<tr class='{$statusClass}' data-userid='{$user['UserID']}' data-active='{$user['IsActive']}'>";
         $html .= "<td>" . ($index + 1) . "</td>";
         $html .= "<td>{$user['EmpID']}</td>";
         
-        // Password field with toggle
+        // Password field with toggle - FIXED: Add class and proper data attributes
         $html .= "<td>
                     <div class='input-group'>
                         <input type='password' 
                                class='form-control border-0 bg-transparent password-field' 
-                               value='{$password}' 
-                               data-password='{$user['Password']}'
+                               value='{$maskedPassword}' 
+                               data-password='{$actualPassword}' 
                                data-userid='{$user['UserID']}'
                                readonly>
                         <div class='input-group-append'>
@@ -177,13 +180,13 @@ function getUserTableHTML($isActive = 0) {
                     </div>
                   </td>";
         
-        $html .= "<td>{$user['Name']}</td>";
-        $html .= "<td>" . ($user['OfficeName'] ?? 'N/A') . "</td>";
-        $html .= "<td>" . ($user['Position_id'] ?? 'N/A') . "</td>";
-        $html .= "<td>{$user['Role']}</td>";
-        $html .= "<td>{$user['EmailAddress']}</td>";
+        $html .= "<td>" . htmlspecialchars($user['Name']) . "</td>";
+        $html .= "<td>" . htmlspecialchars($user['OfficeName'] ?? 'N/A') . "</td>";
+        $html .= "<td>" . htmlspecialchars($user['Position_id'] ?? 'N/A') . "</td>";
+        $html .= "<td>" . htmlspecialchars($user['Role']) . "</td>";
+        $html .= "<td>" . htmlspecialchars($user['EmailAddress']) . "</td>";
         
-        // Status toggle - Note: IsActive = 0 means ACTIVE (checkbox checked)
+        // Status toggle
         $checked = $user['IsActive'] == 0 ? 'checked' : '';
         $html .= "<td class='text-center'>
                     <div class='custom-control custom-switch'>

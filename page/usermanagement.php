@@ -91,9 +91,15 @@
 <script>
 // ==================== UTILITY FUNCTIONS ====================
 function togglePassword(userId) {
-    const input = $(`[data-userid="${userId}"].password-field`);
+    const input = $(`input.password-field[data-userid="${userId}"]`);
     const icon = $(`#eye_${userId}`);
-    const actualPassword = input.data('password') || '••••••••';
+    
+    if (input.length === 0) {
+        console.error('Password input not found for user ID:', userId);
+        return;
+    }
+    
+    const actualPassword = input.data('password') || '';
     
     if (input.attr('type') === 'password') {
         input.attr('type', 'text').val(actualPassword);
@@ -105,7 +111,9 @@ function togglePassword(userId) {
         icon.closest('button').attr('title', 'Show Password');
     }
     
-    icon.closest('button').tooltip('dispose').tooltip();
+    // Update tooltip
+    const button = icon.closest('button');
+    button.tooltip('dispose').tooltip();
 }
 
 function loadUsers(type) {
