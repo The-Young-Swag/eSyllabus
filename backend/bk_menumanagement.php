@@ -90,7 +90,7 @@ function handleAddMenu() {
                        "Search", [$code]);
     
     if ($check[0]['count'] > 0) {
-        echo json_encode(["status" => "error", "message" => "DUPLICATE_CODE"]);
+        echo json_encode(["success" => false, "message" => "DUPLICATE_CODE"]);
         exit;
     }
     
@@ -119,13 +119,13 @@ function handleAddMenu() {
         
         // Return success
         echo json_encode([
-            "status" => "success",
+            "success" => true,
             "message" => "Menu added successfully!",
             "rowHtml" => generateMenuRow($menuData, $mother),
             "menuData" => $menuData
         ]);
     } else {
-        echo json_encode(["status" => "error", "message" => "INSERT_FAILED"]);
+        echo json_encode(["success" => false, "message" => "INSERT_FAILED"]);
     }
 }
 
@@ -197,7 +197,7 @@ function handleUpdateMenu() {
     
     if (!empty($updatedMenu)) {
         echo json_encode([
-            "status" => "success",
+            "success" => true,  // Changed from "status" => "success"
             "menID" => $menID,
             "menu" => $_POST['menu'] ?? '',
             "desc" => $_POST['desc'] ?? '',
@@ -205,11 +205,11 @@ function handleUpdateMenu() {
             "link" => $_POST['link'] ?? '',
             "mother" => $_POST['mother'] ?? 0,
             "arrangement" => $_POST['arrangement'] ?? 0,
-            "status" => $_POST['status'] ?? 0,
+            "menuStatus" => $_POST['status'] ?? 0,  // Changed from "status" to "menuStatus"
             "icon" => $_POST['icon'] ?? ''
         ]);
     } else {
-        echo json_encode(["status" => "success", "message" => "Updated successfully"]);
+        echo json_encode(["success" => false, "message" => "Update failed"]);
     }
 }
 
@@ -220,7 +220,7 @@ function handleToggleStatus() {
     // Update menu status
     execsqlSRS("UPDATE Sys_Menu SET UnActive = ? WHERE MenID = ?", "Update", [$status, $menID]);
     
-    echo json_encode(["status" => "success", "message" => "Status updated"]);
+    echo json_encode(["success" => true, "message" => "Status updated"]);  // Changed from status to success
 }
 
 function getSidebarMenu() {

@@ -199,10 +199,8 @@ function validateMenuForm(data) {
 function handleAddResponse(response, $btn) {
     $btn.loading(false);
     
-    // Handle both "success" and "1" status
-    const isSuccess = response.status === "success" || response.status === "1";
-    
-    if (isSuccess) {
+    // Check for success using response.success
+    if (response.success === true) {
         $("#menuAddmodal").modal("hide");
         alert(response.message || "Menu added successfully!");
         
@@ -211,13 +209,13 @@ function handleAddResponse(response, $btn) {
         }
         
         clearMenuForm();
-        updateSidebar(); // Update sidebar in real-time
+        updateSidebar();
     } else {
         if (response.message === "DUPLICATE_CODE") {
             alert("Menu code already exists!");
             $("#m_code").focus().select();
         } else {
-            alert("Error: " + (response.message || "Unknown error"));
+            alert("Error: " + (response.message || "Failed to add menu"));
         }
     }
 }
@@ -310,14 +308,21 @@ $(document).on('click', '#btnUpdateMenu', function() {
         success: function(response) {
             $button.prop('disabled', false).html(originalText);
             
-            // Handle both "success" and "1" status
-            const isSuccess = response.status === "success" || response.status === "1";
-            
-            if (isSuccess) {
+            // Check for success using response.success instead of response.status
+            if (response.success === true) {
                 alert("Saved successfully!");
                 
-                // Update the specific row
-                updateMenuRow(response.menID || formData.menID, response);
+                // Update the specific row - use menuStatus instead of status
+                updateMenuRow(response.menID || formData.menID, {
+                    menu: response.menu,
+                    desc: response.desc,
+                    code: response.code,
+                    link: response.link,
+                    mother: response.mother,
+                    arrangement: response.arrangement,
+                    status: response.menuStatus,  // Use menuStatus instead of status
+                    icon: response.icon
+                });
                 
                 // Update sidebar in real-time
                 updateSidebar();
@@ -327,15 +332,41 @@ $(document).on('click', '#btnUpdateMenu', function() {
                 alert("Menu code already exists! Please use a different code.");
                 $("#edit_code").focus().select();
             } else {
-                alert("Error: " + (response.message || "Unknown error"));
+                alert("Error: " + (response.message || "Update failed"));
             }
         },
         error: function(xhr, status, error) {
             $button.prop('disabled', false).html(originalText);
-            alert("Error saving: " + error);
+            alert("Connection Error: " + error);
         }
     });
 });
+
+// Update single row
+function updateMenuRow(menID, data) {
+    const $row = $(`#tblviewMenus tr:has(td:first-child:contains('${menID}'))`);
+    
+    if ($row.length) {
+        $row.find("td:eq(1)").text(data.menu);
+        $row.find("td:eq(2)").text(data.mother);
+        $row.find("td:eq(3)").text(data.desc);
+        $row.find("td:eq(4)").text(data.code);
+        $row.find("td:eq(5)").text(data.link);
+        $row.find("td:eq(6)").text(data.arrangement);
+        $row.find("td:eq(7)").text(data.icon);
+        
+        const $checkbox = $row.find('.toggleMenuStatus');
+        // Use menuStatus if available, otherwise use status
+        const menuStatus = data.menuStatus !== undefined ? data.menuStatus : data.status;
+        const isChecked = menuStatus == "0" || menuStatus === 0;
+        $checkbox.prop('checked', isChecked);
+        
+        highlightRow($row);
+    } else {
+        // Fallback: reload table
+        loadTable("backend/bk_menumanagement.php", "viewMenus", "#tblviewMenus");
+    }
+}
 
 // Update single row
 function updateMenuRow(menID, data) {
@@ -365,8 +396,12 @@ function updateMenuRow(menID, data) {
 $(document).on('change', '.toggleMenuStatus', function() {
     const $checkbox = $(this);
     const menuID = $checkbox.data('id');
-    const isActive = $checkbox.is(':checked'); // true = active (UnActive = 0)
-    const newStatus = isActive ? 0 : 1; // 0 = active, 1 = inactive
+    const isActive = $checkbox.is(':checked'); // true = checkbox checked (active)
+    
+    // IMPORTANT: When checkbox is checked (isActive = true), we want status = 0 (active)
+    // When checkbox is unchecked (isActive = false), we want status = 1 (inactive)
+    // This matches: 0 = Active, 1 = Inactive
+    const newStatus = isActive ? 0 : 1;
     
     if (confirm(`Are you sure you want to ${isActive ? 'activate' : 'deactivate'} this menu?`)) {
         $.ajax({
@@ -379,19 +414,17 @@ $(document).on('change', '.toggleMenuStatus', function() {
                 status: newStatus
             },
             success: function(response) {
-                // Handle both "success" and "1" status
-                const isSuccess = response.status === "success" || response.status === "1";
-                
-                if (isSuccess) {
+                // Check for response.success instead of response.status
+                if (response.success === true) {
                     // Update sidebar in real-time
                     updateSidebar();
                 } else {
-                    $checkbox.prop('checked', !isActive);
-                    alert("Update failed!");
+                    $checkbox.prop('checked', !isActive); // Revert checkbox
+                    alert("Update failed: " + (response.message || ""));
                 }
             },
             error: function() {
-                $checkbox.prop('checked', !isActive);
+                $checkbox.prop('checked', !isActive); // Revert checkbox
                 alert("Error updating status!");
             }
         });
@@ -400,7 +433,6 @@ $(document).on('change', '.toggleMenuStatus', function() {
         $checkbox.prop('checked', !isActive);
     }
 });
-
 // ============ REAL-TIME SIDEBAR UPDATES ============
 
 /**

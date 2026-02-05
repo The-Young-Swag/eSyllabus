@@ -157,8 +157,9 @@ function setupEventHandlers() {
                 status: newStatus
             }, function(response) {
                 if (response === "SUCCESS") {
-                    // Move row between tables
-                    moveUserRow(userID, newStatus);
+                    // Simply reload both tables
+                    loadUsers('active');
+                    loadUsers('inactive');
                 }
             });
         }
@@ -166,8 +167,9 @@ function setupEventHandlers() {
     
     // Status switch change
     $(document).on('change', '.user-status', function() {
-        const userID = $(this).data('userid');
-        const isChecked = $(this).prop('checked');
+        const $checkbox = $(this);
+        const userID = $checkbox.data('userid');
+        const isChecked = $checkbox.prop('checked');
         const newStatus = isChecked ? 0 : 1; // Convert checkbox to IsActive value
         const actionText = isChecked ? 'Enable this user?' : 'Disable this user?';
         
@@ -178,48 +180,38 @@ function setupEventHandlers() {
                 status: newStatus
             }, function(response) {
                 if (response === "SUCCESS") {
-                    moveUserRow(userID, newStatus);
+                    // Reload both tables
+                    loadUsers('active');
+                    loadUsers('inactive');
                 } else {
                     // Revert checkbox if failed
-                    $(this).prop('checked', !isChecked);
+                    $checkbox.prop('checked', !isChecked);
                 }
             });
         } else {
             // Revert checkbox if user cancels
-            $(this).prop('checked', !isChecked);
+            $checkbox.prop('checked', !isChecked);
         }
     });
     
-    // Save user (add/edit)
-    $(document).on('click', '#btnSaveUser, #btnUpdateUser', function() {
-        const isAdd = this.id === 'btnSaveUser';
+    // Save user (add) - FIXED: Prevent double submission
+    $(document).on('click', '#btnSaveUser', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
         const button = $(this);
         const originalText = button.html();
         
         // Get form data
         const formData = {
-            request: isAdd ? "addUser" : "updateUser"
+            request: "addUser",
+            empID: $('#u_empID').val(),
+            email: $('#u_email').val() || $('#u_empID').val() + '@example.com',
+            name: $('#u_name').val(),
+            roleID: $('#u_role').val(),
+            officeID: $('#u_unit').val(),
+            positionID: $('#u_position').val() || ''
         };
-        
-        if (isAdd) {
-            formData.empID = $('#u_empID').val();
-            formData.email = $('#u_email').val() || formData.empID + '@example.com';
-            formData.name = $('#u_name').val();
-            formData.roleID = $('#u_role').val();
-            formData.officeID = $('#u_unit').val();
-            formData.positionID = $('#u_position').val() || '';
-        } else {
-            formData.userID = $('#edit_userID').val();
-            formData.empID = $('#edit_empID').val();
-            formData.email = $('#edit_email').val();
-            formData.name = $('#edit_name').val();
-            formData.roleID = $('#edit_role').val();
-            formData.officeID = $('#edit_office').val();
-            formData.positionID = $('#edit_position').val() || '';
-            formData.isActive = $('#edit_status').val();
-            formData.allOfficeAccess = $('#edit_alloffice').val();
-            formData.changePass = $('#edit_changepass').val();
-        }
         
         // Validation - Check if EmpID and RoleID are not empty
         const empID = String(formData.empID || '').trim();
@@ -227,15 +219,15 @@ function setupEventHandlers() {
         
         if (!empID) {
             alert('Employee ID is required!');
-            return;
+            return false;
         }
         
         if (!roleID) {
             alert('Role is required!');
-            return;
+            return false;
         }
         
-        // Show loading
+        // Show loading and disable button to prevent double click
         button.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
         
         // Send request
@@ -244,72 +236,102 @@ function setupEventHandlers() {
             
             if (response === "SUCCESS") {
                 $('.modal').modal('hide');
-                
-                if (isAdd) {
-                    // New user - reload active table
-                    loadUsers('active');
-                    $('#addUserForm')[0]?.reset();
-                } else {
-                    // Updated user - update specific row
-                    updateUserRow(formData.userID);
-                }
+                $('#addUserForm')[0]?.reset();
+                loadUsers('active');
+                alert('User added successfully!');
             } else if (response === "DUPLICATE") {
                 alert('User already exists!');
+            } else {
+                alert('Error: ' + response);
             }
+        }).fail(function() {
+            button.prop('disabled', false).html(originalText);
+            alert('Server error. Please try again.');
         });
+        
+        return false;
+    });
+    
+    // Update user (edit) - FIXED: Now properly updates the row
+// Update user (edit) - FIXED: Prevent double execution
+$(document).on('click', '#btnUpdateUser', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const button = $(this);
+    
+    // Prevent double click
+    if (button.prop('disabled')) {
+        return false;
+    }
+    
+    const originalText = button.html();
+    
+    // Get form data
+    const formData = {
+        request: "updateUser",
+        userID: $('#edit_userID').val(),
+        empID: $('#edit_empID').val(),
+        email: $('#edit_email').val(),
+        name: $('#edit_name').val(),
+        roleID: $('#edit_role').val(),
+        officeID: $('#edit_office').val(),
+        positionID: $('#edit_position').val() || '',
+        isActive: $('#edit_status').val(),
+        allOfficeAccess: $('#edit_alloffice').val(),
+        changePass: $('#edit_changepass').val()
+    };
+    
+    // Validation
+    const empID = String(formData.empID || '').trim();
+    const roleID = String(formData.roleID || '').trim();
+    
+    if (!empID) {
+        alert('Employee ID is required!');
+        return false;
+    }
+    
+    if (!roleID) {
+        alert('Role is required!');
+        return false;
+    }
+    
+    // Show loading and disable button
+    button.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
+    
+    // Send request
+    $.post("backend/bk_usermanagement.php", formData, function(response) {
+        button.prop('disabled', false).html(originalText);
+        
+        if (response === "SUCCESS") {
+            $('.modal').modal('hide');
+            
+            // Wait a bit for modal to close
+            setTimeout(function() {
+                alert('User updated successfully!');
+                loadUsers('active');
+                loadUsers('inactive');
+            }, 300);
+        } else {
+            alert('Error: ' + response);
+        }
+    }).fail(function() {
+        button.prop('disabled', false).html(originalText);
+        alert('Server error. Please try again.');
+    });
+    
+    return false;
+});
+    
+    // Also prevent form submission from Enter key
+    $('#addUserForm').on('submit', function(e) {
+        e.preventDefault();
+        return false;
     });
     
     // Tab switching
     $('#inactive-tab').click(function() {
         loadUsers('inactive');
-    });
-}
-
-// ==================== ROW OPERATIONS ====================
-function moveUserRow(userID, newStatus) {
-    // Remove from current table
-    $(`[data-userid="${userID}"]`).remove();
-    
-    // Reload both tables to reflect changes
-    loadUsers('active');
-    loadUsers('inactive');
-}
-
-function updateUserRow(userID) {
-    // Get updated user data
-    $.post("backend/bk_usermanagement.php", {
-        request: "getUserRow",
-        userID: userID
-    }, function(response) {
-        if (response !== "ERROR") {
-            const user = JSON.parse(response);
-            const currentRow = $(`[data-userid="${userID}"]`);
-            
-            if (currentRow.length) {
-                // Update row data
-                currentRow.find('td:nth-child(2)').text(user.EmpID);
-                currentRow.find('td:nth-child(4)').text(user.Name);
-                currentRow.find('td:nth-child(5)').text(user.OfficeName || 'N/A');
-                currentRow.find('td:nth-child(6)').text(user.Position_id || 'N/A');
-                currentRow.find('td:nth-child(7)').text(user.Role);
-                currentRow.find('td:nth-child(8)').text(user.EmailAddress);
-                
-                // Update password field
-                const passwordField = currentRow.find('.password-field');
-                passwordField.data('password', user.Password);
-                
-                // Update status checkbox
-                const checkbox = currentRow.find('.user-status');
-                checkbox.prop('checked', user.IsActive == 0);
-                
-                // Update row class if status changed
-                if (user.IsActive == 1) {
-                    currentRow.addClass('table-danger');
-                } else {
-                    currentRow.removeClass('table-danger');
-                }
-            }
-        }
     });
 }
 </script>

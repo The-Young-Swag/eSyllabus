@@ -16,6 +16,10 @@ switch ($request) {
         updateRole();
         break;
         
+    case "toggleRoleStatus":
+        toggleRoleStatus();
+        break;
+        
     default:
         echo json_encode(["status" => "error", "message" => "Invalid request"]);
 }
@@ -30,11 +34,25 @@ function viewRoles() {
     ", "Search", []);
     
     foreach ($query as $row) {
+        $statusChecked = $row["UnActive"] == 0 ? "checked" : "";
+        $statusLabel = $row["UnActive"] == 0 ? "Active" : "Inactive";
+        $switchId = "roleStatus" . $row["RID"];
+        
         echo "<tr data-role-id='" . htmlspecialchars($row["RID"]) . "'>
             <td>" . htmlspecialchars($row["RID"]) . "</td>
             <td>" . htmlspecialchars($row["Role"]) . "</td>
             <td>" . htmlspecialchars($row["Rolecode"]) . "</td>
-            <td>" . ($row["UnActive"] == 0 ? "Active" : "Inactive") . "</td>
+            <td class='text-center'>$statusLabel</td>
+            <td class='text-center'>
+                <div class='custom-control custom-switch'>
+                    <input type='checkbox' 
+                           class='custom-control-input toggleRoleStatus' 
+                           id='$switchId'
+                           data-id='" . htmlspecialchars($row["RID"]) . "'
+                           $statusChecked>
+                    <label class='custom-control-label' for='$switchId'></label>
+                </div>
+            </td>
             <td class='text-center'>
                 <button class='btn btn-sm btn-warning btnEditRole' data-id='" . htmlspecialchars($row["RID"]) . "'>
                     <i class='fas fa-edit'></i>
@@ -96,17 +114,46 @@ function updateRole() {
     execsqlSRS("UPDATE Sys_Role SET Role = ?, Rolecode = ?, UnActive = ? WHERE RID = ?",
               "Update", [$role, $rolecode, $status, $RID]);
     
-    // Return simple success
+    // Return SUCCESS (just a simple string, not JSON)
     echo "SUCCESS";
 }
 
+function toggleRoleStatus() {
+    $RID = $_POST['RID'] ?? 0;
+    $status = $_POST['status'] ?? 0; // 0 = active, 1 = inactive
+    
+    // Update role status
+    execsqlSRS("UPDATE Sys_Role SET UnActive = ? WHERE RID = ?", "Update", [$status, $RID]);
+    
+    echo json_encode([
+        "status" => "success",
+        "RID" => $RID,
+        "newStatus" => $status,
+        "statusText" => $status == 0 ? "Active" : "Inactive"
+    ]);
+}
+
 function generateRoleRow($role) {
+    $statusChecked = $role["UnActive"] == 0 ? "checked" : "";
+    $statusLabel = $role["UnActive"] == 0 ? "Active" : "Inactive";
+    $switchId = "roleStatus" . $role["RID"];
+    
     return "
     <tr data-role-id='" . htmlspecialchars($role["RID"]) . "'>
         <td>" . htmlspecialchars($role["RID"]) . "</td>
         <td>" . htmlspecialchars($role["Role"]) . "</td>
         <td>" . htmlspecialchars($role["Rolecode"]) . "</td>
-        <td>" . ($role["UnActive"] == 0 ? "Active" : "Inactive") . "</td>
+        <td class='text-center'>$statusLabel</td>
+        <td class='text-center'>
+            <div class='custom-control custom-switch'>
+                <input type='checkbox' 
+                       class='custom-control-input toggleRoleStatus' 
+                       id='$switchId'
+                       data-id='" . htmlspecialchars($role["RID"]) . "'
+                       $statusChecked>
+                <label class='custom-control-label' for='$switchId'></label>
+            </div>
+        </td>
         <td class='text-center'>
             <button class='btn btn-sm btn-warning btnEditRole' data-id='" . htmlspecialchars($role["RID"]) . "'>
                 <i class='fas fa-edit'></i>

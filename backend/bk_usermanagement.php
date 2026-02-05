@@ -4,48 +4,78 @@ include "../db/dbconnection.php";
 $request = $_POST["request"] ?? "";
 
 switch ($request) {
+	
     case "addUser":
-        $empID = $_POST["empID"] ?? "";
-        $email = $_POST["email"] ?? "";
-        $name = $_POST["name"] ?? "";
-        $roleID = $_POST["roleID"] ?? "";
-        $officeID = $_POST["officeID"] ?? "";
-        $positionID = $_POST["positionID"] ?? "";
+        $empID = trim($_POST["empID"] ?? "");
+        $email = trim($_POST["email"] ?? "");
+        $name = trim($_POST["name"] ?? "");
+        $roleID = trim($_POST["roleID"] ?? "");
+        $officeID = trim($_POST["officeID"] ?? "");
+        $positionID = trim($_POST["positionID"] ?? "");
+        
+        // Validate required fields
+        if (empty($empID) || empty($name) || empty($roleID)) {
+            echo "MISSING_REQUIRED_FIELDS";
+            exit;
+        }
         
         // Check if user exists
-        $check = execsqlSRS("SELECT UserID FROM Sys_UserAccount WHERE EmpID = ?", "Search", [$empID]);
-        if (!empty($check)) {
+        $check = execsqlSRS("SELECT COUNT(*) as count FROM Sys_UserAccount WHERE EmpID = ?", "Search", [$empID]);
+        if ($check[0]['count'] > 0) {
             echo "DUPLICATE";
             exit;
         }
+        
+        // Set default email if empty
+        if (empty($email)) {
+            $email = $empID . '@example.com';
+        }
+        
+        // Default password is EmpID
+        $password = $empID;
         
         // Insert user (default IsActive = 0 = active)
         $sql = "INSERT INTO Sys_UserAccount (EmpID, EmailAddress, Password, Name, RID, Office_id, Position_id, IsActive, AccountRegDate) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, 0, GETDATE())";
         
-        execsqlSRS($sql, "Insert", [$empID, $email, $empID, $name, $roleID, $officeID, $positionID]);
-        echo "SUCCESS";
+        try {
+            execsqlSRS($sql, "Insert", [$empID, $email, $password, $name, $roleID, $officeID, $positionID]);
+            echo "SUCCESS";
+        } catch (Exception $e) {
+            echo "INSERT_ERROR: " . $e->getMessage();
+        }
         break;
         
-    case "updateUser":
-        $userID = $_POST["userID"] ?? "";
-        $email = $_POST["email"] ?? "";
-        $name = $_POST["name"] ?? "";
-        $roleID = $_POST["roleID"] ?? "";
-        $officeID = $_POST["officeID"] ?? "";
-        $positionID = $_POST["positionID"] ?? "";
-        $isActive = $_POST["isActive"] ?? 0;
-        $allOfficeAccess = $_POST["allOfficeAccess"] ?? 0;
-        $changePass = $_POST["changePass"] ?? 0;
-        
-        $sql = "UPDATE Sys_UserAccount 
-                SET EmailAddress = ?, Name = ?, RID = ?, Office_id = ?, Position_id = ?, 
-                    IsActive = ?, AllOfficeAcess = ?, ChangePass = ?
-                WHERE UserID = ?";
-        
-        execsqlSRS($sql, "Update", [$email, $name, $roleID, $officeID, $positionID, $isActive, $allOfficeAccess, $changePass, $userID]);
+case "updateUser":
+    $userID = $_POST["userID"] ?? "";
+    $empID = trim($_POST["empID"] ?? ""); // ADD THIS
+    $email = trim($_POST["email"] ?? "");
+    $name = trim($_POST["name"] ?? "");
+    $roleID = trim($_POST["roleID"] ?? "");
+    $officeID = trim($_POST["officeID"] ?? "");
+    $positionID = trim($_POST["positionID"] ?? "");
+    $isActive = $_POST["isActive"] ?? 0;
+    $allOfficeAccess = $_POST["allOfficeAccess"] ?? 0;
+    $changePass = $_POST["changePass"] ?? 0;
+    
+    // Validate required fields
+    if (empty($userID) || empty($empID) || empty($name) || empty($roleID)) {
+        echo "MISSING_REQUIRED_FIELDS";
+        exit;
+    }
+    
+    $sql = "UPDATE Sys_UserAccount 
+            SET EmpID = ?, EmailAddress = ?, Name = ?, RID = ?, Office_id = ?, Position_id = ?, 
+                IsActive = ?, AllOfficeAcess = ?, ChangePass = ?
+            WHERE UserID = ?";
+    
+    try {
+        execsqlSRS($sql, "Update", [$empID, $email, $name, $roleID, $officeID, $positionID, $isActive, $allOfficeAccess, $changePass, $userID]);
         echo "SUCCESS";
-        break;
+    } catch (Exception $e) {
+        echo "UPDATE_ERROR: " . $e->getMessage();
+    }
+    break;
         
     case "toggleStatus":
         $userID = $_POST["userID"] ?? "";
