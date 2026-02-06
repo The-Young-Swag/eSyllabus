@@ -28,7 +28,7 @@
 
         <div class="card-body">
             <div class="tab-content">
-                <!-- ================= ACTIVE USERS ================= -->
+                <!--  ACTIVE USERS  -->
                 <div class="tab-pane fade show active" id="activeUsers" role="tabpanel">
                     <div class="table-responsive">
                         <table class="table table-hover table-bordered">
@@ -53,7 +53,7 @@
                     </div>
                 </div>
 
-                <!-- ================= INACTIVE USERS ================= -->
+                <!--  INACTIVE USERS  -->
                 <div class="tab-pane fade" id="inactiveUsers" role="tabpanel">
                     <div class="alert alert-warning">
                         <i class="fas fa-info-circle mr-1"></i>
@@ -89,7 +89,7 @@
 
 
 <script>
-// ==================== UTILITY FUNCTIONS ====================
+//  UTILITY FUNCTIONS 
 function togglePassword(userId) {
     const input = $(`input.password-field[data-userid="${userId}"]`);
     const icon = $(`#eye_${userId}`);
@@ -126,13 +126,13 @@ function loadUsers(type) {
     });
 }
 
-// ==================== INITIALIZE ====================
+//INITIALIZE
 $(document).ready(function() {
     loadUsers('active');
     setupEventHandlers();
 });
 
-// ==================== EVENT HANDLERS ====================
+//  EVENT HANDLERS 
 function setupEventHandlers() {
     // Add user modal
     $('#btnAddEmployee').click(function() {
@@ -260,7 +260,6 @@ function setupEventHandlers() {
         return false;
     });
     
-    // Update user (edit) - FIXED: Now properly updates the row
 // Update user (edit) - FIXED: Prevent double execution
 $(document).on('click', '#btnUpdateUser', function(e) {
     e.preventDefault();

@@ -69,7 +69,6 @@ $(document).ready(function() {
         }
     });
     
-    // In page/privilegemanagement.php script, change the toggle handler:
 // In page/privilegemanagement.php script
 $(document).on('change', '.togglePrivilege', function() {
     var $switch = $(this);
@@ -221,7 +220,7 @@ function loadTable(url, request, target, roleID = "") {
     });
 }
 
-// NEW FUNCTION: Refresh sidebar for users with the given role
+// Refresh sidebar for users with the given role
 function refreshSidebarForRole(roleID) {
     $.ajax({
         url: "backend/bk_privilegemanagement.php",
@@ -244,7 +243,7 @@ function refreshSidebarForRole(roleID) {
     });
 }
 
-// NEW FUNCTION: Refresh current user's sidebar menu only
+// Refresh current user's sidebar menu only
 function refreshCurrentUserSidebar() {
     $.ajax({
         type: "POST",
@@ -287,7 +286,7 @@ function setupMenuHighlighting() {
     });
 }
 
-// NEW FUNCTION: Show sidebar update notification
+// Show sidebar update notification
 function showSidebarNotification() {
     // Create notification element
     var $notification = $(`

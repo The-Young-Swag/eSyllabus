@@ -15,14 +15,13 @@
             <div class="table-responsive">
                 <table class="table table-hover table-bordered mb-0">
                     <thead class="thead-light">
-                        <tr>
-                            <th>#</th>
-                            <th>Role Name</th>
-                            <th>Role Code</th>
-                            <th class="text-center">Status</th>
-                            <th class="text-center">Active/Inactive</th>
-                            <th class="text-center">Actions</th>
-                        </tr>
+ <tr>
+    <th>#</th>
+    <th>Role Name</th>
+    <th>Role Code</th>
+    <th class="text-center">Status</th>          
+    <th class="text-center">Actions</th>
+</tr>
                     </thead>
                     <tbody id="tblviewRoles">
                         <!-- Table loads here -->
@@ -36,22 +35,22 @@
 <?php include 'modalContainer.php'; ?>
 
 <script>
-// ============ INITIAL LOAD ============
+//  INITIAL LOAD 
 $(document).ready(function() {
     loadRoles();
 });
 
-// ============ LOAD ROLES ============
+//  LOAD ROLES 
 function loadRoles() {
     loadTable("backend/bk_rolemanagement.php", "viewRoles", "#tblviewRoles");
 }
 
-// ============ ADD ROLE MODAL ============
+//  ADD ROLE MODAL 
 $(document).on('click', '#addRoleModal', function() {
     openAddModal("page/modals.php", "rolemodal");
 });
 
-// ============ ADD ROLE (FIXED - Simple & Clean) ============
+//  ADD ROLE (FIXED - Simple & Clean) 
 $(document).on('click', '#r_submit', function(e) {
     e.preventDefault();
     e.stopPropagation(); // Prevent multiple clicks
@@ -99,7 +98,7 @@ $(document).on('click', '#r_submit', function(e) {
                 
                 // Simple alert (won't duplicate)
                 setTimeout(() => {
-                    alert("✓ Role added successfully!");
+                    alert(" Role added successfully!");
                 }, 300);
                 
             } else {
@@ -113,13 +112,13 @@ $(document).on('click', '#r_submit', function(e) {
     });
 });
 
-// ============ EDIT ROLE ============
+//  EDIT ROLE 
 $(document).on('click', '.btnEditRole', function() {
     const roleID = $(this).data('id');
     openEditModal("page/modals.php", "roleeditmodal", "roleID", roleID);
 });
 
-// ============ UPDATE ROLE (Simplified) ============
+//  UPDATE ROLE (Simplified) 
 $(document).on('click', '#btnUpdateRole', function() {
     const $button = $(this);
     if ($button.prop('disabled')) return;
@@ -168,7 +167,7 @@ $(document).on('click', '#btnUpdateRole', function() {
     });
 });
 
-// ============ TOGGLE ROLE STATUS ============
+//  TOGGLE ROLE STATUS 
 $(document).on('change', '.toggleRoleStatus', function() {
     const $checkbox = $(this);
     if ($checkbox.prop('disabled')) return;
@@ -194,7 +193,9 @@ $(document).on('change', '.toggleRoleStatus', function() {
                 $checkbox.prop('disabled', false);
                 
                 if (response.status === "success") {
-                    updateRoleStatus(roleID, response.statusText);
+                    // Just highlight the row, no status text to update
+                    const $row = $(`tr[data-role-id="${roleID}"]`);
+                    highlightRow($row);
                 } else {
                     $checkbox.prop('checked', !isActive);
                     alert("Update failed!");
@@ -211,7 +212,7 @@ $(document).on('change', '.toggleRoleStatus', function() {
     }
 });
 
-// ============ HELPER FUNCTIONS ============
+//  HELPER FUNCTIONS 
 
 // Validate role form
 function validateRoleForm(data) {
@@ -231,12 +232,10 @@ function updateRoleRow(data) {
     const $row = $(`tr[data-role-id="${roleID}"]`);
     
     if ($row.length) {
-        $row.find("td:eq(1)").text(data.er_role);
-        $row.find("td:eq(2)").text(data.er_rolecode);
+        $row.find("td:eq(1)").text(data.er_role);      // Role Name
+        $row.find("td:eq(2)").text(data.er_rolecode);  // Role Code
         
-        const statusText = data.er_status == 0 ? "Active" : "Inactive";
-        $row.find("td:eq(3)").text(statusText);
-        
+        // Update the toggle switch status (column index changed from 4 to 3)
         const $checkbox = $row.find('.toggleRoleStatus');
         $checkbox.prop('checked', data.er_status == 0);
         
@@ -247,14 +246,14 @@ function updateRoleRow(data) {
 }
 
 // Update role status text
-function updateRoleStatus(roleID, statusText) {
+/* function updateRoleStatus(roleID, statusText) {
     const $row = $(`tr[data-role-id="${roleID}"]`);
     
     if ($row.length) {
         $row.find("td:eq(3)").text(statusText);
         highlightRow($row);
     }
-}
+} */
 
 // Highlight row
 function highlightRow($row) {

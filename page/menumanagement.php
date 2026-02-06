@@ -30,7 +30,7 @@
 		<div class="card-body">
 			<div class="tab-content">
 
-				<!-- ================= ACTIVE MENUS ================= -->
+				<!--  ACTIVE MENUS  -->
 				<div class="tab-pane fade show active" id="activeMenus">
 					<div class="table-responsive">
 						<table class="table table-hover table-bordered" id="tblActiveMenus">
@@ -82,7 +82,7 @@
 				</div>
 
 
-				<!-- ================= DELETED MENUS ================= -->
+				<!--  DELETED MENUS  -->
 				<div class="tab-pane fade" id="deletedMenus">
 					<div class="alert alert-warning">
 						<i class="fas fa-info-circle mr-1"></i>
@@ -134,12 +134,12 @@
 
 
 <script>
-// ============ INITIAL LOAD ============
+//  INITIAL LOAD 
 $(document).ready(function() {
     loadTable("backend/bk_menumanagement.php", "viewMenus", "#tblviewMenus");
 });
 
-// ============ MODAL HANDLERS ============
+//  MODAL HANDLERS 
 $(document).on('click', '#addModal', function() {
     openAddModal("page/modals.php", "menuAddmodal");
 });
@@ -148,7 +148,7 @@ $(document).on('click', '.btnEditMenu', function() {
     openEditModal("page/modals.php", "menueditmodal", "menID", $(this).data('id'));
 });
 
-// ============ ADD MENU (REAL-TIME) ============
+//  ADD MENU (REAL-TIME) 
 $(document).on('click', '#btnaddmenu', function(e) {
     e.preventDefault();
     e.stopPropagation();
@@ -179,7 +179,7 @@ $(document).on('click', '#btnaddmenu', function(e) {
     return false;
 });
 
-// ============ HELPER FUNCTIONS ============
+//  HELPER FUNCTIONS 
 
 // Get form data
 function getMenuFormData() {
@@ -291,7 +291,7 @@ $.fn.loading = function(isLoading) {
     }
 };
 
-// ============ UPDATE MENU ============
+//  UPDATE MENU 
 $(document).on('click', '#btnUpdateMenu', function(e) {
     e.preventDefault();
     e.stopPropagation();
@@ -398,7 +398,7 @@ function updateMenuRow(menID, data) {
     }
 }
 
-// ============ TOGGLE STATUS ============
+//  TOGGLE STATUS 
 $(document).on('change', '.toggleMenuStatus', function() {
     const $checkbox = $(this);
     const menuID = $checkbox.data('id');
@@ -440,7 +440,7 @@ $(document).on('change', '.toggleMenuStatus', function() {
     }
 });
 
-// ============ REAL-TIME SIDEBAR UPDATES ============
+//  REAL-TIME SIDEBAR UPDATES 
 
 /**
  * Update sidebar menu without page reload

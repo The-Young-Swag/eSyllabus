@@ -24,7 +24,7 @@ switch ($request) {
         echo json_encode(["status" => "error", "message" => "Invalid request"]);
 }
 
-// ============ FUNCTIONS ============
+//  FUNCTIONS 
 
 function viewRoles() {
     $query = execsqlSRS("
@@ -35,14 +35,12 @@ function viewRoles() {
     
     foreach ($query as $row) {
         $statusChecked = $row["UnActive"] == 0 ? "checked" : "";
-        $statusLabel = $row["UnActive"] == 0 ? "Active" : "Inactive";
         $switchId = "roleStatus" . $row["RID"];
         
         echo "<tr data-role-id='" . htmlspecialchars($row["RID"]) . "'>
             <td>" . htmlspecialchars($row["RID"]) . "</td>
             <td>" . htmlspecialchars($row["Role"]) . "</td>
             <td>" . htmlspecialchars($row["Rolecode"]) . "</td>
-            <td class='text-center'>$statusLabel</td>
             <td class='text-center'>
                 <div class='custom-control custom-switch'>
                     <input type='checkbox' 
@@ -135,7 +133,6 @@ function toggleRoleStatus() {
 
 function generateRoleRow($role) {
     $statusChecked = $role["UnActive"] == 0 ? "checked" : "";
-    $statusLabel = $role["UnActive"] == 0 ? "Active" : "Inactive";
     $switchId = "roleStatus" . $role["RID"];
     
     return "
@@ -143,7 +140,6 @@ function generateRoleRow($role) {
         <td>" . htmlspecialchars($role["RID"]) . "</td>
         <td>" . htmlspecialchars($role["Role"]) . "</td>
         <td>" . htmlspecialchars($role["Rolecode"]) . "</td>
-        <td class='text-center'>$statusLabel</td>
         <td class='text-center'>
             <div class='custom-control custom-switch'>
                 <input type='checkbox' 

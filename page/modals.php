@@ -45,9 +45,9 @@ case 'roleeditmodal':
         break;
 }
 
-// =============================
+
 // MODAL GENERATOR FUNCTIONS
-// =============================
+
 
 function generateMenuModal() {
     ob_start();
@@ -130,7 +130,7 @@ function generateMenuEditModal($menID = 0) {
     }
     
     // 2. INITIALIZE EMPTY DATA ARRAY
-    $menu = [ // Changed from $menuData to $menu
+    $menu = [ 
         'MenID' => '',
         'Menu' => '',
         'MotherMenID' => '',
