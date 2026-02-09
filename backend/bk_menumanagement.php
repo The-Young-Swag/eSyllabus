@@ -204,11 +204,20 @@ function handleUpdateMenu() {
         exit;
     }
     
+    // Get the icon value - ensure it's properly received
+    $icon = $_POST['icon'] ?? '';
+    
     // Update menu
     execsqlSRS("
         UPDATE Sys_Menu SET
-            Menu = ?, Description = ?, Menucode = ?, MenuLink = ?,
-            MotherMenID = ?, Arrangement = ?, UnActive = ?, MenIcon = ?
+            Menu = ?, 
+            Description = ?, 
+            Menucode = ?, 
+            MenuLink = ?,
+            MotherMenID = ?, 
+            Arrangement = ?, 
+            UnActive = ?, 
+            MenIcon = ?  -- Make sure this field is included
         WHERE MenID = ?
     ", "Update", [
         $_POST['menu'] ?? '',
@@ -218,7 +227,7 @@ function handleUpdateMenu() {
         $_POST['mother'] ?? 0,
         $_POST['arrangement'] ?? 0,
         $_POST['status'] ?? 0,
-        $_POST['icon'] ?? '',
+        $icon,  // Icon value
         $menID
     ]);
     
@@ -232,7 +241,7 @@ function handleUpdateMenu() {
         "mother" => $_POST['mother'] ?? 0,
         "arrangement" => $_POST['arrangement'] ?? 0,
         "menuStatus" => $_POST['status'] ?? 0,
-        "icon" => $_POST['icon'] ?? ''
+        "icon" => $icon  // Include icon in response
     ]);
 }
 
