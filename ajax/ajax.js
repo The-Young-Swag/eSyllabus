@@ -287,7 +287,7 @@ $(document).on('click', '#showPasswordCheckbox', function(e) {
 
 // Table loader===================================================================================
 
-class TableLoader {
+/* class TableLoader {
     static load({ tableId, url, request, onSuccess = null }) {
         $.post(url, { request }, function(data) {
 			
@@ -310,7 +310,7 @@ class TableLoader {
             console.error("Failed to load table:", error);
         });
     }
-}
+} */
 
 
 class PasswordToggler {

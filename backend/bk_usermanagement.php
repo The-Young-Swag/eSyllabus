@@ -4,121 +4,142 @@ include "../db/dbconnection.php";
 $request = $_POST["request"] ?? "";
 
 switch ($request) {
-	
-case "addUser":
-    $empID = trim($_POST["empID"] ?? "");
-    $email = trim($_POST["email"] ?? "");
-    $name = trim($_POST["name"] ?? "");
-    $roleID = trim($_POST["roleID"] ?? "");
-    $officeID = trim($_POST["officeID"] ?? "");
-    $positionID = trim($_POST["positionID"] ?? "");
-    
-    // Validate required fields
-    if (empty($empID) || empty($name) || empty($roleID)) {
-        echo "MISSING_REQUIRED_FIELDS";
-        exit;
-    }
-    
-    // Check if user exists
-    $check = execsqlSRS("SELECT COUNT(*) as count FROM Sys_UserAccount WHERE EmpID = ?", "Search", [$empID]);
-    if ($check[0]['count'] > 0) {
-        echo "DUPLICATE";
-        exit;
-    }
-    
-    // Set default email if empty
-    if (empty($email)) {
-        $email = $empID . '@example.com';
-    }
-    
-    // Default password is EmpID
-    $password = $empID;
-    
-    // Start transaction for both tables
-    try {
-        // Insert into Sys_UserAccount
-        $sqlUser = "INSERT INTO Sys_UserAccount (EmpID, EmailAddress, Password, Name, RID, Office_id, Position_id, IsActive, AccountRegDate) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, 0, GETDATE())";
+    case "addUser":
+        // Your existing add user code (keep as is)
+        $empID = trim($_POST["empID"] ?? "");
+        $email = trim($_POST["email"] ?? "");
+        $name = trim($_POST["name"] ?? "");
+        $roleID = trim($_POST["roleID"] ?? "");
+        $officeID = trim($_POST["officeID"] ?? "");
+        $positionID = trim($_POST["positionID"] ?? "");
         
-        execsqlSRS($sqlUser, "Insert", [$empID, $email, $password, $name, $roleID, $officeID, $positionID]);
-        
-        // Insert into tbl_OfficeStaff if OfficeID and PositionID are provided
-        if (!empty($officeID) && !empty($positionID)) {
-            $sqlStaff = "INSERT INTO tbl_OfficeStaff (OfficeID, EmpID, PositionID, Plantilla) 
-                         VALUES (?, ?, ?, '')";
-            
-            execsqlSRS($sqlStaff, "Insert", [$officeID, $empID, $positionID]);
+        if (empty($empID) || empty($name) || empty($roleID)) {
+            echo "MISSING_REQUIRED_FIELDS";
+            exit;
         }
         
-        echo "SUCCESS";
-    } catch (Exception $e) {
-        echo "INSERT_ERROR: " . $e->getMessage();
-    }
-    break;
+        $check = execsqlSRS("SELECT COUNT(*) as count FROM Sys_UserAccount WHERE EmpID = ?", "Search", [$empID]);
+        if ($check[0]['count'] > 0) {
+            echo "DUPLICATE";
+            exit;
+        }
         
-case "updateUser":
-    $userID = $_POST["userID"] ?? "";
-    $empID = trim($_POST["empID"] ?? "");
-    $email = trim($_POST["email"] ?? "");
-    $name = trim($_POST["name"] ?? "");
-    $roleID = trim($_POST["roleID"] ?? "");
-    $officeID = trim($_POST["officeID"] ?? "");
-    $positionID = trim($_POST["positionID"] ?? "");
-    $isActive = $_POST["isActive"] ?? 0;
-    $allOfficeAccess = $_POST["allOfficeAccess"] ?? 0;
-    $changePass = $_POST["changePass"] ?? 0;
-    
-    // Validate required fields
-    if (empty($userID) || empty($empID) || empty($name) || empty($roleID)) {
-        echo "MISSING_REQUIRED_FIELDS";
-        exit;
-    }
-    
-    try {
-        // Update Sys_UserAccount - FIXED: Use correct column name AllOfficeAcess (misspelled)
-        $sqlUser = "UPDATE Sys_UserAccount 
-                    SET EmpID = ?, EmailAddress = ?, Name = ?, RID = ?, Office_id = ?, Position_id = ?, 
-                        IsActive = ?, AllOfficeAcess = ?, ChangePass = ?
-                    WHERE UserID = ?";
+        if (empty($email)) {
+            $email = $empID . '@example.com';
+        }
         
-        execsqlSRS($sqlUser, "Update", [$empID, $email, $name, $roleID, $officeID, $positionID, $isActive, $allOfficeAccess, $changePass, $userID]);
+        $password = $empID;
         
-        // Check if record exists in tbl_OfficeStaff
-        $checkStaff = execsqlSRS("SELECT COUNT(*) as count FROM tbl_OfficeStaff WHERE EmpID = ?", "Search", [$empID]);
-        
-        if ($checkStaff[0]['count'] > 0) {
-            // Update existing record
-            $sqlStaff = "UPDATE tbl_OfficeStaff 
-                         SET OfficeID = ?, PositionID = ?
-                         WHERE EmpID = ?";
+        try {
+            $sqlUser = "INSERT INTO Sys_UserAccount (EmpID, EmailAddress, Password, Name, RID, Office_id, Position_id, IsActive, AccountRegDate, IsDeleted) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?, 0, GETDATE(), 0)";
             
-            execsqlSRS($sqlStaff, "Update", [$officeID, $positionID, $empID]);
-        } else {
-            // Insert new record if OfficeID and PositionID are provided
+            execsqlSRS($sqlUser, "Insert", [$empID, $email, $password, $name, $roleID, $officeID, $positionID]);
+            
             if (!empty($officeID) && !empty($positionID)) {
                 $sqlStaff = "INSERT INTO tbl_OfficeStaff (OfficeID, EmpID, PositionID, Plantilla) 
                              VALUES (?, ?, ?, '')";
                 
                 execsqlSRS($sqlStaff, "Insert", [$officeID, $empID, $positionID]);
             }
+            
+            echo "SUCCESS";
+        } catch (Exception $e) {
+            echo "INSERT_ERROR: " . $e->getMessage();
+        }
+        break;
+        
+    case "updateUser":
+        // Your existing update code (keep as is)
+        $userID = $_POST["userID"] ?? "";
+        $empID = trim($_POST["empID"] ?? "");
+        $email = trim($_POST["email"] ?? "");
+        $name = trim($_POST["name"] ?? "");
+        $roleID = trim($_POST["roleID"] ?? "");
+        $officeID = trim($_POST["officeID"] ?? "");
+        $positionID = trim($_POST["positionID"] ?? "");
+        $isActive = $_POST["isActive"] ?? 0;
+        $allOfficeAccess = $_POST["allOfficeAccess"] ?? 0;
+        $changePass = $_POST["changePass"] ?? 0;
+        
+        if (empty($userID) || empty($empID) || empty($name) || empty($roleID)) {
+            echo "MISSING_REQUIRED_FIELDS";
+            exit;
         }
         
-        echo "SUCCESS";
-    } catch (Exception $e) {
-        echo "UPDATE_ERROR: " . $e->getMessage();
-    }
-    break;
+        try {
+            $sqlUser = "UPDATE Sys_UserAccount 
+                        SET EmpID = ?, EmailAddress = ?, Name = ?, RID = ?, Office_id = ?, Position_id = ?, 
+                            IsActive = ?, AllOfficeAcess = ?, ChangePass = ?
+                        WHERE UserID = ?";
+            
+            execsqlSRS($sqlUser, "Update", [$empID, $email, $name, $roleID, $officeID, $positionID, $isActive, $allOfficeAccess, $changePass, $userID]);
+            
+            $checkStaff = execsqlSRS("SELECT COUNT(*) as count FROM tbl_OfficeStaff WHERE EmpID = ?", "Search", [$empID]);
+            
+            if ($checkStaff[0]['count'] > 0) {
+                $sqlStaff = "UPDATE tbl_OfficeStaff 
+                             SET OfficeID = ?, PositionID = ?
+                             WHERE EmpID = ?";
+                
+                execsqlSRS($sqlStaff, "Update", [$officeID, $positionID, $empID]);
+            } else {
+                if (!empty($officeID) && !empty($positionID)) {
+                    $sqlStaff = "INSERT INTO tbl_OfficeStaff (OfficeID, EmpID, PositionID, Plantilla) 
+                                 VALUES (?, ?, ?, '')";
+                    
+                    execsqlSRS($sqlStaff, "Insert", [$officeID, $empID, $positionID]);
+                }
+            }
+            
+            echo "SUCCESS";
+        } catch (Exception $e) {
+            echo "UPDATE_ERROR: " . $e->getMessage();
+        }
+        break;
         
-    case "toggleStatus":
+    case "softDeleteUser":
         $userID = $_POST["userID"] ?? "";
-        $status = $_POST["status"] ?? 0; // 0 = active, 1 = inactive
         
-        execsqlSRS("UPDATE Sys_UserAccount SET IsActive = ? WHERE UserID = ?", "Update", [$status, $userID]);
+        if (empty($userID)) {
+            echo "ERROR";
+            exit;
+        }
+        
+        // Soft delete: set IsDeleted = 1
+        execsqlSRS("UPDATE Sys_UserAccount SET IsDeleted = 1, DeletedDate = GETDATE() WHERE UserID = ?", "Update", [$userID]);
         echo "SUCCESS";
         break;
         
-case "getUserRow":
-    $userID = $_POST["userID"] ?? 0;
+    case "restoreUser":
+        $userID = $_POST["userID"] ?? "";
+        
+        if (empty($userID)) {
+            echo "ERROR";
+            exit;
+        }
+        
+        // Restore: set IsDeleted = 0
+        execsqlSRS("UPDATE Sys_UserAccount SET IsDeleted = 0, DeletedDate = NULL WHERE UserID = ?", "Update", [$userID]);
+        echo "SUCCESS";
+        break;
+        
+    case "getAllUsers":
+        echo getUserTableHTML(false); // Not deleted
+        break;
+        
+    case "getDeletedUsers":
+        echo getUserTableHTML(true); // Deleted only
+        break;
+        
+    default:
+        echo "ERROR";
+        break;
+}
+
+function getUserTableHTML($isDeleted = false) {
+    // Handle both NULL and 0 for non-deleted users
+    $deletedCondition = $isDeleted ? "= 1" : "IS NULL OR IsDeleted = 0";
     
     $sql = "SELECT 
                 ua.UserID,
@@ -130,86 +151,45 @@ case "getUserRow":
                 o.OfficeName,
                 ua.Position_id,
                 ua.IsActive,
-                ua.AllOfficeAcess,  -- FIXED: Correct column name (misspelled)
-                ua.ChangePass,
-                os.OfficeID as StaffOfficeID,
-                os.PositionID as StaffPositionID
+                ua.IsDeleted
             FROM Sys_UserAccount ua
             LEFT JOIN Sys_Role r ON ua.RID = r.RID
             LEFT JOIN Sys_Office o ON ua.Office_id = o.OfficeMenID
-            LEFT JOIN tbl_OfficeStaff os ON ua.EmpID = os.EmpID
-            WHERE ua.UserID = ?";
-    
-    $user = execsqlSRS($sql, "Search", [$userID]);
-    
-    if (!empty($user)) {
-        echo json_encode($user[0]);
-    } else {
-        echo "ERROR";
-    }
-    break;
-        
-    case "viewActiveUsers":
-    case "viewInactiveUsers":
-        $isActive = ($request == "viewActiveUsers") ? 0 : 1;
-        echo getUserTableHTML($isActive);
-        break;
-        
-    default:
-        echo "ERROR";
-        break;
-}
-
-function getUserTableHTML($isActive = 0) {
-    $sql = "SELECT 
-                ua.UserID,
-                ua.EmpID,
-                ua.EmailAddress,
-                ua.Password,
-                ua.Name,
-                r.Role,
-                o.OfficeName,
-                ua.Position_id,
-                ua.IsActive
-            FROM Sys_UserAccount ua
-            LEFT JOIN Sys_Role r ON ua.RID = r.RID
-            LEFT JOIN Sys_Office o ON ua.Office_id = o.OfficeMenID
-            WHERE ua.IsActive = ?
+            WHERE (ua.IsDeleted $deletedCondition)
             ORDER BY ua.Name";
     
-    $users = execsqlSRS($sql, "Search", [$isActive]);
+    $users = execsqlSRS($sql, "Search", []);
     
     if (empty($users)) {
-        return '<tr><td colspan="10" class="text-center">No users found</td></tr>';
+        $message = $isDeleted ? "No deleted users found" : "No users found";
+        return '<tr><td colspan="10" class="text-center text-muted">' . $message . '</td></tr>';
     }
     
     $html = '';
     foreach ($users as $index => $user) {
-        $statusClass = $isActive == 1 ? 'table-danger' : '';
-        $maskedPassword = str_repeat('•', 8); // Masked dots
+        $rowClass = $isDeleted ? "table-danger" : "";
         
-        // Get the actual password - escape it for HTML attribute
+        $html .= "<tr class='" . $rowClass . "' data-userid='" . $user['UserID'] . "'>";
+        $html .= "<td>" . ($index + 1) . "</td>";
+        $html .= "<td><strong>" . htmlspecialchars($user['EmpID']) . "</strong></td>";
+        
+        // Password field
+        $maskedPassword = "••••••••";
         $actualPassword = htmlspecialchars($user['Password'], ENT_QUOTES);
         
-        $html .= "<tr class='{$statusClass}' data-userid='{$user['UserID']}' data-active='{$user['IsActive']}'>";
-        $html .= "<td>" . ($index + 1) . "</td>";
-        $html .= "<td>{$user['EmpID']}</td>";
-        
-        // Password field with toggle - FIXED: Add class and proper data attributes
         $html .= "<td>
-                    <div class='input-group'>
+                    <div class='input-group input-group-sm'>
                         <input type='password' 
-                               class='form-control border-0 bg-transparent password-field' 
-                               value='{$maskedPassword}' 
-                               data-password='{$actualPassword}' 
-                               data-userid='{$user['UserID']}'
+                               class='form-control password-field' 
+                               value='" . $maskedPassword . "' 
+                               data-password='" . $actualPassword . "'
+                               data-userid='" . $user['UserID'] . "'
                                readonly>
                         <div class='input-group-append'>
-                            <button class='btn btn-sm btn-outline-secondary toggle-password' 
-                                    data-userid='{$user['UserID']}'
-                                    data-toggle='tooltip'
+                            <button class='btn btn-outline-secondary btn-sm toggle-password' 
+                                    data-userid='" . $user['UserID'] . "'
                                     title='Show Password'>
-                                <i class='fas fa-eye' id='eye_{$user['UserID']}'></i>
+                                <i class='fas fa-eye' id='eye_" . $user['UserID'] . "'></i>
                             </button>
                         </div>
                     </div>
@@ -221,40 +201,33 @@ function getUserTableHTML($isActive = 0) {
         $html .= "<td>" . htmlspecialchars($user['Role']) . "</td>";
         $html .= "<td>" . htmlspecialchars($user['EmailAddress']) . "</td>";
         
-        // Status toggle
-        $checked = $user['IsActive'] == 0 ? 'checked' : '';
-        $html .= "<td class='text-center'>
-                    <div class='custom-control custom-switch'>
-                        <input type='checkbox' 
-                               class='custom-control-input user-status' 
-                               id='status_{$user['UserID']}' 
-                               data-userid='{$user['UserID']}' 
-                               {$checked}>
-                        <label class='custom-control-label' for='status_{$user['UserID']}'></label>
-                    </div>
-                  </td>";
+        // Status
+        $statusText = $user['IsActive'] == 0 ? 'Active' : 'Inactive';
+        $statusClass = $user['IsActive'] == 0 ? 'badge-success' : 'badge-warning';
+        $html .= "<td><span class='badge " . $statusClass . "'>" . $statusText . "</span></td>";
         
-        // Action buttons
+        // Actions
         $html .= "<td class='text-center'>";
-        $html .= "<button class='btn btn-sm btn-info btn-edit-user mr-1' 
-                          data-userid='{$user['UserID']}' 
-                          title='Edit User'>
-                    <i class='fas fa-edit'></i>
-                  </button>";
         
-        if ($isActive == 0) {
-            $html .= "<button class='btn btn-sm btn-danger btn-toggle-user' 
-                              data-userid='{$user['UserID']}' 
-                              data-action='disable'
-                              title='Disable User'>
-                        <i class='fas fa-user-slash'></i>
+        if (!$isDeleted) {
+            // Edit and Delete for active users
+            $html .= "<button class='btn btn-sm btn-info btn-edit-user mr-1' 
+                              data-userid='" . $user['UserID'] . "' 
+                              title='Edit'>
+                        <i class='fas fa-edit'></i>
+                      </button>";
+                      
+            $html .= "<button class='btn btn-sm btn-danger btn-delete-user' 
+                              data-userid='" . $user['UserID'] . "' 
+                              title='Delete'>
+                        <i class='fas fa-trash'></i>
                       </button>";
         } else {
-            $html .= "<button class='btn btn-sm btn-success btn-toggle-user' 
-                              data-userid='{$user['UserID']}' 
-                              data-action='enable'
-                              title='Enable User'>
-                        <i class='fas fa-user-check'></i>
+            // Restore for deleted users
+            $html .= "<button class='btn btn-sm btn-success btn-restore-user' 
+                              data-userid='" . $user['UserID'] . "' 
+                              title='Restore'>
+                        <i class='fas fa-undo'></i>
                       </button>";
         }
         

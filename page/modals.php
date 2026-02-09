@@ -464,7 +464,7 @@ function generateUserModal() {
 
 function generateUserEditModal($userID = 0) {
     // Initialize empty user data
-    $user = [
+      $user = [
         'UserID' => '',
         'EmpID' => '',
         'EmailAddress' => '',
@@ -472,12 +472,12 @@ function generateUserEditModal($userID = 0) {
         'RID' => '',
         'Office_id' => '',
         'Position_id' => '',
-        'IsActive' => '0', // Default to active (0)
+        'IsActive' => '0',
         'AllOfficeAcess' => '0',
-        'ChangePass' => '0'
+        'ChangePass' => '0',
+        'IsDeleted' => '0' // Add this line
     ];
     
-    // Fetch user data if ID is provided (from Sys_UserAccount in srsDB)
     if ($userID > 0) {
         $sql = "SELECT * FROM [Sys_UserAccount] WHERE UserID = ?";
         $result = execsqlSRS($sql, "Search", [$userID]);
