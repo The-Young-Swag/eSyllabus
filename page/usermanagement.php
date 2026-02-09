@@ -151,56 +151,86 @@ function setupEventHandlers() {
         togglePassword(userID);
     });
     
-    // Toggle user status (button)
-    $(document).on('click', '.btn-toggle-user', function() {
-        const userID = $(this).data('userid');
-        const action = $(this).data('action');
-        const newStatus = action === 'disable' ? 1 : 0;
-        const actionText = action === 'disable' ? 'Disable this user?' : 'Enable this user?';
-        
-        if (confirm(actionText)) {
-            $.post("backend/bk_usermanagement.php", {
-                request: "toggleStatus",
-                userID: userID,
-                status: newStatus
-            }, function(response) {
-                if (response === "SUCCESS") {
-                    // Simply reload both tables
-                    loadUsers('active');
-                    loadUsers('inactive');
-                }
-            });
-        }
-    });
+// Toggle user status (button)
+$(document).on('click', '.btn-toggle-user', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
     
-    // Status switch change
-    $(document).on('change', '.user-status', function() {
-        const $checkbox = $(this);
-        const userID = $checkbox.data('userid');
-        const isChecked = $checkbox.prop('checked');
-        const newStatus = isChecked ? 0 : 1; // Convert checkbox to IsActive value
-        const actionText = isChecked ? 'Enable this user?' : 'Disable this user?';
+    const $button = $(this);
+    const userID = $button.data('userid');
+    const action = $button.data('action');
+    const newStatus = action === 'disable' ? 1 : 0;
+    const actionText = action === 'disable' ? 'Disable this user?' : 'Enable this user?';
+    
+    if (confirm(actionText)) {
+        // Disable button to prevent double click
+        $button.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
         
-        if (confirm(actionText)) {
-            $.post("backend/bk_usermanagement.php", {
-                request: "toggleStatus",
-                userID: userID,
-                status: newStatus
-            }, function(response) {
-                if (response === "SUCCESS") {
-                    // Reload both tables
-                    loadUsers('active');
-                    loadUsers('inactive');
-                } else {
-                    // Revert checkbox if failed
-                    $checkbox.prop('checked', !isChecked);
-                }
-            });
-        } else {
-            // Revert checkbox if user cancels
+        $.post("backend/bk_usermanagement.php", {
+            request: "toggleStatus",
+            userID: userID,
+            status: newStatus
+        }, function(response) {
+            // Re-enable button
+            $button.prop('disabled', false).html(action === 'disable' ? 
+                '<i class="fas fa-user-slash"></i>' : 
+                '<i class="fas fa-user-check"></i>');
+            
+            if (response === "SUCCESS") {
+                // Reload both tables
+                loadUsers('active');
+                loadUsers('inactive');
+            } else {
+                alert('Failed to update user status');
+            }
+        }).fail(function() {
+            // Re-enable button on error
+            $button.prop('disabled', false).html(action === 'disable' ? 
+                '<i class="fas fa-user-slash"></i>' : 
+                '<i class="fas fa-user-check"></i>');
+            alert('Server error. Please try again.');
+        });
+    }
+});
+    
+// Status switch change
+$(document).on('change', '.user-status', function() {
+    const $checkbox = $(this);
+    const userID = $checkbox.data('userid');
+    const isChecked = $checkbox.prop('checked');
+    const newStatus = isChecked ? 0 : 1; // Convert checkbox to IsActive value
+    const actionText = isChecked ? 'Enable this user?' : 'Disable this user?';
+    
+    // Prevent immediate change
+    $checkbox.prop('checked', !isChecked); // Revert immediately
+    
+    // Show confirmation
+    if (confirm(actionText)) {
+        // If confirmed, make the change via AJAX
+        $.post("backend/bk_usermanagement.php", {
+            request: "toggleStatus",
+            userID: userID,
+            status: newStatus
+        }, function(response) {
+            if (response === "SUCCESS") {
+                // Success: Update checkbox to reflect new state
+                $checkbox.prop('checked', isChecked);
+                // Reload both tables
+                loadUsers('active');
+                loadUsers('inactive');
+            } else {
+                // Failed: Keep checkbox in original state
+                $checkbox.prop('checked', !isChecked);
+                alert('Failed to update user status');
+            }
+        }).fail(function() {
+            // On error, revert checkbox
             $checkbox.prop('checked', !isChecked);
-        }
-    });
+            alert('Server error. Please try again.');
+        });
+    }
+    // If cancelled, checkbox stays reverted (no change)
+});
     
     // Save user (add) - FIXED: Prevent double submission
     $(document).on('click', '#btnSaveUser', function(e) {

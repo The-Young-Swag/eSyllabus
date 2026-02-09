@@ -5,50 +5,60 @@ $request = $_POST["request"] ?? "";
 
 switch ($request) {
 	
-    case "addUser":
-        $empID = trim($_POST["empID"] ?? "");
-        $email = trim($_POST["email"] ?? "");
-        $name = trim($_POST["name"] ?? "");
-        $roleID = trim($_POST["roleID"] ?? "");
-        $officeID = trim($_POST["officeID"] ?? "");
-        $positionID = trim($_POST["positionID"] ?? "");
+case "addUser":
+    $empID = trim($_POST["empID"] ?? "");
+    $email = trim($_POST["email"] ?? "");
+    $name = trim($_POST["name"] ?? "");
+    $roleID = trim($_POST["roleID"] ?? "");
+    $officeID = trim($_POST["officeID"] ?? "");
+    $positionID = trim($_POST["positionID"] ?? "");
+    
+    // Validate required fields
+    if (empty($empID) || empty($name) || empty($roleID)) {
+        echo "MISSING_REQUIRED_FIELDS";
+        exit;
+    }
+    
+    // Check if user exists
+    $check = execsqlSRS("SELECT COUNT(*) as count FROM Sys_UserAccount WHERE EmpID = ?", "Search", [$empID]);
+    if ($check[0]['count'] > 0) {
+        echo "DUPLICATE";
+        exit;
+    }
+    
+    // Set default email if empty
+    if (empty($email)) {
+        $email = $empID . '@example.com';
+    }
+    
+    // Default password is EmpID
+    $password = $empID;
+    
+    // Start transaction for both tables
+    try {
+        // Insert into Sys_UserAccount
+        $sqlUser = "INSERT INTO Sys_UserAccount (EmpID, EmailAddress, Password, Name, RID, Office_id, Position_id, IsActive, AccountRegDate) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 0, GETDATE())";
         
-        // Validate required fields
-        if (empty($empID) || empty($name) || empty($roleID)) {
-            echo "MISSING_REQUIRED_FIELDS";
-            exit;
+        execsqlSRS($sqlUser, "Insert", [$empID, $email, $password, $name, $roleID, $officeID, $positionID]);
+        
+        // Insert into tbl_OfficeStaff if OfficeID and PositionID are provided
+        if (!empty($officeID) && !empty($positionID)) {
+            $sqlStaff = "INSERT INTO tbl_OfficeStaff (OfficeID, EmpID, PositionID, Plantilla) 
+                         VALUES (?, ?, ?, '')";
+            
+            execsqlSRS($sqlStaff, "Insert", [$officeID, $empID, $positionID]);
         }
         
-        // Check if user exists
-        $check = execsqlSRS("SELECT COUNT(*) as count FROM Sys_UserAccount WHERE EmpID = ?", "Search", [$empID]);
-        if ($check[0]['count'] > 0) {
-            echo "DUPLICATE";
-            exit;
-        }
-        
-        // Set default email if empty
-        if (empty($email)) {
-            $email = $empID . '@example.com';
-        }
-        
-        // Default password is EmpID
-        $password = $empID;
-        
-        // Insert user (default IsActive = 0 = active)
-        $sql = "INSERT INTO Sys_UserAccount (EmpID, EmailAddress, Password, Name, RID, Office_id, Position_id, IsActive, AccountRegDate) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, 0, GETDATE())";
-        
-        try {
-            execsqlSRS($sql, "Insert", [$empID, $email, $password, $name, $roleID, $officeID, $positionID]);
-            echo "SUCCESS";
-        } catch (Exception $e) {
-            echo "INSERT_ERROR: " . $e->getMessage();
-        }
-        break;
+        echo "SUCCESS";
+    } catch (Exception $e) {
+        echo "INSERT_ERROR: " . $e->getMessage();
+    }
+    break;
         
 case "updateUser":
     $userID = $_POST["userID"] ?? "";
-    $empID = trim($_POST["empID"] ?? ""); // ADD THIS
+    $empID = trim($_POST["empID"] ?? "");
     $email = trim($_POST["email"] ?? "");
     $name = trim($_POST["name"] ?? "");
     $roleID = trim($_POST["roleID"] ?? "");
@@ -64,13 +74,35 @@ case "updateUser":
         exit;
     }
     
-    $sql = "UPDATE Sys_UserAccount 
-            SET EmpID = ?, EmailAddress = ?, Name = ?, RID = ?, Office_id = ?, Position_id = ?, 
-                IsActive = ?, AllOfficeAcess = ?, ChangePass = ?
-            WHERE UserID = ?";
-    
     try {
-        execsqlSRS($sql, "Update", [$empID, $email, $name, $roleID, $officeID, $positionID, $isActive, $allOfficeAccess, $changePass, $userID]);
+        // Update Sys_UserAccount - FIXED: Use correct column name AllOfficeAcess (misspelled)
+        $sqlUser = "UPDATE Sys_UserAccount 
+                    SET EmpID = ?, EmailAddress = ?, Name = ?, RID = ?, Office_id = ?, Position_id = ?, 
+                        IsActive = ?, AllOfficeAcess = ?, ChangePass = ?
+                    WHERE UserID = ?";
+        
+        execsqlSRS($sqlUser, "Update", [$empID, $email, $name, $roleID, $officeID, $positionID, $isActive, $allOfficeAccess, $changePass, $userID]);
+        
+        // Check if record exists in tbl_OfficeStaff
+        $checkStaff = execsqlSRS("SELECT COUNT(*) as count FROM tbl_OfficeStaff WHERE EmpID = ?", "Search", [$empID]);
+        
+        if ($checkStaff[0]['count'] > 0) {
+            // Update existing record
+            $sqlStaff = "UPDATE tbl_OfficeStaff 
+                         SET OfficeID = ?, PositionID = ?
+                         WHERE EmpID = ?";
+            
+            execsqlSRS($sqlStaff, "Update", [$officeID, $positionID, $empID]);
+        } else {
+            // Insert new record if OfficeID and PositionID are provided
+            if (!empty($officeID) && !empty($positionID)) {
+                $sqlStaff = "INSERT INTO tbl_OfficeStaff (OfficeID, EmpID, PositionID, Plantilla) 
+                             VALUES (?, ?, ?, '')";
+                
+                execsqlSRS($sqlStaff, "Insert", [$officeID, $empID, $positionID]);
+            }
+        }
+        
         echo "SUCCESS";
     } catch (Exception $e) {
         echo "UPDATE_ERROR: " . $e->getMessage();
@@ -85,34 +117,37 @@ case "updateUser":
         echo "SUCCESS";
         break;
         
-    case "getUserRow":
-        $userID = $_POST["userID"] ?? 0;
-        
-        $sql = "SELECT 
-                    ua.UserID,
-                    ua.EmpID,
-                    ua.EmailAddress,
-                    ua.Password,
-                    ua.Name,
-                    r.Role,
-                    o.OfficeName,
-                    ua.Position_id,
-                    ua.IsActive,
-                    ua.AllOfficeAcess,
-                    ua.ChangePass
-                FROM Sys_UserAccount ua
-                LEFT JOIN Sys_Role r ON ua.RID = r.RID
-                LEFT JOIN Sys_Office o ON ua.Office_id = o.OfficeMenID
-                WHERE ua.UserID = ?";
-        
-        $user = execsqlSRS($sql, "Search", [$userID]);
-        
-        if (!empty($user)) {
-            echo json_encode($user[0]);
-        } else {
-            echo "ERROR";
-        }
-        break;
+case "getUserRow":
+    $userID = $_POST["userID"] ?? 0;
+    
+    $sql = "SELECT 
+                ua.UserID,
+                ua.EmpID,
+                ua.EmailAddress,
+                ua.Password,
+                ua.Name,
+                r.Role,
+                o.OfficeName,
+                ua.Position_id,
+                ua.IsActive,
+                ua.AllOfficeAcess,  -- FIXED: Correct column name (misspelled)
+                ua.ChangePass,
+                os.OfficeID as StaffOfficeID,
+                os.PositionID as StaffPositionID
+            FROM Sys_UserAccount ua
+            LEFT JOIN Sys_Role r ON ua.RID = r.RID
+            LEFT JOIN Sys_Office o ON ua.Office_id = o.OfficeMenID
+            LEFT JOIN tbl_OfficeStaff os ON ua.EmpID = os.EmpID
+            WHERE ua.UserID = ?";
+    
+    $user = execsqlSRS($sql, "Search", [$userID]);
+    
+    if (!empty($user)) {
+        echo json_encode($user[0]);
+    } else {
+        echo "ERROR";
+    }
+    break;
         
     case "viewActiveUsers":
     case "viewInactiveUsers":
