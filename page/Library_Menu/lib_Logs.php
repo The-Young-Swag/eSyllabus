@@ -170,6 +170,31 @@
     </div>
 
 </div>
+<!-- Check-Out Modal -->
+<div class="modal fade" id="checkoutModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Confirm Check-Out</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p>Student: <strong id="coStudentName"></strong></p>
+        <p>Library: <strong id="coLibrary"></strong></p>
+        <div class="mb-3">
+          <label for="coStudentNumber" class="form-label">Enter Your Student Number to Confirm</label>
+          <input type="text" class="form-control" id="coStudentNumber" placeholder="Student Number">
+        </div>
+        <div id="coError" class="text-danger small" style="display:none;">Student number does not match.</div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-warning" id="confirmCheckoutBtn">Check-Out</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 
 <script>
 /* ===========================
@@ -202,6 +227,9 @@
         inputLibrary,
         confirmModal,
         pendingLog = null;
+
+    // Checkout Modal Elements
+    let checkoutModal, coStudentNameEl, coLibraryEl, coStudentNumberInput, coErrorEl, pendingCheckoutLog = null;
 
     // ---------------------------
     // Helper: Fetch JSON safely
@@ -290,19 +318,13 @@
 
         // Check-out button
         if (!isCheckedOut) {
-            tr.querySelector('.btn-checkout').addEventListener('click', async () => {
-                if (!confirm(`Check out ${log.name}?`)) return;
-                const result = await fetchJSON('backend/bk_Library_Menu/bk_libLogs.php', {
-                    request: 'checkoutLog',
-                    student_number: log.student_number,
-                    library: log.library
-                });
-
-                if (!result) return;
-
-                log.checkout_time = new Date().toISOString();
-                tr.cells[6].textContent = new Date(log.checkout_time).toLocaleString();
-                tr.cells[7].innerHTML = '<span class="text-success">Checked Out</span>';
+            tr.querySelector('.btn-checkout').addEventListener('click', () => {
+                pendingCheckoutLog = { ...log, row: tr };
+                coStudentNameEl.textContent = log.name;
+                coLibraryEl.textContent = log.library;
+                coStudentNumberInput.value = '';
+                coErrorEl.style.display = 'none';
+                checkoutModal.show();
             });
         }
 
@@ -441,6 +463,36 @@
             inputCourse.value = '';
             inputStudentNumber.focus();
         });
+
+        // Checkout Confirm Button
+        document.getElementById('confirmCheckoutBtn').addEventListener('click', async () => {
+            if (!pendingCheckoutLog) return;
+
+            const inputSN = coStudentNumberInput.value.trim();
+            if (inputSN !== pendingCheckoutLog.student_number) {
+                coErrorEl.style.display = 'block';
+                return;
+            }
+
+            const result = await fetchJSON('backend/bk_Library_Menu/bk_libLogs.php', {
+                request: 'checkoutLog',
+                student_number: pendingCheckoutLog.student_number,
+                library: pendingCheckoutLog.library
+            });
+
+            if (!result) {
+                alert("Failed to check-out");
+                return;
+            }
+
+            // Update table row
+            pendingCheckoutLog.checkout_time = new Date().toISOString();
+            const tr = pendingCheckoutLog.row;
+            tr.cells[6].textContent = new Date(pendingCheckoutLog.checkout_time).toLocaleString();
+            tr.cells[7].innerHTML = '<span class="text-success">Checked Out</span>';
+
+            checkoutModal.hide();
+        });
     }
 
     // ---------------------------
@@ -458,6 +510,13 @@
         inputLibrary = document.getElementById('inputLibrary');
         confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
 
+        // Checkout Modal Elements
+        checkoutModal = new bootstrap.Modal(document.getElementById('checkoutModal'));
+        coStudentNameEl = document.getElementById('coStudentName');
+        coLibraryEl = document.getElementById('coLibrary');
+        coStudentNumberInput = document.getElementById('coStudentNumber');
+        coErrorEl = document.getElementById('coError');
+
         // Load data
         await loadLibraries();
         await loadFullTable();
@@ -474,5 +533,4 @@
     init();
 
 })();
-
 </script>
