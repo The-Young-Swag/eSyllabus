@@ -50,32 +50,43 @@
             <i class="fas fa-user-plus me-2"></i> Log Student Attendance
         </div>
         <div class="card-body">
-            <form id="logForm" class="row g-3">
-                <div class="col-md-2">
-                    <label class="form-label">Student Number</label>
-                    <input type="text" class="form-control" id="inputStudentNumber" placeholder="Enter student number">
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label">Name</label>
-                    <input type="text" class="form-control" id="inputName" placeholder="Auto-filled" readonly>
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label">College</label>
-                    <input type="text" class="form-control" id="inputCollege" placeholder="Auto-filled" readonly>
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label">Course</label>
-                    <input type="text" class="form-control" id="inputCourse" placeholder="Auto-filled" readonly>
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label">Library</label>
-  <select class="form-select" id="inputLibrary"></select>
+<form id="logForm" class="row g-3 align-items-end">
 
-                </div>
-                <div class="col-md-2 d-flex align-items-end">
-                    <button type="submit" class="btn btn-success w-50">Log Attendance</button>
-                </div>
-            </form>
+    <div class="col-md-2">
+        <label class="form-label">Student Number</label>
+        <input type="text" class="form-control" id="inputStudentNumber" placeholder="Enter student number">
+    </div>
+
+    <div class="col-md-2">
+        <label class="form-label">Name</label>
+        <input type="text" class="form-control" id="inputName" readonly>
+    </div>
+
+    <div class="col-md-2">
+        <label class="form-label">College</label>
+        <input type="text" class="form-control" id="inputCollege" readonly>
+    </div>
+
+    <div class="col-md-2">
+        <label class="form-label">Course</label>
+        <input type="text" class="form-control" id="inputCourse" readonly>
+    </div>
+
+    <!-- Make Library wider -->
+    <div class="col-md-3">
+        <label class="form-label">Library</label>
+        <select class="form-select" id="inputLibrary"></select>
+    </div>
+
+    <!-- Button smaller column -->
+    <div class="col-md-1">
+        <button type="submit" class="btn btn-success w-100">
+            Log
+        </button>
+    </div>
+
+</form>
+
         </div>
     </div>
 
