@@ -761,3 +761,93 @@ function showToast(message, type = "success") {
     // Remove after animation
     setTimeout(() => $(`#${toastId}`).remove(), 2500);
 }
+
+
+async function getStudentInfo(studentNumber) {
+    const paths = [
+        'API_requests/students.json',
+        '../API_requests/students.json',
+        '/eSyllabus/API_requests/students.json'
+    ];
+
+    for (const path of paths) {
+        try {
+            const res = await fetch(path);
+            if (res.ok) {
+                const data = await res.json();
+                return data[studentNumber] || null;
+            }
+        } catch {}
+    }
+    return null;
+}
+
+
+
+async function fetchTable(url, request, injectTo) {
+    const response = await fetch(url, {
+        method: 'POST',
+        body: new URLSearchParams({ request })
+    });
+
+    const html = await response.text();
+    document.getElementById(injectTo).innerHTML = html;
+}
+
+
+/* function addLogRow(log, tbody = document.getElementById('logsTableBody')) {
+    const tr = document.createElement('tr');
+
+    tr.innerHTML = `
+        <td>${log.student_number}</td>
+        <td>${log.name}</td>
+        <td>${log.college}</td>
+        <td>${log.course}</td>
+        <td>${log.library}</td>
+        <td>${formatTime(log.checkin_time)}</td>
+        <td>${log.checkout_time ? formatTime(log.checkout_time) : '<span class="text-muted">—</span>'}</td>
+    `;
+
+    tbody.prepend(tr);
+}
+
+async function ajaxPost(url, data = {}) {
+    const res = await fetch(url, {
+        method: "POST",
+        body: new URLSearchParams(data)
+    });
+
+    if (!res.ok) {
+        throw new Error("Network error");
+    }
+
+    return res.json();
+}
+
+function bindOnce(element, event, handler) {
+    element.removeEventListener(event, handler);
+    element.addEventListener(event, handler);
+}
+
+function clearIntervals(intervals = []) {
+    intervals.forEach(clearInterval);
+    return [];
+}
+
+function updateText(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.innerText = value;
+}
+
+function appendHTML(container, html, toTop = true) {
+    if (toTop) {
+        container.insertAdjacentHTML("afterbegin", html);
+    } else {
+        container.insertAdjacentHTML("beforeend", html);
+    }
+}
+
+function formatTime(datetime) {
+    return new Date(datetime).toLocaleTimeString();
+} */
+

@@ -92,8 +92,7 @@
 $(document).ready(function() {
     // Load initial data
     loadMenus('all');
-	loadMenus('deleted'); // <-- add this line
-
+     loadMenus('deleted');  // also load deleted menus immediately
     // Setup event handlers
     setupMenuEvents();
 });

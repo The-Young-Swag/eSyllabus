@@ -123,6 +123,25 @@ switch ($request) {
         execsqlSRS("UPDATE Sys_UserAccount SET IsDeleted = 0, DeletedDate = NULL WHERE UserID = ?", "Update", [$userID]);
         echo "SUCCESS";
         break;
+		
+case "toggleUserStatus":
+    $userID = $_POST["userID"] ?? "";
+    $status = $_POST["status"] ?? 0;
+    
+    if (empty($userID)) {
+        echo json_encode(["success" => false, "message" => "Invalid user ID"]);
+        exit;
+    }
+    
+    try {
+        execsqlSRS("UPDATE Sys_UserAccount SET IsActive = ? WHERE UserID = ?", 
+                   "Update", [$status, $userID]);
+        
+        echo json_encode(["success" => true, "message" => "Status updated"]);
+    } catch (Exception $e) {
+        echo json_encode(["success" => false, "message" => "Error: " . $e->getMessage()]);
+    }
+    break;
         
     case "getAllUsers":
         echo getUserTableHTML(false); // Not deleted
@@ -206,32 +225,46 @@ function getUserTableHTML($isDeleted = false) {
         $statusClass = $user['IsActive'] == 0 ? 'badge-success' : 'badge-warning';
         $html .= "<td><span class='badge " . $statusClass . "'>" . $statusText . "</span></td>";
         
-        // Actions
-        $html .= "<td class='text-center'>";
-        
-        if (!$isDeleted) {
-            // Edit and Delete for active users
-            $html .= "<button class='btn btn-sm btn-info btn-edit-user mr-1' 
-                              data-userid='" . $user['UserID'] . "' 
-                              title='Edit'>
-                        <i class='fas fa-edit'></i>
-                      </button>";
-                      
-            $html .= "<button class='btn btn-sm btn-danger btn-delete-user' 
-                              data-userid='" . $user['UserID'] . "' 
-                              title='Delete'>
-                        <i class='fas fa-trash'></i>
-                      </button>";
-        } else {
-            // Restore for deleted users
-            $html .= "<button class='btn btn-sm btn-success btn-restore-user' 
-                              data-userid='" . $user['UserID'] . "' 
-                              title='Restore'>
-                        <i class='fas fa-undo'></i>
-                      </button>";
-        }
-        
-        $html .= "</td>";
+// Actions
+$html .= "<td class='text-center'>";
+$html .= "<div class='btn-group' role='group'>";
+
+if (!$isDeleted) {
+    // Toggle status switch
+    $isActive = $user['IsActive'] == 0;
+    $switchId = "userStatus" . $user['UserID'];
+    
+    $html .= "<div class='custom-control custom-switch mr-2' style='display: inline-block; vertical-align: middle;'>
+                <input type='checkbox' class='custom-control-input toggleUserStatus'
+                       id='" . $switchId . "'
+                       data-userid='" . $user['UserID'] . "' 
+                       " . ($isActive ? "checked" : "") . ">
+                <label class='custom-control-label' for='" . $switchId . "'></label>
+              </div>";
+    
+    // Edit button
+    $html .= "<button class='btn btn-sm btn-info btn-edit-user mr-1' 
+                      data-userid='" . $user['UserID'] . "' 
+                      title='Edit'>
+                <i class='fas fa-edit'></i>
+              </button>";
+              
+    // Delete button
+    $html .= "<button class='btn btn-sm btn-danger btn-delete-user' 
+                      data-userid='" . $user['UserID'] . "' 
+                      title='Delete'>
+                <i class='fas fa-trash'></i>
+              </button>";
+} else {
+    // Restore for deleted users
+    $html .= "<button class='btn btn-sm btn-success btn-restore-user' 
+                      data-userid='" . $user['UserID'] . "' 
+                      title='Restore'>
+                <i class='fas fa-undo'></i>
+              </button>";
+}
+
+$html .= "</div></td>";
         $html .= "</tr>";
     }
     

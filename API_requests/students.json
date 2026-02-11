@@ -1,0 +1,22 @@
+{
+    "2022100114": {
+        "name": "Rivz Rivera",
+        "college": "CET",
+        "course": "BSIT"
+    },
+    "2022100115": {
+        "name": "Jane Smith",
+        "college": "CVM",
+        "course": "DVM"
+    },
+    "2022100116": {
+        "name": "Alice Johnson",
+        "college": "CAS",
+        "course": "BSPsych"
+    },
+    "2022100117": {
+        "name": "Mark Brown",
+        "college": "CED",
+        "course": "BSIEE"
+    }
+}

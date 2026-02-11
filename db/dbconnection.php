@@ -26,7 +26,8 @@ function execsqlSRS($sql, $oper, $arr)
 
 function dbconES()
 {
-	include "../config/config.php";
+include __DIR__ . "/../config/config.php";
+
 	try {
 
 		$dbh = new PDO("sqlsrv:Server={$srsServer};Database={$srsDB}", "", "");

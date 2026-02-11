@@ -267,4 +267,50 @@ function setupUserEvents() {
         return false;
     });
 }
+// Toggle user status
+$(document).off('change.user', '.toggleUserStatus').on('change.user', '.toggleUserStatus', function() {
+    const userId = $(this).data('userid');
+    const isChecked = $(this).is(':checked');
+    const newStatus = isChecked ? 0 : 1; // 0 = Active, 1 = Inactive
+    
+    if (confirm(`Are you sure you want to ${isChecked ? 'activate' : 'deactivate'} this user?`)) {
+        $.post("backend/bk_usermanagement.php", {
+            request: "toggleUserStatus",
+            userID: userId,
+            status: newStatus
+        }, function(response) {
+            // Parse JSON response
+            try {
+                const data = JSON.parse(response);
+                if (data.success) {
+                    // Update the badge status in the table row
+                    const row = $(`.toggleUserStatus[data-userid="${userId}"]`).closest('tr');
+                    const badgeCell = row.find('td').eq(8); // Status column
+                    
+                    const statusText = isChecked ? 'Active' : 'Inactive';
+                    const statusClass = isChecked ? 'badge-success' : 'badge-warning';
+                    
+                    badgeCell.html(`<span class="badge ${statusClass}">${statusText}</span>`);
+                    
+                    // Show success message
+                    showToast('User status updated successfully!', 'success');
+                } else {
+                    // Revert the switch if failed
+                    $(this).prop('checked', !isChecked);
+                    alert("Error: " + data.message);
+                }
+            } catch (e) {
+                console.error("Error parsing response:", e);
+                $(this).prop('checked', !isChecked);
+                alert("Server error. Please try again.");
+            }
+        }).fail(function() {
+            $(this).prop('checked', !isChecked);
+            alert("Server error. Please try again.");
+        });
+    } else {
+        // Revert if user cancels
+        $(this).prop('checked', !isChecked);
+    }
+});
 </script>
