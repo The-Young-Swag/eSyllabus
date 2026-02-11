@@ -423,46 +423,50 @@
             btn.disabled = true;
             btn.textContent = "Saving...";
 
-try {
-    // Call backend
-    const result = await api('addLog', {
-        student_number: pendingLog.student_number,
-        library: pendingLog.library
-    });
+            try {
+                // Call backend
+                const result = await api('addLog', {
+                    student_number: pendingLog.student_number,
+                    library: pendingLog.library
+                });
 
-    // Only show alert if backend explicitly failed
-    if (!result?.success) {
-        alert(result?.message || "Failed to insert log. Try again.");
-        return;
-    }
+                // If backend failed, show alert
+                if (!result || !result.success) {
+                    alert("Failed to insert log. Try again.");
+                    btn.disabled = false;
+                    btn.textContent = "Confirm";
+                    return;
+                }
 
-    // Append new row in real-time
-    const newLog = {
-        ...pendingLog,
-        id: Date.now(), // temporary unique id
-        checkin_time: new Date().toISOString(),
-        checkout_time: null
-    };
+                // Append new row in real-time
+                const newLog = {
+                    ...pendingLog,
+                    id: Date.now(), // temporary unique id, since backend doesn't return one
+                    checkin_time: new Date().toISOString(),
+                    checkout_time: null
+                };
 
-    appendRow(newLog);
+                appendRow(newLog);
 
-    // Close modal & clear form
-    confirmModal.hide();
-    clearStudentFields();
-    el.inputStudentNumber.value = '';
-    el.inputStudentNumber.focus();
+                // Update KPIs
+                incrementKPIs(pendingLog);
 
-} catch (err) {
-    console.error(err);
-    // Only show network alert if truly network error
-    if (!err.name.includes("AbortError")) {
-        alert("Network error. Please try again.");
-    }
-} finally {
-    btn.disabled = false;
-    btn.textContent = "Confirm";
-    pendingLog = null;
-}
+                // Close modal
+                confirmModal.hide();
+
+                // Clear form
+                clearStudentFields();
+                el.inputStudentNumber.value = '';
+                el.inputStudentNumber.focus();
+
+            } catch (err) {
+                console.error(err);
+                alert("Network error. Please try again.");
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "Confirm";
+                pendingLog = null;
+            }
         }
 
 
