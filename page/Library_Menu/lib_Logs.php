@@ -275,28 +275,39 @@
         /* ================= LIBRARIES ================= */
 
 async function loadLibraries() {
+
     const libs = await api('getLibraries');
     if (!libs) return;
 
     el.inputLibrary.innerHTML = '';
     el.filterLibrary.innerHTML = '';
 
+    // 🔥 Add COMBINED option first
+    const combinedValue = "FILIPINIANA_COMBINED";
+
+    el.filterLibrary.innerHTML += `
+        <option value="${combinedValue}">
+            Filipiniana (1st & 2nd Floor)
+        </option>
+    `;
+
     libs.forEach(lib => {
-        const option = `<option value="${lib.SectionName}">
-                            ${lib.SectionName}
-                        </option>`;
+
+        const option = `
+            <option value="${lib.SectionName}">
+                ${lib.SectionName}
+            </option>
+        `;
+
         el.inputLibrary.innerHTML += option;
         el.filterLibrary.innerHTML += option;
     });
 
-    // 🔥 Default selection to Filipiniana 1st
-    const defaultLib = "Filipiniana 1st";
-
-    el.inputLibrary.value = defaultLib;
-    el.filterLibrary.value = defaultLib;
-
-    State.filters.library = defaultLib;
+    // 🔥 Default filter = combined
+    el.filterLibrary.value = combinedValue;
+    State.filters.library = combinedValue;
 }
+
 
 
         /* ================= LOAD TODAY ================= */
@@ -554,14 +565,31 @@ function getTop(key, dataset) {
 
         /* ================= HELPERS ================= */
 
-        function getFilteredLogs() {
-            return State.logs.filter(log => {
-                const libMatch = !State.filters.library || log.library === State.filters.library;
-                const searchMatch = !State.filters.search ||
-                    log.student_number.includes(State.filters.search);
-                return libMatch && searchMatch;
-            });
+function getFilteredLogs() {
+
+    return State.logs.filter(log => {
+
+        let libMatch = true;
+
+        if (State.filters.library === "FILIPINIANA_COMBINED") {
+
+            libMatch =
+                log.library === "Filipiniana 1st" ||
+                log.library === "Filipiniana 2nd";
+
+        } else if (State.filters.library) {
+
+            libMatch = log.library === State.filters.library;
         }
+
+        const searchMatch =
+            !State.filters.search ||
+            log.student_number.includes(State.filters.search);
+
+        return libMatch && searchMatch;
+    });
+}
+
 
         function clearStudentFields() {
             el.inputName.value = '';
