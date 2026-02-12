@@ -274,19 +274,30 @@
 
         /* ================= LIBRARIES ================= */
 
-        async function loadLibraries() {
-            const libs = await api('getLibraries');
-            if (!libs) return;
+async function loadLibraries() {
+    const libs = await api('getLibraries');
+    if (!libs) return;
 
-            el.inputLibrary.innerHTML = '';
-            el.filterLibrary.innerHTML = '<option value="">All Libraries</option>';
+    el.inputLibrary.innerHTML = '';
+    el.filterLibrary.innerHTML = '';
 
-            libs.forEach(lib => {
-                const option = `<option value="${lib.SectionName}">${lib.SectionName}</option>`;
-                el.inputLibrary.innerHTML += option;
-                el.filterLibrary.innerHTML += option;
-            });
-        }
+    libs.forEach(lib => {
+        const option = `<option value="${lib.SectionName}">
+                            ${lib.SectionName}
+                        </option>`;
+        el.inputLibrary.innerHTML += option;
+        el.filterLibrary.innerHTML += option;
+    });
+
+    // 🔥 Default selection to Filipiniana 1st
+    const defaultLib = "Filipiniana 1st";
+
+    el.inputLibrary.value = defaultLib;
+    el.filterLibrary.value = defaultLib;
+
+    State.filters.library = defaultLib;
+}
+
 
         /* ================= LOAD TODAY ================= */
 
@@ -340,10 +351,12 @@
 
         function bindEvents() {
 
-            el.filterLibrary.addEventListener('change', e => {
-                State.filters.library = e.target.value;
-                renderTable();
-            });
+el.filterLibrary.addEventListener('change', e => {
+    State.filters.library = e.target.value;
+    renderTable();
+    updateKPIs(); //  critical
+});
+
 
             el.filterSearch.addEventListener('input', e => {
                 State.filters.search = e.target.value.trim();
@@ -352,19 +365,34 @@
 
             /* ===== Student Auto Fill ===== */
 
-            el.inputStudentNumber.addEventListener('input', async e => {
-                const sn = e.target.value.trim();
-                if (!sn) return clearStudentFields();
+el.inputStudentNumber.addEventListener('input', async e => {
 
-                const res = await fetch('API_requests/students.json');
-                const data = await res.json();
+    const sn = e.target.value.trim();
 
-                if (!data[sn]) return clearStudentFields();
+    // Only validate at exactly 10 digits
+    if (sn.length !== 10) {
+        clearStudentFields();
+        return;
+    }
 
-                el.inputName.value = data[sn].name;
-                el.inputCollege.value = data[sn].college;
-                el.inputCourse.value = data[sn].course;
-            });
+    try {
+        const res = await fetch('API_requests/students.json');
+        const data = await res.json();
+
+        if (!data[sn]) {
+            clearStudentFields();
+            return;
+        }
+
+        el.inputName.value = data[sn].name;
+        el.inputCollege.value = data[sn].college;
+        el.inputCourse.value = data[sn].course;
+
+    } catch (err) {
+        console.error("Student fetch error:", err);
+    }
+});
+
 
             /* ===== Submit (Check-In) ===== */
 
@@ -493,25 +521,36 @@ try {
 
         /* ================= KPI ================= */
 
-        function updateKPIs() {
-            el.kpiTotalCheckins.textContent = State.logs.length;
-            el.kpiActiveStudents.textContent =
-                State.logs.filter(l => !l.checkout_time).length;
+function updateKPIs() {
 
-            el.kpiTopColleges.textContent = getTop('college');
-            el.kpiTopCourses.textContent = getTop('course');
-        }
+    const filtered = getFilteredLogs(); // 🔥 use filtered logs
 
-        function getTop(key) {
-            const count = {};
-            State.logs.forEach(l => count[l[key]] = (count[l[key]] || 0) + 1);
+    el.kpiTotalCheckins.textContent = filtered.length;
 
-            return Object.entries(count)
-                .sort((a, b) => b[1] - a[1])
-                .slice(0, 3)
-                .map(e => e[0])
-                .join(', ') || '—';
-        }
+    el.kpiActiveStudents.textContent =
+        filtered.filter(l => !l.checkout_time).length;
+
+    el.kpiTopColleges.textContent = getTop('college', filtered);
+    el.kpiTopCourses.textContent = getTop('course', filtered);
+}
+
+
+function getTop(key, dataset) {
+    if (!dataset.length) return '—';
+
+    const count = {};
+
+    dataset.forEach(l => {
+        count[l[key]] = (count[l[key]] || 0) + 1;
+    });
+
+    return Object.entries(count)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(e => e[0])
+        .join(', ');
+}
+
 
         /* ================= HELPERS ================= */
 
