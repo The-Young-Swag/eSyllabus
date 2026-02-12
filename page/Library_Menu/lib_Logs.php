@@ -86,6 +86,9 @@
                 <label class="form-label small fw-semibold mb-1">Course</label>
                 <input type="text" class="form-control form-control-sm" id="inputCourse" readonly>
             </div>
+			
+
+
 
             <div class="col-md-3">
                 <label class="form-label small fw-semibold mb-1">Library</label>
@@ -96,7 +99,12 @@
                 <button type="submit" class="btn btn-success btn-sm w-100 fw-semibold">
                     Log
                 </button>
+				
             </div>
+<div class="col-md-2" id="specialKeyContainer" style="display:none;">
+    <label class="form-label small fw-semibold mb-1">Special Key</label>
+    <input type="text" class="form-control form-control-sm" id="inputSpecialKey">
+</div>
 
         </form>
     </div>
@@ -483,55 +491,97 @@ el.filterSearch.addEventListener('keypress', e => {
             /* ===== Student Auto Fill ===== */
 
 el.inputStudentNumber.addEventListener('input', async e => {
-
     const sn = e.target.value.trim();
 
-    // Only validate at exactly 10 digits
     if (sn.length !== 10) {
         clearStudentFields();
+        document.getElementById('specialKeyContainer').style.display = 'none';
         return;
     }
 
-    try {
-        const res = await fetch('API_requests/students.json');
-        const data = await res.json();
+    const students = await loadStudents();
+    const matches = students.filter(s => s.student_number === sn);
 
-        if (!data[sn]) {
-            clearStudentFields();
-            return;
-        }
+    if (matches.length === 0) {
+        clearStudentFields();
+        document.getElementById('specialKeyContainer').style.display = 'none';
+        return;
+    }
 
-        el.inputName.value = data[sn].name;
-        el.inputCollege.value = data[sn].college;
-        el.inputCourse.value = data[sn].course;
-
-    } catch (err) {
-        console.error("Student fetch error:", err);
+    if (matches.length === 1) {
+        const student = matches[0];
+        el.inputName.value = student.name;
+        el.inputCollege.value = student.college;
+        el.inputCourse.value = student.course;
+        document.getElementById('specialKeyContainer').style.display = 'none';
+    } else {
+        // Duplicate -> require special key
+        clearStudentFields();
+        document.getElementById('specialKeyContainer').style.display = 'block';
     }
 });
 
 
+
+document.getElementById('inputSpecialKey')
+.addEventListener('input', async function () {
+    const sn = el.inputStudentNumber.value.trim();
+    const key = this.value.trim();
+
+    if (!sn || key.length < 1) return;
+
+    const students = await loadStudents();
+
+    const match = students.find(s => s.student_number === sn && s.secretKey === key);
+
+    if (!match) {
+        clearStudentFields();
+        return;
+    }
+
+    el.inputName.value = match.name;
+    el.inputCollege.value = match.college;
+    el.inputCourse.value = match.course;
+});
+
+
+
+let studentsCache = null;
+
+async function loadStudents() {
+    if (studentsCache) return studentsCache;
+
+    const res = await fetch('API_requests/students.json'); // JSON is now array
+    studentsCache = await res.json();
+    return studentsCache;
+}
+
+
+
             /* ===== Submit (Check-In) ===== */
 
-            document.getElementById('logForm').addEventListener('submit', async e => {
-                e.preventDefault();
+document.getElementById('logForm').addEventListener('submit', async e => {
+    e.preventDefault();
 
-                const student_number = el.inputStudentNumber.value.trim();
-                const library = el.inputLibrary.value;
+    const student_number = el.inputStudentNumber.value.trim();
+    const library = el.inputLibrary.value;
+    const specialKey = document.getElementById('inputSpecialKey').value.trim() || null;
 
-                if (!student_number || !library) return;
+    if (!student_number || !library) return;
 
-                pendingLog = {
-                    student_number,
-                    name: el.inputName.value,
-                    college: el.inputCollege.value,
-                    course: el.inputCourse.value,
-                    library
-                };
+    pendingLog = {
+        student_number,
+        name: el.inputName.value,
+        college: el.inputCollege.value,
+        course: el.inputCourse.value,
+        library,
+        specialKey
+    };
 
-                fillConfirmModal();
-                confirmModal.show();
-            });
+    fillConfirmModal();
+    confirmModal.show();
+});
+
 
             document.getElementById('confirmSaveBtn')
                 .addEventListener('click', confirmCheckIn);
@@ -595,10 +645,12 @@ el.inputStudentNumber.addEventListener('input', async e => {
 
 try {
     // Call backend
-    const result = await api('addLog', {
-        student_number: pendingLog.student_number,
-        library: pendingLog.library
-    });
+const result = await api('addLog', {
+    student_number: pendingLog.student_number,
+    library: pendingLog.library,
+    specialKey: pendingLog.specialKey
+});
+
 
     // Only show alert if backend explicitly failed
     if (!result?.success) {

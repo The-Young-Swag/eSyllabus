@@ -1,58 +1,66 @@
-{
-    "2022100114": {
-        "name": "Rivz Rivera",
-        "sex": "Male",
-        "college": "CET",
-        "course": "BSIT",
-        "secretKey": "RVZ16"
-    },
-    "2022100114_1": {
-        "name": "Gojo Satoru",
-        "sex": "Male",
-        "college": "CET",
-        "course": "BSIT",
-        "secretKey": "JJK3"
-    },
-    "2022100115": {
-        "name": "Nobara Kugisaki",
-        "sex": "Female",
-        "college": "CVM",
-        "course": "DVM",
-        "secretKey": null
-    },
-    "2022100116": {
-        "name": "Shoko Ieiri",
-        "sex": "Female",
-        "college": "CAS",
-        "course": "BSPsych",
-        "secretKey": null
-    },
-    "2022100117": {
-        "name": "Yuji Itadori",
-        "sex": "Male",
-        "college": "CED",
-        "course": "BSIEE",
-        "secretKey": null
-    },
-    "2022100118": {
-        "name": "Megumi Fushiguro",
-        "sex": "Male",
-        "college": "CET",
-        "course": "BSCS",
-        "secretKey": null
-    },
-    "2022100119": {
-        "name": "Maki Zenin",
-        "sex": "Female",
-        "college": "CVM",
-        "course": "BSBio",
-        "secretKey": null
-    },
-    "2022100120": {
-        "name": "Toge Inumaki",
-        "sex": "Male",
-        "college": "CAS",
-        "course": "BSChem",
-        "secretKey": null
-    }
-}
+[
+  {
+    "student_number": "2022100114",
+    "name": "Rivz Rivera",
+    "sex": "Male",
+    "college": "CET",
+    "course": "BSIT",
+    "secretKey": "RVZ16"
+  },
+  {
+    "student_number": "2022100114",
+    "name": "Gojo Satoru",
+    "sex": "Male",
+    "college": "CET",
+    "course": "BSIT",
+    "secretKey": "JJK3"
+  },
+  {
+    "student_number": "2022100115",
+    "name": "Nobara Kugisaki",
+    "sex": "Female",
+    "college": "CVM",
+    "course": "DVM",
+    "secretKey": null
+  },
+  {
+    "student_number": "2022100116",
+    "name": "Shoko Ieiri",
+    "sex": "Female",
+    "college": "CAS",
+    "course": "BSPsych",
+    "secretKey": null
+  },
+  {
+    "student_number": "2022100117",
+    "name": "Yuji Itadori",
+    "sex": "Male",
+    "college": "CED",
+    "course": "BSIEE",
+    "secretKey": null
+  },
+  {
+    "student_number": "2022100118",
+    "name": "Megumi Fushiguro",
+    "sex": "Male",
+    "college": "CET",
+    "course": "BSCS",
+    "secretKey": null
+  },
+  {
+    "student_number": "2022100119",
+    "name": "Maki Zenin",
+    "sex": "Female",
+    "college": "CVM",
+    "course": "BSBio",
+    "secretKey": null
+  },
+  {
+    "student_number": "2022100120",
+    "name": "Toge Inumaki",
+    "sex": "Male",
+    "college": "CAS",
+    "course": "BSChem",
+    "secretKey": null
+  }
+]

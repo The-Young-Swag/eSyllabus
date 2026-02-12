@@ -57,30 +57,56 @@ try {
         // ==========================
         // Add New Log
         // ==========================
-        case "addLog":
-            $student_number = $_POST['student_number'] ?? '';
-            $library        = $_POST['library'] ?? '';
+case "addLog":
+    $student_number = $_POST['student_number'] ?? '';
+    $library        = $_POST['library'] ?? '';
+    $specialKey     = $_POST['specialKey'] ?? null;
 
-            if (!$student_number || !$library) {
-                sendError("Missing student number or library");
+    if (!$student_number || !$library) {
+        sendError("Missing student number or library");
+    }
+
+    $studentsJsonPath = __DIR__ . '/../../API_requests/students.json';
+    if (!file_exists($studentsJsonPath)) sendError("Student data file not found");
+
+    $students = json_decode(file_get_contents($studentsJsonPath), true);
+
+    // Handle duplicates: check secretKey if multiple entries
+    $matchedStudent = null;
+
+    $possibleStudents = array_filter($students, fn($s) => $s['student_number'] ?? '' === $student_number);
+
+    if (count($possibleStudents) > 1) {
+        // require special key
+        foreach ($possibleStudents as $s) {
+            if ($specialKey && $s['secretKey'] === $specialKey) {
+                $matchedStudent = $s;
+                break;
             }
+        }
+        if (!$matchedStudent) sendError("Duplicate student number detected. Please enter correct special key.");
+    } else {
+        $matchedStudent = $students[$student_number] ?? null;
+    }
 
-            $studentsJsonPath = __DIR__ . '/../../API_requests/students.json';
-            if (!file_exists($studentsJsonPath)) sendError("Student data file not found");
+    if (!$matchedStudent) sendError("Student not found");
 
-            $students = json_decode(file_get_contents($studentsJsonPath), true);
-            if (!isset($students[$student_number])) sendError("Student not found");
+    $sql = "
+        INSERT INTO Library_logs (student_number, name, college, course, library, checkin_time, sex)
+        VALUES (?, ?, ?, ?, ?, GETDATE(), ?)
+    ";
+    execsqlSRS($sql, "Insert", [
+        $student_number,
+        $matchedStudent['name'],
+        $matchedStudent['college'],
+        $matchedStudent['course'],
+        $library,
+        $matchedStudent['sex'] ?? null
+    ]);
 
-            $s = $students[$student_number];
+    sendJson(['success' => true]);
+    break;
 
-            $sql = "
-                INSERT INTO Library_logs (student_number, name, college, course, library, checkin_time)
-                VALUES (?, ?, ?, ?, ?, GETDATE())
-            ";
-            execsqlSRS($sql, "Insert", [$student_number, $s['name'], $s['college'], $s['course'], $library]);
-
-            sendJson(['success' => true]);
-            break;
 
 
         // ==========================
