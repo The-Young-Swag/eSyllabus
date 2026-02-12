@@ -1,136 +1,176 @@
 <div class="container-fluid mt-4">
 
-    <!-- Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap">
-        <h4 class="fw-bold text-dark d-flex align-items-center gap-2">
-            <i class="fas fa-tachometer-alt text-primary"></i> Library Attendance Logs
-        </h4>
-        <small class="text-muted">Quick overview of today's library attendance</small>
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="d-flex align-items-center gap-2">
+        <i class="fas fa-tachometer-alt text-primary fs-4"></i>
+        <h4 class="fw-bold mb-0">Library Attendance Logs</h4>
+    </div>
+    <span class="text-muted fs-6 fw-medium">
+        Quick overview of today's attendance
+    </span>
+</div>
+
+
+
+
+<!-- KPI Counters -->
+<div class="row g-2 mb-4 text-center">
+
+    <div class="col-6 col-md">
+        <div class="card border-0 shadow-sm p-2 h-100">
+            <div class="text-muted fw-semibold fs-6">Total Check-Ins</div>
+            <div class="fw-bold text-success fs-1" id="kpiTotalCheckins">0</div>
+        </div>
     </div>
 
-    <!-- KPI Counters (Compact) -->
-    <div class="row g-2 mb-3 text-center">
-
-        <div class="col-6 col-md-2">
-            <div class="card shadow-sm border-start border-3 border-success py-2">
-                <small class="text-muted d-block">Total Check-Ins</small>
-                <div class="fw-bold text-success" id="kpiTotalCheckins">0</div>
-            </div>
+    <div class="col-6 col-md">
+        <div class="card border-0 shadow-sm p-2 h-100">
+            <div class="text-muted fw-semibold fs-6">Currently Inside</div>
+            <div class="fw-bold text-primary fs-1" id="kpiActiveStudents">0</div>
         </div>
-
-        <div class="col-6 col-md-2">
-            <div class="card shadow-sm border-start border-3 border-primary py-2">
-                <small class="text-muted d-block">Currently Inside</small>
-                <div class="fw-bold text-primary" id="kpiActiveStudents">0</div>
-            </div>
-        </div>
-
-        <div class="col-6 col-md-3">
-            <div class="card shadow-sm border-start border-3 border-warning py-2">
-                <small class="text-muted d-block">Top 3 Colleges</small>
-                <div class="fw-bold text-warning small" id="kpiTopColleges">—</div>
-            </div>
-        </div>
-
-        <div class="col-6 col-md-3">
-            <div class="card shadow-sm border-start border-3 border-info py-2">
-                <small class="text-muted d-block">Top 3 Courses</small>
-                <div class="fw-bold text-info small" id="kpiTopCourses">—</div>
-            </div>
-        </div>
-
-        <div class="col-12 col-md-2">
-            <div class="card shadow-sm border-start border-3 border-danger py-2">
-                <small class="text-muted d-block">Date & Time</small>
-                <div class="fw-bold text-danger small" id="kpiCurrentTime"></div>
-            </div>
-        </div>
-
     </div>
+
+    <div class="col-6 col-md">
+        <div class="card border-0 shadow-sm p-2 h-100">
+            <div class="text-muted fw-semibold fs-6">Top Colleges</div>
+            <div class="fw-semibold fs-1 text-warning" id="kpiTopColleges">—</div>
+        </div>
+    </div>
+
+    <div class="col-6 col-md">
+        <div class="card border-0 shadow-sm p-2 h-100">
+            <div class="text-muted fw-semibold fs-6">Top Courses</div>
+            <div class="fw-semibold fs-1 text-info" id="kpiTopCourses">—</div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md">
+        <div class="card border-0 shadow-sm p-2 h-100">
+            <div class="text-muted fw-semibold fs-6">Date & Time</div>
+            <div class="fw-semibold fs-1 text-danger" id="kpiCurrentTime"></div>
+        </div>
+    </div>
+
+</div>
+
+
 
 
     <!-- Student Log Input Section -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-primary text-white">
-            <i class="fas fa-user-plus me-2"></i> Log Student Attendance
-        </div>
-        <div class="card-body">
-            <form id="logForm" class="row g-3 align-items-end">
-
-                <div class="col-md-2">
-                    <label class="form-label">Student Number</label>
-                    <input type="text" class="form-control" id="inputStudentNumber" placeholder="Enter student number">
-                </div>
-
-                <div class="col-md-2">
-                    <label class="form-label">Name</label>
-                    <input type="text" class="form-control" id="inputName" readonly>
-                </div>
-
-                <div class="col-md-2">
-                    <label class="form-label">College</label>
-                    <input type="text" class="form-control" id="inputCollege" readonly>
-                </div>
-
-                <div class="col-md-2">
-                    <label class="form-label">Course</label>
-                    <input type="text" class="form-control" id="inputCourse" readonly>
-                </div>
-
-                <!-- Make Library wider -->
-                <div class="col-md-3">
-                    <label class="form-label">Library</label>
-                    <select class="form-select" id="inputLibrary"></select>
-                </div>
-
-                <!-- Button smaller column -->
-                <div class="col-md-1">
-                    <button type="submit" class="btn btn-success w-100">
-                        Log
-                    </button>
-                </div>
-
-            </form>
-
-        </div>
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-primary text-white py-2">
+        <i class="fas fa-user-plus me-2"></i>
+        <span class="fw-semibold">Log Student Attendance</span>
     </div>
 
-    <!-- Logs Table -->
-    <div class="card shadow-sm">
-        <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
-            <div class="d-flex align-items-center gap-3">
-                <i class="fas fa-scroll"></i>
-                <span>Library Attendance Logs (Today)</span>
+    <div class="card-body py-2">
+        <form id="logForm" class="row g-2 align-items-end">
+
+            <div class="col-md-2">
+                <label class="form-label small fw-semibold mb-1">Student No.</label>
+                <input type="text" class="form-control form-control-sm" id="inputStudentNumber">
             </div>
-        </div>
 
-        <!-- Filters -->
-        <div class="card-body border-bottom py-2">
-            <div class="row g-2">
+            <div class="col-md-2">
+                <label class="form-label small fw-semibold mb-1">Name</label>
+                <input type="text" class="form-control form-control-sm" id="inputName" readonly>
+            </div>
 
-                <div class="col-md-4">
-                    <label class="form-label small mb-1">Library</label>
-                    <select class="form-select form-select-sm" id="filterLibrary">
-                        <option value="">All Libraries</option>
-                    </select>
-                </div>
+            <div class="col-md-2">
+                <label class="form-label small fw-semibold mb-1">College</label>
+                <input type="text" class="form-control form-control-sm" id="inputCollege" readonly>
+            </div>
 
-<div class="col-md-4">
-    <label class="form-label small mb-1">Search Student Number</label>
-    <div class="input-group input-group-sm">
-        <input type="text"
-            id="filterSearch"
-            class="form-control"
-            placeholder="Type student number">
-        <button class="btn btn-primary" id="btnSearchStudent">
-            Search
-        </button>
+            <div class="col-md-2">
+                <label class="form-label small fw-semibold mb-1">Course</label>
+                <input type="text" class="form-control form-control-sm" id="inputCourse" readonly>
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label small fw-semibold mb-1">Library</label>
+                <select class="form-select form-select-sm" id="inputLibrary"></select>
+            </div>
+
+            <div class="col-md-1">
+                <button type="submit" class="btn btn-success btn-sm w-100 fw-semibold">
+                    Log
+                </button>
+            </div>
+
+        </form>
     </div>
 </div>
 
 
+
+    <!-- Logs Table -->
+    <div class="card shadow-sm">
+<!-- Card -->
+<div class="card shadow-sm">
+
+    <!-- Header -->
+    <div class="card-header bg-success text-white py-2 px-3">
+        <i class="fas fa-scroll me-2"></i>
+        <span class="fw-semibold">Library Attendance Logs (Today)</span>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="card-body py-2 px-3 border-bottom">
+
+        <div class="d-flex justify-content-between align-items-center flex-wrap">
+
+            <!-- LEFT : Library -->
+            <div class="d-flex align-items-center">
+<div class="d-flex align-items-center">
+    
+<span class="fw-semibold text-muted"
+      style="width:95px; font-size:0.95rem;">
+    Library
+</span>
+
+
+    <select class="form-select form-select-sm shadow-sm"
+            id="filterLibrary"
+            style="width:270px;">
+        <option value="">All Libraries</option>
+    </select>
+
+</div>
+
             </div>
+
+            <!-- RIGHT : Student Search -->
+<div class="d-flex align-items-center">
+
+<span class="fw-semibold text-muted"
+      style="width:130px; font-size:0.95rem;">
+    Student Number
+</span>
+
+
+    <input type="text"
+           id="filterSearch"
+           class="form-control form-control-sm font-monospace text-center shadow-sm"
+           placeholder="10-digit ID"
+           maxlength="10"
+           style="width:160px; margin-right:8px;">
+
+    <button class="btn btn-success btn-sm fw-semibold px-3 shadow-sm"
+            id="btnSearchStudent">
+        Search
+    </button>
+
+</div>
+
+
         </div>
+
+    </div>
+</div>
+
+
+
 
 
         <!-- Table -->
