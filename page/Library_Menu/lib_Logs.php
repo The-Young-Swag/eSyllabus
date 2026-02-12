@@ -490,16 +490,20 @@ el.filterSearch.addEventListener('keypress', e => {
 
             /* ===== Student Auto Fill ===== */
 
+// At the top, hide it by default
+document.getElementById('specialKeyContainer').style.display = 'none';
+
 el.inputStudentNumber.addEventListener('input', async e => {
     const sn = e.target.value.trim();
 
+    // Reset if not 10 digits
     if (sn.length !== 10) {
         clearStudentFields();
         document.getElementById('specialKeyContainer').style.display = 'none';
         return;
     }
 
-    const students = await loadStudents();
+    const students = await loadStudents(); // returns array now
     const matches = students.filter(s => s.student_number === sn);
 
     if (matches.length === 0) {
@@ -513,13 +517,15 @@ el.inputStudentNumber.addEventListener('input', async e => {
         el.inputName.value = student.name;
         el.inputCollege.value = student.college;
         el.inputCourse.value = student.course;
+        // Only show hidden input if duplicate exists
         document.getElementById('specialKeyContainer').style.display = 'none';
     } else {
-        // Duplicate -> require special key
+        // Multiple matches -> require special key
         clearStudentFields();
         document.getElementById('specialKeyContainer').style.display = 'block';
     }
 });
+
 
 
 
@@ -668,11 +674,13 @@ const result = await api('addLog', {
 
     appendRow(newLog);
 
-    // Close modal & clear form
-    confirmModal.hide();
-    clearStudentFields();
-    el.inputStudentNumber.value = '';
-    el.inputStudentNumber.focus();
+// Close modal & clear form
+confirmModal.hide();
+clearStudentFields();
+el.inputStudentNumber.value = '';
+document.getElementById('specialKeyContainer').style.display = 'none'; // 🔥 hide here
+el.inputStudentNumber.focus();
+
 
 } catch (err) {
     console.error(err);
