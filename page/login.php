@@ -10,7 +10,7 @@
           <img src="image/tau.jpg" alt="logo" width="100">
         </div>
         <h1><b><!--Welcome Back!--></b></h1>
-		<h3><b>eSyllabus</b></h3>
+		<h3><b>Library Attendance Monitoring</b></h3>
       </div>
       <div class="card-body" style="border: transparent;">
         <p class="login-box-msg">Log in to your account</p>
