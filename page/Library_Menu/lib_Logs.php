@@ -115,13 +115,19 @@
                     </select>
                 </div>
 
-                <div class="col-md-4">
-                    <label class="form-label small mb-1">Search Student Number</label>
-                    <input type="text"
-                        id="filterSearch"
-                        class="form-control form-control-sm"
-                        placeholder="Type student number">
-                </div>
+<div class="col-md-4">
+    <label class="form-label small mb-1">Search Student Number</label>
+    <div class="input-group input-group-sm">
+        <input type="text"
+            id="filterSearch"
+            class="form-control"
+            placeholder="Type student number">
+        <button class="btn btn-primary" id="btnSearchStudent">
+            Search
+        </button>
+    </div>
+</div>
+
 
             </div>
         </div>
@@ -215,13 +221,16 @@
 
         const API_URL = 'backend/bk_Library_Menu/bk_libLogs.php';
 
-        const State = {
-            logs: [],
-            filters: {
-                library: '',
-                search: ''
-            }
-        };
+const State = {
+    logs: [],
+    currentPage: 1,
+    rowsPerPage: 10,
+    filters: {
+        library: '',
+        search: ''
+    }
+};
+
 
         const el = {
             tableBody: document.getElementById('logsTableBody'),
@@ -321,15 +330,56 @@ async function loadLibraries() {
             updateKPIs();
             sessionStorage.setItem('todayLogs', JSON.stringify(State.logs));
         }
+		
+		        /* ================= RENDER PAGINATION ================= */
+		function renderPagination(totalRecords) {
+
+    const totalPages = Math.ceil(totalRecords / State.rowsPerPage);
+    const pagination = document.querySelector('.pagination');
+
+    pagination.innerHTML = '';
+
+    if (totalPages <= 1) return;
+
+    for (let i = 1; i <= totalPages; i++) {
+
+        pagination.innerHTML += `
+            <li class="page-item ${i === State.currentPage ? 'active' : ''}">
+                <a class="page-link" href="#" data-page="${i}">${i}</a>
+            </li>
+        `;
+    }
+
+    pagination.querySelectorAll('.page-link').forEach(btn => {
+        btn.addEventListener('click', e => {
+            e.preventDefault();
+            State.currentPage = parseInt(btn.dataset.page);
+            renderTable();
+        });
+    });
+}
+
 
         /* ================= RENDER ================= */
 
-        function renderTable() {
-            const filtered = getFilteredLogs();
+function renderTable() {
 
-            el.tableBody.innerHTML = filtered.map(log => buildRowHTML(log)).join('');
-            el.totalRecords.textContent = filtered.length + ' records';
-        }
+    const filtered = getFilteredLogs();
+
+    const start = (State.currentPage - 1) * State.rowsPerPage;
+    const end = start + State.rowsPerPage;
+
+    const paginated = filtered.slice(start, end);
+
+    el.tableBody.innerHTML = paginated
+        .map(log => buildRowHTML(log))
+        .join('');
+
+    renderPagination(filtered.length);
+
+    el.totalRecords.textContent = filtered.length + ' records';
+}
+
 
         function buildRowHTML(log) {
             return `
@@ -351,12 +401,24 @@ async function loadLibraries() {
         `;
         }
 
-        function appendRow(log) {
-            State.logs.unshift(log);
-            el.tableBody.insertAdjacentHTML('afterbegin', buildRowHTML(log));
-            updateKPIs();
-            sessionStorage.setItem('todayLogs', JSON.stringify(State.logs));
-        }
+function appendRow(log) {
+
+    State.logs.unshift(log);
+    State.currentPage = 1;
+    renderTable();
+
+    // Highlight first row (new check-in)
+    const firstRow = el.tableBody.querySelector('tr');
+    if (firstRow) {
+        firstRow.classList.add('table-success');
+        setTimeout(() => {
+            firstRow.classList.remove('table-success');
+        }, 3000);
+    }
+
+    updateKPIs();
+}
+
 
         /* ================= FILTERS ================= */
 
@@ -364,15 +426,19 @@ async function loadLibraries() {
 
 el.filterLibrary.addEventListener('change', e => {
     State.filters.library = e.target.value;
+    State.currentPage = 1;
     renderTable();
-    updateKPIs(); //  critical
+    updateKPIs();
+});
+
+el.filterSearch.addEventListener('keypress', e => {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        document.getElementById('btnSearchStudent').click();
+    }
 });
 
 
-            el.filterSearch.addEventListener('input', e => {
-                State.filters.search = e.target.value.trim();
-                renderTable();
-            });
 
             /* ===== Student Auto Fill ===== */
 
@@ -449,7 +515,32 @@ el.inputStudentNumber.addEventListener('input', async e => {
 
             document.getElementById('confirmCheckoutBtn')
                 .addEventListener('click', confirmCheckout);
+        
+		
+		document.getElementById('btnSearchStudent')
+    .addEventListener('click', () => {
+
+        const sn = el.filterSearch.value.trim();
+        if (!sn) return;
+
+        const activeLog = State.logs.find(l =>
+            l.student_number === sn && !l.checkout_time
+        );
+
+        if (!activeLog) {
+            alert("No active check-in found.");
+            return;
         }
+
+        pendingCheckout = {
+            log: activeLog
+        };
+
+        prepareCheckoutModal(activeLog);
+        checkoutModal.show();
+    });
+
+		}
 
         /* ================= CHECK-IN ================= */
 
@@ -507,28 +598,42 @@ try {
 
         /* ================= CHECKOUT ================= */
 
-        async function confirmCheckout() {
-            const inputSN = document.getElementById('coStudentNumber').value.trim();
+async function confirmCheckout() {
 
-            if (inputSN !== pendingCheckout.log.student_number) {
-                document.getElementById('coError').style.display = 'block';
-                return;
-            }
+    const inputSN = document.getElementById('coStudentNumber').value.trim();
 
-            await api('checkoutLog', {
-                id: pendingCheckout.log.id
-            });
+    if (inputSN !== pendingCheckout.log.student_number) {
+        document.getElementById('coError').style.display = 'block';
+        return;
+    }
 
+    const result = await api('checkoutLog', {
+        id: pendingCheckout.log.id
+    });
 
-            pendingCheckout.log.checkout_time = new Date().toISOString();
+    if (!result?.success) return;
 
-            const row = pendingCheckout.row;
-            row.cells[6].textContent = formatDate(pendingCheckout.log.checkout_time);
-            row.cells[7].innerHTML = '<span class="text-success">Checked Out</span>';
+    pendingCheckout.log.checkout_time = new Date().toISOString();
 
-            updateKPIs();
-            checkoutModal.hide();
-        }
+    State.currentPage = 1;
+    renderTable();
+
+    // Blue highlight
+    const updatedRow = el.tableBody.querySelector(
+        `tr[data-id="${pendingCheckout.log.id}"]`
+    );
+
+    if (updatedRow) {
+        updatedRow.classList.add('table-primary');
+        setTimeout(() => {
+            updatedRow.classList.remove('table-primary');
+        }, 3000);
+    }
+
+    updateKPIs();
+    checkoutModal.hide();
+}
+
 
         /* ================= KPI ================= */
 
