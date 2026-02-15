@@ -126,15 +126,10 @@ const LibrarySystem = (() => {
 
     // ==================== INITIALIZATION ====================
     function init() {
+        console.log("Initializing LibrarySystem...");
         startClock();
         bindEvents();
         loadLibraries();
-        
-        // Check if we have a saved library in sessionStorage
-        const savedLibrary = sessionStorage.getItem('selectedLibrary');
-        if (savedLibrary) {
-            currentLibraryID = parseInt(savedLibrary);
-        }
     }
 
     // ==================== CLOCK ====================
@@ -156,18 +151,22 @@ const LibrarySystem = (() => {
     function loadLibraries() {
         apiCall("getLibraries", {}, function(res) {
             if (res.error) {
-                console.error(res.error);
+                console.error("Error loading libraries:", res.error);
                 return;
             }
 
             libraryList = res.data || [];
-            const $select = $(UI.librarySelect).empty();
+            console.log("Libraries loaded:", libraryList);
+            
+            const $select = $(UI.librarySelect);
+            $select.empty();
 
             if (!libraryList.length) {
                 updateLibraryDisplay("No Library Available");
                 return;
             }
 
+            // Populate select options
             libraryList.forEach(lib => {
                 $select.append(
                     `<option value="${lib.SectionID}">
@@ -176,20 +175,36 @@ const LibrarySystem = (() => {
                 );
             });
 
-            // Use saved library or first one
-            let selectedLib = currentLibraryID || libraryList[0].SectionID;
+            // Get saved library from sessionStorage or use first
+            const savedLibrary = sessionStorage.getItem('selectedLibrary');
+            console.log("Saved library from session:", savedLibrary);
             
-            // Verify saved library still exists
-            const libExists = libraryList.some(lib => lib.SectionID === selectedLib);
-            if (!libExists) {
+            let selectedLib = null;
+            
+            if (savedLibrary) {
+                const parsedLib = parseInt(savedLibrary);
+                // Check if saved library exists in current list
+                const libExists = libraryList.some(lib => lib.SectionID === parsedLib);
+                if (libExists) {
+                    selectedLib = parsedLib;
+                }
+            }
+            
+            // If no valid saved library, use first
+            if (!selectedLib) {
                 selectedLib = libraryList[0].SectionID;
             }
 
+            // Set the select value
+            $select.val(selectedLib);
+            
+            // Update current library
             currentLibraryID = parseInt(selectedLib);
             const selectedLibData = libraryList.find(lib => lib.SectionID === currentLibraryID);
             currentLibraryName = selectedLibData ? selectedLibData.SectionName : libraryList[0].SectionName;
 
-            $select.val(currentLibraryID);
+            console.log("Selected library:", currentLibraryID, currentLibraryName);
+            
             updateLibraryDisplay(currentLibraryName);
             
             // Save to sessionStorage
@@ -208,11 +223,26 @@ const LibrarySystem = (() => {
 
     // ==================== KPI MANAGEMENT ====================
     function loadKPI(sectionID) {
-        if (!sectionID) return;
+        if (!sectionID) {
+            console.error("No section ID for KPI load");
+            return;
+        }
+
+        console.log("Loading KPI for library:", sectionID);
 
         apiCall("getKPI", { sectionID }, function(res) {
             if (res.success && res.data) {
+                console.log("KPI data received:", res.data);
                 updateKPIDisplay(res.data);
+            } else {
+                console.error("Failed to load KPI:", res.error);
+                // Set default values
+                updateKPIDisplay({
+                    totalToday: 0,
+                    currentlyInside: 0,
+                    topColleges: ['-', '-', '-'],
+                    topCourses: ['-', '-', '-']
+                });
             }
         });
     }
@@ -223,14 +253,16 @@ const LibrarySystem = (() => {
         $(UI.kpiActiveStudents).text(data.currentlyInside || 0);
 
         // Top Colleges
-        const collegesHtml = data.topColleges.map((college, index) => 
+        const colleges = data.topColleges || ['-', '-', '-'];
+        const collegesHtml = colleges.map((college, index) => 
             `<div class="mb-1"><span class="fw-bold">${index + 1}.</span> 
               <span class="text-warning">${college || '-'}</span></div>`
         ).join('');
         $(UI.topColleges).html(collegesHtml);
 
         // Top Courses
-        const coursesHtml = data.topCourses.map((course, index) => 
+        const courses = data.topCourses || ['-', '-', '-'];
+        const coursesHtml = courses.map((course, index) => 
             `<div class="mb-1"><span class="fw-bold">${index + 1}.</span> 
               <span class="text-info">${course || '-'}</span></div>`
         ).join('');
@@ -281,7 +313,7 @@ const LibrarySystem = (() => {
         if (status.checkedIn) {
             if (status.sectionID === currentLibraryID) {
                 action = "checkout";
-                headerColor = "primary";
+                headerColor = "danger";
                 headerIcon = "fa-sign-out-alt";
                 modalTitle = "Check-Out Confirmation";
                 buttonText = "Check Out";
@@ -300,7 +332,7 @@ const LibrarySystem = (() => {
         showStudentModal(student, headerColor, headerIcon, modalTitle, buttonText, message);
     }
 
-    // ==================== MODAL MANAGEMENT (SINGLE MODAL) ====================
+    // ==================== MODAL MANAGEMENT ====================
     function showStudentModal(student, headerColor, headerIcon, modalTitle, buttonText, message) {
         const body = `
             <div class="text-center mb-3">
@@ -350,7 +382,6 @@ const LibrarySystem = (() => {
 
         showModal(modalTitle, body, footer);
 
-        // Attach confirm handler
         $("#confirmAttendance").off("click").on("click", function() {
             processAttendance(student.student_number, currentAction);
         });
@@ -382,14 +413,11 @@ const LibrarySystem = (() => {
                 </div>
             </div>
 
-            <!-- Student data will appear here only after successful validation -->
             <div id="verifiedStudentContainer" style="display: none;"></div>
         `;
 
-        // Empty footer for now, will be added after validation
         showModal("Identity Verification Required", body, "");
 
-        // Toggle secret key visibility
         $("#toggleSecretKey").off("click").on("click", function() {
             const input = $("#modalSecretKey");
             const icon = $("#secretIcon");
@@ -402,34 +430,28 @@ const LibrarySystem = (() => {
             }
         });
 
-        // Validate secret key when it reaches 6 digits
         $("#modalSecretKey").off("input").on("input", function() {
             const key = $(this).val();
             
             if (key.length === 6) {
                 validateSecretKey(key);
             } else {
-                // Hide student data if key is not 6 digits
                 $("#verifiedStudentContainer").hide().empty();
-                $("#secretKeyStatus").html('<i class="fas fa-info-circle me-1"></i>Enter 6-digit key to verify').removeClass('text-danger text-success');
+                $("#secretKeyStatus").html('<i class="fas fa-info-circle me-1"></i>Enter 6-digit key to verify')
+                    .removeClass('text-danger text-success');
             }
         });
     }
 
     function validateSecretKey(key) {
-        // Find match in duplicate candidates
         const match = duplicateCandidates.find(s => s.secretKey === key);
         
         if (match) {
-            // Valid key - show student data
             selectedStudent = match;
             $("#secretKeyStatus").html('<span class="text-success"><i class="fas fa-check-circle me-1"></i>Identity Verified</span>')
                 .removeClass('text-muted text-danger').addClass('text-success');
-            
-            // Show student data
             showVerifiedStudent(match);
         } else {
-            // Invalid key
             $("#secretKeyStatus").html('<span class="text-danger"><i class="fas fa-exclamation-circle me-1"></i>Invalid Secret Key</span>')
                 .removeClass('text-muted text-success').addClass('text-danger');
             $("#verifiedStudentContainer").hide().empty();
@@ -437,7 +459,6 @@ const LibrarySystem = (() => {
     }
 
     function showVerifiedStudent(student) {
-        // Check status to determine action
         apiCall("checkStatusToday", { studentNumber: student.student_number }, function(res) {
             let action = "checkin";
             let headerColor = "success";
@@ -448,7 +469,7 @@ const LibrarySystem = (() => {
             if (res.checkedIn) {
                 if (res.sectionID === currentLibraryID) {
                     action = "checkout";
-                    headerColor = "primary";
+                    headerColor = "danger";
                     headerIcon = "fa-sign-out-alt";
                     buttonText = "Check Out";
                     message = "You are currently checked in to this library. Do you want to check out?";
@@ -514,7 +535,6 @@ const LibrarySystem = (() => {
             
             $("#verifiedStudentContainer").html(studentHtml).show();
             
-            // Attach confirm handler
             $("#confirmAttendance").off("click").on("click", function() {
                 processAttendance(student.student_number, currentAction);
             });
@@ -538,21 +558,17 @@ const LibrarySystem = (() => {
         $(UI.modal).modal("hide");
 
         if (action === "switch") {
-            // For switch, we need to checkout from previous first
             apiCall("checkStatusToday", { studentNumber }, function(status) {
                 if (status.checkedIn && status.sectionID !== currentLibraryID) {
-                    // Force checkout from previous library
                     apiCall("forceCheckout", { 
                         studentNumber, 
                         sectionID: status.sectionID 
                     }, function() {
-                        // Then check in to new library
                         saveAttendance("checkin", studentNumber);
                     });
                 }
             });
         } else {
-            // Direct checkin or checkout
             saveAttendance(action, studentNumber);
         }
     }
@@ -570,25 +586,26 @@ const LibrarySystem = (() => {
 
             if (res.success) {
                 const successMsg = action === "checkin" ? "checked in" : "checked out";
+                const successColor = action === "checkin" ? "success" : "danger";
+                
                 showModal("Success",
-                    `<div class="alert alert-success text-center">
+                    `<div class="alert alert-${successColor} text-center">
                         <i class="fas fa-check-circle me-2"></i>
                         Successfully ${successMsg}!
                     </div>`
                 );
 
-                // Clear input
                 $(UI.studentInput).val("");
 
-                // Update KPI with new data from server
+                // Update KPI with new data
                 if (res.kpi) {
+                    console.log("Updating KPI with server data:", res.kpi);
                     updateKPIDisplay(res.kpi);
                 } else {
-                    // Fallback: reload KPI
+                    console.log("No KPI in response, reloading...");
                     loadKPI(currentLibraryID);
                 }
 
-                // Auto-hide success modal after 2 seconds
                 setTimeout(() => {
                     $(UI.modal).modal("hide");
                 }, 2000);
@@ -600,7 +617,10 @@ const LibrarySystem = (() => {
     function bindEvents() {
         // Library change event
         $(document).on("change", UI.librarySelect, function() {
-            currentLibraryID = parseInt($(this).val());
+            const newLibId = parseInt($(this).val());
+            console.log("Library changed to:", newLibId);
+            
+            currentLibraryID = newLibId;
             const selectedLib = libraryList.find(lib => lib.SectionID === currentLibraryID);
             currentLibraryName = selectedLib ? selectedLib.SectionName : "";
             
@@ -630,17 +650,22 @@ const LibrarySystem = (() => {
             }
         });
 
-        // Handle page visibility change (when user returns to tab)
+        // Handle page visibility change
         document.addEventListener('visibilitychange', function() {
             if (!document.hidden) {
-                // User returned to the page, refresh KPI for current library
+                console.log("Page visible again, refreshing KPI for library:", currentLibraryID);
                 if (currentLibraryID) {
                     loadKPI(currentLibraryID);
+                    
+                    // Also ensure select shows correct value
+                    if (libraryList.length > 0) {
+                        $(UI.librarySelect).val(currentLibraryID);
+                    }
                 }
             }
         });
 
-        // Handle before unload to save state
+        // Save state before unload
         window.addEventListener('beforeunload', function() {
             if (currentLibraryID) {
                 sessionStorage.setItem('selectedLibrary', currentLibraryID);
@@ -652,7 +677,9 @@ const LibrarySystem = (() => {
 })();
 
 // Initialize when document is ready
-$(document).ready(() => LibrarySystem.init());
+$(document).ready(function() {
+    console.log("Document ready, initializing...");
+    LibrarySystem.init();
+});
 </script>
-
 

@@ -240,59 +240,72 @@ switch($request){
  * Helper function to get KPI data for a library
  */
 function getLibraryKPI($pdo, $sectionID, $today) {
-    // Total check-ins and currently inside
-    $sql = "
-        SELECT
-            COUNT(*) AS totalToday,
-            SUM(CASE WHEN checkout_time IS NULL THEN 1 ELSE 0 END) AS currentlyInside
-        FROM Library_logs
-        WHERE library = ?
-          AND CAST(checkin_time AS DATE) = ?
-    ";
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute([$sectionID, $today]);
-    $data = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-    $result = [
-        "totalToday" => (int)($data["totalToday"] ?? 0),
-        "currentlyInside" => (int)($data["currentlyInside"] ?? 0)
-    ];
+    try {
+        // Total check-ins and currently inside
+        $sql = "
+            SELECT
+                COUNT(*) AS totalToday,
+                SUM(CASE WHEN checkout_time IS NULL THEN 1 ELSE 0 END) AS currentlyInside
+            FROM Library_logs
+            WHERE library = ?
+              AND CAST(checkin_time AS DATE) = ?
+        ";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$sectionID, $today]);
+        $data = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    // Top 3 Colleges
-    $sqlColleges = "
-        SELECT college, COUNT(*) AS cnt
-        FROM Library_logs
-        WHERE library = ? 
-          AND CAST(checkin_time AS DATE) = ?
-          AND college IS NOT NULL 
-          AND college != ''
-        GROUP BY college
-        ORDER BY cnt DESC
-        LIMIT 3
-    ";
-    $stmt = $pdo->prepare($sqlColleges);
-    $stmt->execute([$sectionID, $today]);
-    $topColleges = array_map(fn($c)=>$c["college"], $stmt->fetchAll(PDO::FETCH_ASSOC));
+        $result = [
+            "totalToday" => (int)($data["totalToday"] ?? 0),
+            "currentlyInside" => (int)($data["currentlyInside"] ?? 0)
+        ];
 
-    // Top 3 Courses
-    $sqlCourses = "
-        SELECT course, COUNT(*) AS cnt
-        FROM Library_logs
-        WHERE library = ? 
-          AND CAST(checkin_time AS DATE) = ?
-          AND course IS NOT NULL 
-          AND course != ''
-        GROUP BY course
-        ORDER BY cnt DESC
-        LIMIT 3
-    ";
-    $stmt = $pdo->prepare($sqlCourses);
-    $stmt->execute([$sectionID, $today]);
-    $topCourses = array_map(fn($c)=>$c["course"], $stmt->fetchAll(PDO::FETCH_ASSOC));
+        // Top 3 Colleges
+        $sqlColleges = "
+            SELECT TOP 3 college, COUNT(*) AS cnt
+            FROM Library_logs
+            WHERE library = ? 
+              AND CAST(checkin_time AS DATE) = ?
+              AND college IS NOT NULL 
+              AND college != ''
+            GROUP BY college
+            ORDER BY cnt DESC
+        ";
+        $stmt = $pdo->prepare($sqlColleges);
+        $stmt->execute([$sectionID, $today]);
+        $colleges = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $topColleges = array_column($colleges, 'college');
 
-    $result["topColleges"] = array_pad($topColleges, 3, "-");
-    $result["topCourses"] = array_pad($topCourses, 3, "-");
+        // Top 3 Courses
+        $sqlCourses = "
+            SELECT TOP 3 course, COUNT(*) AS cnt
+            FROM Library_logs
+            WHERE library = ? 
+              AND CAST(checkin_time AS DATE) = ?
+              AND course IS NOT NULL 
+              AND course != ''
+            GROUP BY course
+            ORDER BY cnt DESC
+        ";
+        $stmt = $pdo->prepare($sqlCourses);
+        $stmt->execute([$sectionID, $today]);
+        $courses = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $topCourses = array_column($courses, 'course');
 
-    return $result;
+        // Fill missing values with "-"
+        $result["topColleges"] = array_pad($topColleges, 3, "-");
+        $result["topCourses"] = array_pad($topCourses, 3, "-");
+
+        return $result;
+
+    } catch (Exception $e) {
+        error_log("Error in getLibraryKPI: " . $e->getMessage());
+        return [
+            "totalToday" => 0,
+            "currentlyInside" => 0,
+            "topColleges" => ["-", "-", "-"],
+            "topCourses" => ["-", "-", "-"]
+        ];
+    }
 }
+
 ?>
