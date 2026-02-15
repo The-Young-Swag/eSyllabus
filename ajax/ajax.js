@@ -867,3 +867,4 @@ function btnClick(backendurl, backendrequest, tabletarget) {
         }
     });
 }
+
