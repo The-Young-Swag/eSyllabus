@@ -12,7 +12,7 @@ $SysLVServer = "LAPTOP-1309CGUP";
 $SysLVDB = "db_HRIS"; */
 
 # dashboard 
-$dashTitle = "eSyllabus";
+$dashTitle = "Library Attendance Monitoring";
 $cpy = "Tarlac Agricultural University";
 $vrs = "0.0.0";
 

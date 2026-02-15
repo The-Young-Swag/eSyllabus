@@ -98,35 +98,9 @@ $(document).ready(function() {
     setupMenuEvents();
 });
 
-// Load menus function
-function loadMenus(type) {
-    const tableId = type === 'all' ? '#tableAllMenus' : '#tableDeletedMenus';
-    const request = type === 'all' ? 'getAllMenus' : 'getDeletedMenus';
-    
-    $.post("backend/bk_menumanagement.php", { request: request }, function(data) {
-        $(tableId).html(data);
-    });
-}
 
-// Update sidebar
-function updateSidebar() {
-    const currentRID = UserInfo["RID"] || 0;
-    
-    if (!currentRID) return;
-    
-    $.post("backend/bk_menumanagement.php", {
-        request: "getSidebarMenu",
-        RID: currentRID,
-        userRID: currentRID
-    }, function(html) {
-        if (html) {
-            $("#sidebarMenuContainer").html(html);
-            if (typeof setupMenuHighlighting === "function") {
-                setupMenuHighlighting();
-            }
-        }
-    });
-}
+
+
 
 // Setup all event handlers
 function setupMenuEvents() {

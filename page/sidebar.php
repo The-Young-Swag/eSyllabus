@@ -23,7 +23,7 @@ $dashTitle = $dashTitle ?? 'Dashboard';
     <!-- Brand Logo -->
     <a href="#" class="brand-link">
         <img src="dist/img/tau-logo.png" alt="AdminLTE Logo" class="brand-image img-circle elevation-3" style="opacity: .8">
-        <span class="brand-text font-weight-light"><?php echo htmlspecialchars($dashTitle); ?></span>
+<span class="brand-text font-weight-light"><?php echo htmlspecialchars($dashTitle); ?></span>
     </a>
 
     <!-- Sidebar -->

@@ -375,6 +375,14 @@ function generateUserModal() {
         WHERE [UnActive] = '0'
         ORDER BY OfficeName
     ", "Select", []);
+	
+$sections = execsqlSRS("
+    SELECT SectionID, SectionName
+    FROM LibrarySection
+    WHERE IsActive = 1
+    ORDER BY SectionName
+", "Select", []);
+
     
     ob_start();
     ?>
@@ -441,7 +449,16 @@ function generateUserModal() {
                             <input type="text" class="form-control" id="u_position" 
                                    placeholder="Position ID (optional)">
                         </div>
-                        
+
+<div class="form-group">
+    <div class="custom-control custom-switch">
+        <input type="checkbox" class="custom-control-input" id="u_changepass" checked>
+        <label class="custom-control-label" for="u_changepass">
+            Require password change on first login
+        </label>
+    </div>
+</div>
+
                         <div class="form-group">
                             <div class="custom-control custom-switch">
                                 <input type="checkbox" class="custom-control-input" id="u_status" checked>
@@ -472,6 +489,7 @@ function generateUserEditModal($userID = 0) {
         'RID' => '',
         'Office_id' => '',
         'Position_id' => '',
+		'libAccess' => '',
         'IsActive' => '0',
         'AllOfficeAcess' => '0',
         'ChangePass' => '0',
@@ -503,6 +521,15 @@ function generateUserEditModal($userID = 0) {
         ORDER BY OfficeName
     ", "Select", []);
     
+	$sections = execsqlSRS("
+    SELECT SectionID, SectionName
+    FROM LibrarySection
+    WHERE IsActive = 1
+    ORDER BY SectionName
+", "Select", []);
+
+
+
     ob_start();
     ?>
     <!-- Edit User Modal -->
@@ -573,37 +600,51 @@ function generateUserEditModal($userID = 0) {
                                value="<?php echo htmlspecialchars($user['Position_id']); ?>">
                     </div>
                     
-                    <div class="row">
-                        <div class="col-md-4">
-                            <div class="form-group">
-                                <label>Active Status</label>
-                                <select class="form-control" id="edit_status">
-                                    <option value="0" <?php echo $user['IsActive'] == 0 ? 'selected' : ''; ?>>Active</option>
-                                    <option value="1" <?php echo $user['IsActive'] == 1 ? 'selected' : ''; ?>>Inactive</option>
-                                </select>
-                            </div>
-                        </div>
-                        
-                        <div class="col-md-4">
-                            <div class="form-group">
-                                <label>All Office Access</label>
-                                <select class="form-control" id="edit_alloffice">
-                                    <option value="0" <?php echo $user['AllOfficeAcess'] == 0 ? 'selected' : ''; ?>>No</option>
-                                    <option value="1" <?php echo $user['AllOfficeAcess'] == 1 ? 'selected' : ''; ?>>Yes</option>
-                                </select>
-                            </div>
-                        </div>
-                        
-                        <div class="col-md-4">
-                            <div class="form-group">
-                                <label>Change Password</label>
-                                <select class="form-control" id="edit_changepass">
-                                    <option value="0" <?php echo $user['ChangePass'] == 0 ? 'selected' : ''; ?>>No</option>
-                                    <option value="1" <?php echo $user['ChangePass'] == 1 ? 'selected' : ''; ?>>Yes</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
+<div class="row">
+    <div class="col-md-4">
+        <div class="form-group">
+            <label>Active Status</label>
+            <select class="form-control" id="edit_status">
+                <option value="0" <?php echo $user['IsActive'] == 0 ? 'selected' : ''; ?>>Active</option>
+                <option value="1" <?php echo $user['IsActive'] == 1 ? 'selected' : ''; ?>>Inactive</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="form-group">
+            <label>All Office Access</label>
+            <select class="form-control" id="edit_alloffice">
+                <option value="0" <?php echo $user['AllOfficeAcess'] == 0 ? 'selected' : ''; ?>>No</option>
+                <option value="1" <?php echo $user['AllOfficeAcess'] == 1 ? 'selected' : ''; ?>>Yes</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="form-group">
+            <label>Library Section Access</label>
+            <select class="form-control" id="edit_libAccess">
+                <option value="">-- Select Section --</option>
+                <?php foreach ($sections as $sec): ?>
+                    <option value="<?php echo $sec['SectionID']; ?>"
+                        <?php echo ($sec['SectionID'] == $user['libAccess']) ? 'selected' : ''; ?>>
+                        <?php echo htmlspecialchars($sec['SectionName']); ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+    </div>
+</div>
+
+<div class="form-group">
+    <label>Change Password</label>
+    <select class="form-control" id="edit_changepass">
+        <option value="0" <?php echo $user['ChangePass'] == 0 ? 'selected' : ''; ?>>No</option>
+        <option value="1" <?php echo $user['ChangePass'] == 1 ? 'selected' : ''; ?>>Yes</option>
+    </select>
+</div>
+
                     
                     <div class="mt-3">
                         <button class="btn btn-primary btn-block" id="btnUpdateUser">

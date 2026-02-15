@@ -543,6 +543,38 @@ $(document).on('change', '#UpdatePrvRole', function(e) {
 
 });
 
+
+
+// Load menus function
+function loadMenus(type) {
+    const tableId = type === 'all' ? '#tableAllMenus' : '#tableDeletedMenus';
+    const request = type === 'all' ? 'getAllMenus' : 'getDeletedMenus';
+    
+    $.post("backend/bk_menumanagement.php", { request: request }, function(data) {
+        $(tableId).html(data);
+    });
+}
+
+// Update sidebar
+function updateSidebar() {
+    const currentRID = UserInfo["RID"] || 0;
+    
+    if (!currentRID) return;
+    
+    $.post("backend/bk_menumanagement.php", {
+        request: "getSidebarMenu",
+        RID: currentRID,
+        userRID: currentRID
+    }, function(html) {
+        if (html) {
+            $("#sidebarMenuContainer").html(html);
+            if (typeof setupMenuHighlighting === "function") {
+                setupMenuHighlighting();
+            }
+        }
+    });
+}
+
 /**
  * Loads data into HTML table
  * @param {string} backendurl - PHP file URL (e.g., "backend/bk_menumanagement.php")
@@ -763,6 +795,29 @@ function showToast(message, type = "success") {
 }
 
 
+function loadTable(backendurl, backendrequest, tabletarget) {
+    $.ajax({
+        type: "POST",
+        url: backendurl,
+        data: { request: backendrequest },
+/*         beforeSend: function() {
+            $("#loadingSpinner").show();
+        }, */
+        success: function(dataResult) {
+/*             $("#loadingSpinner").hide(); */
+            $(tabletarget).html(dataResult);
+        },
+        error: function(xhr, status, error) {
+/*             $("#loadingSpinner").hide(); */
+            console.error("AJAX error:", error);
+        }
+    });
+}
+
+
+
+
+
 async function getStudentInfo(studentNumber) {
     const paths = [
         'API_requests/students.json',
@@ -794,60 +849,21 @@ async function fetchTable(url, request, injectTo) {
     document.getElementById(injectTo).innerHTML = html;
 }
 
-
-/* function addLogRow(log, tbody = document.getElementById('logsTableBody')) {
-    const tr = document.createElement('tr');
-
-    tr.innerHTML = `
-        <td>${log.student_number}</td>
-        <td>${log.name}</td>
-        <td>${log.college}</td>
-        <td>${log.course}</td>
-        <td>${log.library}</td>
-        <td>${formatTime(log.checkin_time)}</td>
-        <td>${log.checkout_time ? formatTime(log.checkout_time) : '<span class="text-muted">—</span>'}</td>
-    `;
-
-    tbody.prepend(tr);
-}
-
-async function ajaxPost(url, data = {}) {
-    const res = await fetch(url, {
-        method: "POST",
-        body: new URLSearchParams(data)
+function btnClick(backendurl, backendrequest, tabletarget) {
+    $.ajax({
+        type: "POST",
+        url: backendurl,
+        data: { request: backendrequest },
+/*         beforeSend: function() {
+            $("#loadingSpinner").show();
+        }, */
+        success: function(dataResult) {
+/*             $("#loadingSpinner").hide(); */
+            $(tabletarget).html(dataResult);
+        },
+        error: function(xhr, status, error) {
+/*             $("#loadingSpinner").hide(); */
+            console.error("AJAX error:", error);
+        }
     });
-
-    if (!res.ok) {
-        throw new Error("Network error");
-    }
-
-    return res.json();
 }
-
-function bindOnce(element, event, handler) {
-    element.removeEventListener(event, handler);
-    element.addEventListener(event, handler);
-}
-
-function clearIntervals(intervals = []) {
-    intervals.forEach(clearInterval);
-    return [];
-}
-
-function updateText(id, value) {
-    const el = document.getElementById(id);
-    if (el) el.innerText = value;
-}
-
-function appendHTML(container, html, toTop = true) {
-    if (toTop) {
-        container.insertAdjacentHTML("afterbegin", html);
-    } else {
-        container.insertAdjacentHTML("beforeend", html);
-    }
-}
-
-function formatTime(datetime) {
-    return new Date(datetime).toLocaleTimeString();
-} */
-

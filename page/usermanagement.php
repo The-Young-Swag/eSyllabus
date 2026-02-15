@@ -33,54 +33,54 @@
         <div class="card-body p-0">
             <div class="tab-content">
                 <!-- All Users Tab -->
-                <div class="tab-pane fade show active" id="allUsers">
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead class="thead-light">
-                                <tr>
-                                    <th width="5%">#</th>
-                                    <th>Emp ID</th>
-                                    <th>Password</th>
-                                    <th>Name</th>
-                                    <th>Office</th>
-                                    <th>Position</th>
-                                    <th>Role</th>
-                                    <th>Email</th>
-                                    <th width="10%">Status</th>
-                                    <th width="12%">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tableAllUsers">
-                                <!-- Loaded via AJAX -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+<div class="tab-pane fade show active" id="allUsers">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="thead-light">
+                <tr>
+                    <th width="5%">#</th>
+                    <th>Emp ID</th>
+                    <th>Password</th>
+                    <th>Name</th>
+                    <th>Office</th>
+                    <th>Position</th>
+                    <th>Role</th>
+                    <th>Email</th>
+                    <th width="10%">Status</th>
+                    <th width="12%">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="tableAllUsers">
+                <!-- Loaded via AJAX -->
+            </tbody>
+        </table>
+    </div>
+</div>
                 
                 <!-- Deleted Users Tab -->
-                <div class="tab-pane fade" id="deletedUsers">
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead class="thead-light">
-                                <tr>
-                                    <th width="5%">#</th>
-                                    <th>Emp ID</th>
-                                    <th>Password</th>
-                                    <th>Name</th>
-                                    <th>Office</th>
-                                    <th>Position</th>
-                                    <th>Role</th>
-                                    <th>Email</th>
-                                    <th width="10%">Status</th>
-                                    <th width="12%">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tableDeletedUsers">
-                                <!-- Loaded via AJAX -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+<div class="tab-pane fade" id="deletedUsers">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="thead-light">
+                <tr>
+                    <th width="5%">#</th>
+                    <th>Emp ID</th>
+                    <th>Password</th>
+                    <th>Name</th>
+                    <th>Office</th>
+                    <th>Position</th>
+                    <th>Role</th>
+                    <th>Email</th>
+                    <th width="10%">Status</th>
+                    <th width="12%">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="tableDeletedUsers">
+                <!-- Loaded via AJAX -->
+            </tbody>
+        </table>
+    </div>
+</div>
             </div>
         </div>
     </div>
@@ -92,7 +92,8 @@
 $(document).ready(function() {
     // Load initial data
     loadUsers('all');
-    
+        loadUsers('deleted'); // Add this line to load deleted users on page load
+
     // Setup event handlers
     setupUserEvents();
 });
@@ -180,86 +181,88 @@ function setupUserEvents() {
     });
     
     // Save user
-    $(document).off('click.user', '#btnSaveUser').on('click.user', '#btnSaveUser', function(e) {
-        e.preventDefault();
-        const btn = $(this);
-        const originalText = btn.html();
+$(document).off('click.user', '#btnSaveUser').on('click.user', '#btnSaveUser', function(e) {
+    e.preventDefault();
+    const btn = $(this);
+    const originalText = btn.html();
+    
+    // Get form data - include libAccess and changePass
+    const formData = {
+        request: "addUser",
+        empID: $('#u_empID').val(),
+        email: $('#u_email').val(),
+        name: $('#u_name').val(),
+        roleID: $('#u_role').val(),
+        officeID: $('#u_unit').val(),
+        positionID: $('#u_position').val(),
+        changePass: $('#u_changepass').is(':checked') ? 1 : 0  // Add this line
+    };
+    
+    // Validation
+    if (!formData.empID || !formData.name || !formData.roleID) {
+        alert('Please fill in required fields');
+        return;
+    }
+    
+    // Disable button
+    btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
+    
+    // Send request
+    $.post("backend/bk_usermanagement.php", formData, function(response) {
+        btn.prop('disabled', false).html(originalText);
         
-        // Get form data
-        const formData = {
-            request: "addUser",
-            empID: $('#u_empID').val(),
-            email: $('#u_email').val(),
-            name: $('#u_name').val(),
-            roleID: $('#u_role').val(),
-            officeID: $('#u_unit').val(),
-            positionID: $('#u_position').val()
-        };
-        
-        // Validation
-        if (!formData.empID || !formData.name || !formData.roleID) {
-            alert('Please fill in required fields');
-            return;
+        if (response === "SUCCESS") {
+            $('#usermodal').modal('hide');
+            $('#addUserForm')[0]?.reset();
+            loadUsers('all');
+        } else if (response === "DUPLICATE") {
+            alert('User already exists');
         }
-        
-        // Disable button
-        btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
-        
-        // Send request
-        $.post("backend/bk_usermanagement.php", formData, function(response) {
-            btn.prop('disabled', false).html(originalText);
-            
-            if (response === "SUCCESS") {
-                $('#usermodal').modal('hide');
-                $('#addUserForm')[0]?.reset();
-                loadUsers('all');
-            } else if (response === "DUPLICATE") {
-                alert('User already exists');
-            }
-        });
     });
+});
     
     // Update user
-    $(document).off('click.user', '#btnUpdateUser').on('click.user', '#btnUpdateUser', function(e) {
-        e.preventDefault();
-        const btn = $(this);
-        const originalText = btn.html();
+$(document).off('click.user', '#btnUpdateUser').on('click.user', '#btnUpdateUser', function(e) {
+    e.preventDefault();
+    const btn = $(this);
+    const originalText = btn.html();
+    
+    // Get form data - include libAccess
+    const formData = {
+        request: "updateUser",
+        userID: $('#edit_userID').val(),
+        empID: $('#edit_empID').val(),
+        email: $('#edit_email').val(),
+        name: $('#edit_name').val(),
+        roleID: $('#edit_role').val(),
+        officeID: $('#edit_office').val(),
+        positionID: $('#edit_position').val(),
+        isActive: $('#edit_status').val(),
+        allOfficeAccess: $('#edit_alloffice').val(),
+        changePass: $('#edit_changepass').val(),
+        libAccess: $('#edit_libAccess').val()  // Add this line
+    };
+    
+    // Validation
+    if (!formData.empID || !formData.name || !formData.roleID) {
+        alert('Please fill in required fields');
+        return;
+    }
+    
+    // Disable button
+    btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
+    
+    // Send request
+    $.post("backend/bk_usermanagement.php", formData, function(response) {
+        btn.prop('disabled', false).html(originalText);
         
-        // Get form data
-        const formData = {
-            request: "updateUser",
-            userID: $('#edit_userID').val(),
-            empID: $('#edit_empID').val(),
-            email: $('#edit_email').val(),
-            name: $('#edit_name').val(),
-            roleID: $('#edit_role').val(),
-            officeID: $('#edit_office').val(),
-            positionID: $('#edit_position').val(),
-            isActive: $('#edit_status').val(),
-            allOfficeAccess: $('#edit_alloffice').val(),
-            changePass: $('#edit_changepass').val()
-        };
-        
-        // Validation
-        if (!formData.empID || !formData.name || !formData.roleID) {
-            alert('Please fill in required fields');
-            return;
+        if (response === "SUCCESS") {
+            $('#usereditmodal').modal('hide');
+            loadUsers('all');
+            loadUsers('deleted');
         }
-        
-        // Disable button
-        btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
-        
-        // Send request
-        $.post("backend/bk_usermanagement.php", formData, function(response) {
-            btn.prop('disabled', false).html(originalText);
-            
-            if (response === "SUCCESS") {
-                $('#usereditmodal').modal('hide');
-                loadUsers('all');
-                loadUsers('deleted');
-            }
-        });
     });
+});
     
     // Prevent form submission on Enter
     $(document).off('submit.user', '#addUserForm').on('submit.user', '#addUserForm', function(e) {
@@ -268,10 +271,16 @@ function setupUserEvents() {
     });
 }
 // Toggle user status
+// Toggle user status
 $(document).off('change.user', '.toggleUserStatus').on('change.user', '.toggleUserStatus', function() {
     const userId = $(this).data('userid');
     const isChecked = $(this).is(':checked');
     const newStatus = isChecked ? 0 : 1; // 0 = Active, 1 = Inactive
+    
+    // Don't show confirm dialog for deleted users (they should be disabled anyway)
+    if ($(this).is(':disabled')) {
+        return;
+    }
     
     if (confirm(`Are you sure you want to ${isChecked ? 'activate' : 'deactivate'} this user?`)) {
         $.post("backend/bk_usermanagement.php", {
@@ -283,15 +292,6 @@ $(document).off('change.user', '.toggleUserStatus').on('change.user', '.toggleUs
             try {
                 const data = JSON.parse(response);
                 if (data.success) {
-                    // Update the badge status in the table row
-                    const row = $(`.toggleUserStatus[data-userid="${userId}"]`).closest('tr');
-                    const badgeCell = row.find('td').eq(8); // Status column
-                    
-                    const statusText = isChecked ? 'Active' : 'Inactive';
-                    const statusClass = isChecked ? 'badge-success' : 'badge-warning';
-                    
-                    badgeCell.html(`<span class="badge ${statusClass}">${statusText}</span>`);
-                    
                     // Show success message
                     showToast('User status updated successfully!', 'success');
                 } else {
