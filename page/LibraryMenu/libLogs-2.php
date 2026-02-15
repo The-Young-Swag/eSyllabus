@@ -90,38 +90,6 @@
 <?php include 'LibModals.php'; ?>
 
 <script>
-let duplicateCandidates = [];
-let selectedStudent = null;
-
-function loadKPI(sectionID) {
-    if (!sectionID) return;
-
-    apiCall("getKPI", { sectionID }, res => {
-        if (res.success && res.data) {
-            const data = res.data;
-
-            // Numeric KPIs
-            $("#kpiTotalCheckins").text(data.totalToday);
-            $("#kpiActiveStudents").text(data.currentlyInside);
-
-            // List KPIs
-            $("#topColleges").html(`
-                <div class="mb-1"><span class="fw-bold">1.</span> <span class="text-warning">${data.topColleges[0]}</span></div>
-                <div class="mb-1"><span class="fw-bold">2.</span> <span class="text-warning">${data.topColleges[1]}</span></div>
-                <div class="mb-1"><span class="fw-bold">3.</span> <span class="text-warning">${data.topColleges[2]}</span></div>
-            `);
-
-            $("#topCourses").html(`
-                <div class="mb-1"><span class="fw-bold">1.</span> <span class="text-info">${data.topCourses[0]}</span></div>
-                <div class="mb-1"><span class="fw-bold">2.</span> <span class="text-info">${data.topCourses[1]}</span></div>
-                <div class="mb-1"><span class="fw-bold">3.</span> <span class="text-info">${data.topCourses[2]}</span></div>
-            `);
-        }
-    });
-}
-
-
-
 const LibrarySystem = (() => {
 
     const API_URL = "backend/bk_LibraryMenu/bk_libLogs-Test.php";
@@ -141,56 +109,86 @@ const LibrarySystem = (() => {
     };
 
     function apiCall(request, data = {}, callback) {
-        $.post(API_URL, { request, ...data }, callback, "json");
-    }
-
-function loadLibraries() {
-    apiCall("getLibraries", {}, res => {
-
-        libraryList = res.data || [];
-        const $select = $(UI.librarySelect).empty();
-
-        if (!libraryList.length) {
-            updateLibraryDisplay("No Library Available");
-            return;
-        }
-
-        libraryList.forEach(lib => {
-            $select.append(
-                `<option value="${lib.SectionID}">
-                    ${lib.SectionName}
-                 </option>`
-            );
+        $.post(API_URL, { request, ...data }, callback, "json").fail(function(xhr) {
+            console.error("API Call Failed:", xhr.responseText);
+            alert("Network error. Please try again.");
         });
-
-        const firstLib = libraryList[0];
-
-        currentLibraryID = parseInt(firstLib.SectionID);
-        currentLibraryName = firstLib.SectionName;
-
-        $select.val(currentLibraryID);
-        updateLibraryDisplay(currentLibraryName);
-
-        loadKPI(currentLibraryID);
-    });
-}
-
-
-
-
-function startClock() {
-    function updateTime() {
-        const now = new Date();
-        const options = { 
-            hour: "2-digit", minute: "2-digit", second: "2-digit", 
-            year: "numeric", month: "short", day: "numeric" 
-        };
-        $("#kpiCurrentTime").text(now.toLocaleString("en-PH", options));
     }
-    updateTime();
-    setInterval(updateTime, 1000);
-}
 
+    function loadLibraries() {
+        apiCall("getLibraries", {}, function(res) {
+            if (res.error) {
+                console.error(res.error);
+                return;
+            }
+
+            libraryList = res.data || [];
+            const $select = $(UI.librarySelect).empty();
+
+            if (!libraryList.length) {
+                updateLibraryDisplay("No Library Available");
+                return;
+            }
+
+            libraryList.forEach(lib => {
+                $select.append(
+                    `<option value="${lib.SectionID}">
+                        ${lib.SectionName}
+                     </option>`
+                );
+            });
+
+            const firstLib = libraryList[0];
+            currentLibraryID = parseInt(firstLib.SectionID);
+            currentLibraryName = firstLib.SectionName;
+
+            $select.val(currentLibraryID);
+            updateLibraryDisplay(currentLibraryName);
+
+            // Load KPI for the first library
+            loadKPI(currentLibraryID);
+        });
+    }
+
+    function loadKPI(sectionID) {
+        if (!sectionID) return;
+
+        apiCall("getKPI", { sectionID }, function(res) {
+            if (res.success && res.data) {
+                const data = res.data;
+
+                // Numeric KPIs
+                $("#kpiTotalCheckins").text(data.totalToday || 0);
+                $("#kpiActiveStudents").text(data.currentlyInside || 0);
+
+                // List KPIs
+                $("#topColleges").html(`
+                    <div class="mb-1"><span class="fw-bold">1.</span> <span class="text-warning">${data.topColleges[0] || '-'}</span></div>
+                    <div class="mb-1"><span class="fw-bold">2.</span> <span class="text-warning">${data.topColleges[1] || '-'}</span></div>
+                    <div class="mb-1"><span class="fw-bold">3.</span> <span class="text-warning">${data.topColleges[2] || '-'}</span></div>
+                `);
+
+                $("#topCourses").html(`
+                    <div class="mb-1"><span class="fw-bold">1.</span> <span class="text-info">${data.topCourses[0] || '-'}</span></div>
+                    <div class="mb-1"><span class="fw-bold">2.</span> <span class="text-info">${data.topCourses[1] || '-'}</span></div>
+                    <div class="mb-1"><span class="fw-bold">3.</span> <span class="text-info">${data.topCourses[2] || '-'}</span></div>
+                `);
+            }
+        });
+    }
+
+    function startClock() {
+        function updateTime() {
+            const now = new Date();
+            const options = { 
+                hour: "2-digit", minute: "2-digit", second: "2-digit", 
+                year: "numeric", month: "short", day: "numeric" 
+            };
+            $("#kpiCurrentTime").text(now.toLocaleString("en-PH", options));
+        }
+        updateTime();
+        setInterval(updateTime, 1000);
+    }
 
     function updateLibraryDisplay(name) {
         currentLibraryName = name;
@@ -200,26 +198,32 @@ function startClock() {
 
     function validateStudent() {
         const studentNumber = $(UI.studentInput).val().trim();
-        if (!studentNumber) return alert("Enter ID Number");
+        if (!studentNumber) {
+            alert("Enter ID Number");
+            return;
+        }
 
-        apiCall("validateUser", { studentNumber }, res => {
-            if (res.error)
-                return showModal("Validation Error", `<div class="alert alert-danger">${res.error}</div>`);
+        apiCall("validateUser", { studentNumber }, function(res) {
+            if (res.error) {
+                showModal("Validation Error", `<div class="alert alert-danger">${res.error}</div>`);
+                return;
+            }
 
             if (res.success && res.data) {
                 selectedStudent = res.data;
-                return detectAttendanceAction(selectedStudent);
+                detectAttendanceAction(selectedStudent);
+                return;
             }
 
             if (res.duplicate) {
                 duplicateCandidates = res.matches;
-                return showDuplicateModal();
+                showDuplicateModal();
             }
         });
     }
 
     function detectAttendanceAction(student) {
-        apiCall("checkStatusToday", { studentNumber: student.student_number }, res => {
+        apiCall("checkStatusToday", { studentNumber: student.student_number }, function(res) {
             let action = "checkin";
             if (res.checkedIn && res.sectionID === currentLibraryID) action = "checkout";
             if (res.checkedIn && res.sectionID !== currentLibraryID) action = "switch";
@@ -242,7 +246,7 @@ function startClock() {
                         <input type="password" id="modalSecretKey" 
                             class="form-control text-center fw-bold fs-4" 
                             maxlength="6" placeholder="••••••">
-                        <button class="btn btn-outline-secondary" id="toggleSecretKey">
+                        <button class="btn btn-outline-secondary" type="button" id="toggleSecretKey">
                             <i class="fas fa-eye" id="secretIcon"></i>
                         </button>
                     </div>
@@ -255,9 +259,10 @@ function startClock() {
         `;
         showModal("Identity Verification", body);
 
-        $(document).off("click", "#toggleSecretKey").on("click", "#toggleSecretKey", function () {
+        // Toggle secret key visibility
+        $("#toggleSecretKey").off("click").on("click", function() {
             const input = $("#modalSecretKey");
-            const icon  = $("#secretIcon");
+            const icon = $("#secretIcon");
             if (input.attr("type") === "password") {
                 input.attr("type", "text");
                 icon.removeClass("fa-eye").addClass("fa-eye-slash");
@@ -267,37 +272,38 @@ function startClock() {
             }
         });
 
-        $(document).off("input", "#modalSecretKey").on("input", "#modalSecretKey", function () {
+        // Validate secret key
+        $("#modalSecretKey").off("input").on("input", function() {
             const key = $(this).val();
             if (key.length !== 6) return;
+            
             const match = duplicateCandidates.find(s => s.secretKey === key);
             if (!match) {
                 $("#secretStatus").text("Invalid Secret Key");
-                $("#verifiedStudentContainer").hide();
+                $("#verifiedStudentContainer").hide().empty();
                 return;
             }
 
             selectedStudent = match;
             $("#secretStatus").html(`<span class="text-success">Identity Verified</span>`);
-
             showModalForStudent(match, "checkin", true);
         });
     }
 
     function showModalForStudent(student, action, isDuplicate = false) {
         let headerColor = "success";
-        let headerIcon  = "fa-sign-in-alt";
-        let modalTitle  = "Check-In Validation";
+        let headerIcon = "fa-sign-in-alt";
+        let modalTitle = "Check-In Validation";
 
         if (action === "checkout") {
             headerColor = "primary";
-            headerIcon  = "fa-sign-out-alt";
-            modalTitle  = "Check-Out Validation";
+            headerIcon = "fa-sign-out-alt";
+            modalTitle = "Check-Out Validation";
         }
         if (action === "switch") {
             headerColor = "warning";
-            headerIcon  = "fa-random";
-            modalTitle  = "Library Switch Validation";
+            headerIcon = "fa-random";
+            modalTitle = "Library Switch Validation";
         }
 
         const body = `
@@ -319,113 +325,112 @@ function startClock() {
         `;
 
         const footer = `
-            <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-            <button class="btn btn-${headerColor}" id="confirmAttendance">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-${headerColor}" id="confirmAttendance">
                 <i class="fas ${headerIcon} me-1"></i>Confirm
             </button>
         `;
 
         if (isDuplicate) {
             $("#verifiedStudentContainer").html(body).show();
-            $(UI.modalFooter).html(footer);
+            $("#dynamicModalFooter").html(footer);
         } else {
             showModal(modalTitle, body, footer);
         }
 
-        $(document).off("click", "#confirmAttendance").on("click", "#confirmAttendance", () => {
+        // Remove any existing click handlers and attach new one
+        $("#confirmAttendance").off("click").on("click", function() {
             autoAttendanceFlow(student.student_number);
-            $(UI.modal).modal("hide");
+            $("#dynamicModal").modal("hide");
         });
     }
 
     function autoAttendanceFlow(studentNumber) {
-        apiCall("checkStatusToday", { studentNumber }, res => {
-            if (!res.checkedIn) return saveAttendance("checkin", studentNumber);
-            if (res.sectionID === currentLibraryID) return saveAttendance("checkout", studentNumber);
-            if (res.sectionID !== currentLibraryID) {
-                apiCall("forceCheckout", { studentNumber, sectionID: res.sectionID }, () => {
+        apiCall("checkStatusToday", { studentNumber }, function(res) {
+            if (!res.checkedIn) {
+                saveAttendance("checkin", studentNumber);
+            } else if (res.sectionID === currentLibraryID) {
+                saveAttendance("checkout", studentNumber);
+            } else if (res.sectionID !== currentLibraryID) {
+                // First checkout from previous library, then checkin to new one
+                apiCall("forceCheckout", { 
+                    studentNumber: studentNumber, 
+                    sectionID: res.sectionID 
+                }, function() {
                     saveAttendance("checkin", studentNumber);
                 });
             }
         });
     }
 
-function saveAttendance(action, studentNumber) {
-
-    apiCall("saveAttendance",
-        { action, studentNumber, sectionID: currentLibraryID },
-        function (res) {
-
-            if (!res || res.error) {
-                return showModal(
-                    "Warning",
-                    `<div class="alert alert-warning">
-                        ${res?.error || "Unexpected server error"}
-                     </div>`
-                );
-            }
-
-            /* ✅ Use backend-confirmed action */
-            const finalAction = res.action || action;
-
-            const msg = finalAction === "checkin"
-                ? "Checked In"
-                : "Checked Out";
-
-            showModal(
-                "Success",
-                `<div class="alert alert-success">
-                    ${msg} successfully.
-                 </div>`
-            );
-
-            /* ✅ Clear ID input */
-            $(UI.studentInput).val("").focus();
-
-            /* 🔥 EVENT-DRIVEN KPI UPDATE (NO REQUERY) */
-            if (res.kpi) {
-
-                if (typeof res.kpi.totalToday !== "undefined") {
-                    $("#kpiTotalCheckins")
-                        .text(res.kpi.totalToday);
-                }
-
-                if (typeof res.kpi.currentlyInside !== "undefined") {
-                    $("#kpiActiveStudents")
-                        .text(res.kpi.currentlyInside);
-                }
-            }
+    function saveAttendance(action, studentNumber) {
+        if (!currentLibraryID) {
+            alert("No library selected.");
+            return;
         }
-    );
-}
 
+        if (!studentNumber) {
+            alert("Student number missing.");
+            return;
+        }
 
+        apiCall("saveAttendance", {
+            action: action,
+            studentNumber: studentNumber,
+            sectionID: currentLibraryID
+        }, function(res) {
+            if (res.error) {
+                showModal("Warning", `<div class="alert alert-warning">${res.error}</div>`);
+                return;
+            }
+
+            if (res.success) {
+                const msg = action === "checkin" ? "Checked In" : "Checked Out";
+                showModal("Success",
+                    `<div class="alert alert-success">${msg} successfully.</div>`
+                );
+
+                // Clear input
+                $(UI.studentInput).val("");
+
+                // Update KPI with the new data from server
+                if (res.kpi) {
+                    $("#kpiTotalCheckins").text(res.kpi.totalToday || 0);
+                    $("#kpiActiveStudents").text(res.kpi.currentlyInside || 0);
+                } else {
+                    // Fallback: reload all KPI data
+                    loadKPI(currentLibraryID);
+                }
+            }
+        });
+    }
 
     function showModal(title, body, footer = "") {
-        $(UI.modalTitle).html(title);
-        $(UI.modalBody).html(body);
-        $(UI.modalFooter).html(footer);
-        $(UI.modal).modal("show");
+        $("#dynamicModalTitle").html(title);
+        $("#dynamicModalBody").html(body);
+        $("#dynamicModalFooter").html(footer);
+        $("#dynamicModal").modal("show");
     }
 
     function bindEvents() {
-        $(document).on("change", UI.librarySelect, function () {
-            currentLibraryID = $(this).val();
+        // Library change event
+        $(document).on("change", UI.librarySelect, function() {
+            currentLibraryID = parseInt($(this).val());
             currentLibraryName = $(this).find("option:selected").text();
             updateLibraryDisplay(currentLibraryName);
-			loadKPI(currentLibraryID);
+            loadKPI(currentLibraryID);
         });
 
-
-
-        $(document).on("submit", "#logForm", function (e) {
+        // Form submit
+        $(document).on("submit", "#logForm", function(e) {
             e.preventDefault();
             validateStudent();
         });
 
-        $(document).on("click", "#toggleIdVisibility", function () {
+        // Toggle ID visibility
+        $(document).on("click", "#toggleIdVisibility", function() {
             const input = $("#inputStudentNumber");
-            const icon  = $("#toggleIcon");
+            const icon = $("#toggleIcon");
             if (input.attr("type") === "password") {
                 input.attr("type", "text");
                 icon.removeClass("fa-eye").addClass("fa-eye-slash");
@@ -434,22 +439,25 @@ function saveAttendance(action, studentNumber) {
                 icon.removeClass("fa-eye-slash").addClass("fa-eye");
             }
         });
+
+        // Special key container visibility (if needed)
+        $(document).on("input", "#inputStudentNumber", function() {
+            const val = $(this).val();
+            // Show special key container for employees or specific pattern
+            // Add your logic here if needed
+        });
     }
 
-function init() {
-    startClock();
-    bindEvents();
-    loadLibraries(); // this will auto-load KPI safely
-}
-
+    function init() {
+        startClock();
+        bindEvents();
+        loadLibraries();
+    }
 
     return { init };
-
 })();
 
 $(document).ready(() => LibrarySystem.init());
-
-
 </script>
 
 

@@ -119,119 +119,146 @@ switch($request){
         send(["success"=>true]);
     break;
 
-    /* ==========================================================
-       5️⃣ SAVE ATTENDANCE (AUTO CHECKIN / CHECKOUT)
-    ========================================================== */
-  case "saveAttendance":
-
-    $studentNumber = trim($_POST["studentNumber"]);
-    $sectionID     = intval($_POST["sectionID"]);
+   /* ==========================================================
+   5️⃣ SAVE ATTENDANCE (AUTO CHECKIN / CHECKOUT)
+========================================================== */
+case "saveAttendance":
+    $studentNumber = trim($_POST["studentNumber"] ?? '');
+    $sectionID     = intval($_POST["sectionID"] ?? 0);
 
     if(!$studentNumber || !$sectionID){
-        send(["error"=>"Missing data"]);
+        send(["error" => "Missing data"]);
     }
 
     $now   = date("Y-m-d H:i:s");
     $today = date("Y-m-d");
-    $pdo = dbconES();
-    $pdo->beginTransaction();
+    
+    try {
+        $pdo = dbconES();
+        $pdo->beginTransaction();
 
-    /* Check existing active log */
-    $checkSql = "
-        SELECT id, library
-        FROM Library_logs
-        WHERE student_number = ?
-          AND CAST(checkin_time AS DATE) = ?
-          AND checkout_time IS NULL
-    ";
-    $stmt = $pdo->prepare($checkSql);
-    $stmt->execute([$studentNumber, $today]);
-    $existing = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    /* Checkout if already inside */
-    if($existing && $existing["library"] == $sectionID){
-
-        $updateSql = "
-            UPDATE Library_logs
-            SET checkout_time = ?
-            WHERE id = ?
+        /* Check existing active log */
+        $checkSql = "
+            SELECT id, library
+            FROM Library_logs
+            WHERE student_number = ?
+              AND CAST(checkin_time AS DATE) = ?
+              AND checkout_time IS NULL
         ";
-        $stmt = $pdo->prepare($updateSql);
-        $stmt->execute([$now, $existing["id"]]);
+        $stmt = $pdo->prepare($checkSql);
+        $stmt->execute([$studentNumber, $today]);
+        $existing = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        $action = "checkout";
+        $action = "";
 
-    } else {
-
-        /* Auto checkout previous library */
-        if($existing){
-            $updateSql = "
-                UPDATE Library_logs
-                SET checkout_time = ?
-                WHERE id = ?
-            ";
-            $stmt = $pdo->prepare($updateSql);
-            $stmt->execute([$now, $existing["id"]]);
-        }
-
-        /* Get student info */
-        $students = json_decode(
-            file_get_contents("../../API_requests/students.json"),
-            true
-        );
-
-        $studentData = null;
-        foreach($students as $s){
-            if($s["student_number"] === $studentNumber){
-                $studentData = $s;
-                break;
+        /* Checkout if already inside and in same library */
+        if($existing) {
+            if($existing["library"] == $sectionID) {
+                // Same library - checkout
+                $updateSql = "
+                    UPDATE Library_logs
+                    SET checkout_time = ?
+                    WHERE id = ?
+                ";
+                $stmt = $pdo->prepare($updateSql);
+                $stmt->execute([$now, $existing["id"]]);
+                $action = "checkout";
+            } else {
+                // Different library - checkout from old first
+                $updateSql = "
+                    UPDATE Library_logs
+                    SET checkout_time = ?
+                    WHERE id = ?
+                ";
+                $stmt = $pdo->prepare($updateSql);
+                $stmt->execute([$now, $existing["id"]]);
+                
+                // Then insert new checkin
+                $action = "checkin_after_switch";
             }
         }
 
-        if(!$studentData){
-            $pdo->rollBack();
-            send(["error"=>"Student not found"]);
+        // If no checkout happened or we need to insert new checkin
+        if($action !== "checkout") {
+            /* Get student info from JSON */
+            $jsonPath = "../../API_requests/students.json";
+            if(!file_exists($jsonPath)){
+                $pdo->rollBack();
+                send(["error" => "Student API not found"]);
+            }
+
+            $students = json_decode(file_get_contents($jsonPath), true);
+            $studentData = null;
+            
+            foreach($students as $s){
+                if($s["student_number"] === $studentNumber){
+                    $studentData = $s;
+                    break;
+                }
+            }
+
+            if(!$studentData){
+                $pdo->rollBack();
+                send(["error" => "Student not found in database"]);
+            }
+
+            // Insert new checkin
+            $insertSql = "
+                INSERT INTO Library_logs
+                (student_number, name, college, course, library, checkin_time, sex)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ";
+            $stmt = $pdo->prepare($insertSql);
+            $result = $stmt->execute([
+                $studentData["student_number"],
+                $studentData["name"],
+                $studentData["college"],
+                $studentData["course"],
+                $sectionID,
+                $now,
+                $studentData["sex"]
+            ]);
+
+            if(!$result) {
+                $pdo->rollBack();
+                send(["error" => "Failed to insert record"]);
+            }
+
+            $action = ($action === "checkin_after_switch") ? "checkin" : "checkin";
         }
 
-        $insertSql = "
-            INSERT INTO Library_logs
-            (student_number, name, college, course, library, checkin_time, sex)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+        /* Get Updated KPI for this library */
+        $kpiSql = "
+            SELECT
+                COUNT(*) AS totalToday,
+                SUM(CASE WHEN checkout_time IS NULL THEN 1 ELSE 0 END) AS currentlyInside
+            FROM Library_logs
+            WHERE library = ?
+              AND CAST(checkin_time AS DATE) = ?
         ";
-        $stmt = $pdo->prepare($insertSql);
-        $stmt->execute([
-            $studentData["student_number"],
-            $studentData["name"],
-            $studentData["college"],
-            $studentData["course"],
-            $sectionID,
-            $now,
-            $studentData["sex"]
+        $stmt = $pdo->prepare($kpiSql);
+        $stmt->execute([$sectionID, $today]);
+        $kpiData = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        $kpi = [
+            "totalToday" => (int)($kpiData["totalToday"] ?? 0),
+            "currentlyInside" => (int)($kpiData["currentlyInside"] ?? 0)
+        ];
+
+        $pdo->commit();
+
+        send([
+            "success" => true,
+            "action" => $action,
+            "kpi" => $kpi
         ]);
 
-        $action = "checkin";
+    } catch(Exception $e) {
+        if(isset($pdo)) {
+            $pdo->rollBack();
+        }
+        send(["error" => "Database error: " . $e->getMessage()]);
     }
-
-    /* Get Updated KPI */
-    $sqlKPI = "
-        SELECT
-            COUNT(*) AS totalToday,
-            SUM(CASE WHEN checkout_time IS NULL THEN 1 ELSE 0 END) AS currentlyInside
-        FROM Library_logs
-        WHERE library = ?
-          AND CAST(checkin_time AS DATE) = ?
-    ";
-    $kpiData = execsqlSRS($sqlKPI, "Query", [$sectionID, $today]);
-    $kpi = $kpiData[0] ?? ["totalToday"=>0,"currentlyInside"=>0];
-
-    $pdo->commit();
-
-    send([
-        "success"=>true,
-        "action"=>$action,
-        "kpi"=>$kpi
-    ]);
-
 break;
 
 
