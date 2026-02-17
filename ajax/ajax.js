@@ -790,42 +790,75 @@ function openEditModal(modalURL, modalRequest, itemIDParam, itemID) {
  * Usage: saveData.call(this, "backend/bk_menumanagement.php", "updateMenu", formData, updateMenuRow)
  */
 function saveData(saveURL, saveRequest, formData, updateRowCallback) {
-    const $button = $(this);
-    const originalText = $button.html();
-    
-    $button.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Saving...');
-    
-    $.ajax({
-        type: "POST",
-        url: saveURL,
-        data: { request: saveRequest, ...formData },
-        success: function(response) {
-            $button.prop('disabled', false).html(originalText);
-            
-            const trimmedResponse = response.trim();
-            
-            if (trimmedResponse === "SUCCESS") {
-                // Update the specific row (no page reload!)
-                if (typeof updateRowCallback === 'function') {
-                    updateRowCallback(formData);
+
+    const btn = $(".modal:visible").find("button[type='submit'], .btn-primary");
+    const originalText = btn.html();
+
+    btn.prop('disabled', true)
+       .html('<i class="fas fa-spinner fa-spin"></i>');
+
+    $.post(saveURL, { request: saveRequest, ...formData })
+        .done(function(resp) {
+
+            btn.prop('disabled', false).html(originalText);
+
+            try {
+                const data = typeof resp === "string" ? JSON.parse(resp) : resp;
+
+                if (data.success) {
+
+                    // ✅ Update ONLY the edited row
+                    if (typeof updateRowCallback === "function") {
+                        updateRowCallback(data);
+                    }
+
+                    // ✅ Update sidebar live
+                    if (typeof updateSidebarMenu === "function") {
+                        updateSidebarMenu();
+                    }
+
+                    $('.modal').modal('hide');
+
+                    if (typeof showToast === "function") {
+                        showToast("Menu updated successfully!");
+                    }
+
+                } else if (data.message === "DUPLICATE_CODE") {
+                    alert("Menu code already exists!");
+                } else {
+                    alert("Error: " + data.message);
                 }
-                
-                alert("Saved successfully!");
-                $('.modal').modal('hide');
-                
-            } else if (trimmedResponse === "DUPLICATE_CODE") {
-                alert("Code already exists! Please use a different code.");
-                $(".modal input[type='text']").first().focus().select();
-            } else {
-                alert("Server: " + response);
+
+            } catch (e) {
+                console.error("Update parse error:", e, resp);
+                alert("Server error. Please try again.");
             }
-        },
-        error: function(xhr, status, error) {
-            $button.prop('disabled', false).html(originalText);
-            alert("Error saving: " + error);
-        }
-    });
+
+        })
+        .fail(function() {
+            btn.prop('disabled', false).html(originalText);
+            alert("Server error. Please try again.");
+        });
 }
+function updateMenuRow(data) {
+
+    const row = $("button.btnEditMenu[data-id='" + data.menID + "']")
+                    .closest("tr");
+
+    if (!row.length) return;
+
+    row.find("td:eq(1)").html(data.menu);
+    row.find("td:eq(3)").text(data.desc);
+    row.find("td:eq(4)").text(data.code);
+    row.find("td:eq(5)").text(data.link);
+    row.find("td:eq(6)").text(data.arrangement);
+    row.find("td:eq(7)").text(data.icon);
+
+    // Update toggle switch state
+    const checkbox = row.find(".toggleMenuStatus");
+    checkbox.prop("checked", data.menuStatus == 0);
+}
+
 
 // Add this to your custom reusable functions
 
@@ -835,13 +868,13 @@ function saveData(saveURL, saveRequest, formData, updateRowCallback) {
  * @param {number} RID - Role ID (optional, uses current user's RID if not provided)
  */
 function updateSidebarMenu(RID = null) {
-    const currentRID = RID || UserInfo["RID"] || 0;
-    
+    const currentRID = RID || UserInfo?.RID || 0;
+
     if (!currentRID) {
         console.log("No RID available for sidebar update");
         return;
     }
-    
+
     $.ajax({
         url: "backend/bk_menumanagement.php",
         method: "POST",
@@ -849,25 +882,30 @@ function updateSidebarMenu(RID = null) {
             request: "getSidebarMenu",
             RID: currentRID
         },
-        success: function(html) {
-            // Update sidebar container
+        success: function (html) {
+
+            // Replace sidebar menu HTML
             $("#sidebarMenuContainer").html(html);
-            
-            // Re-run menu highlighting
+
+            // Reinitialize AdminLTE Treeview (THIS IS WHAT YOU WERE MISSING)
+            $('[data-widget="treeview"]').Treeview('init');
+
+            // Re-run highlight
             if (typeof setupMenuHighlighting === "function") {
                 setupMenuHighlighting();
             }
-            
-            // Show subtle notification
+
+            // Optional toast
             if (typeof showToast === "function") {
-                showToast("Menu updated");
+                showToast("Sidebar updated");
             }
         },
-        error: function() {
+        error: function () {
             console.log("Sidebar update failed");
         }
     });
 }
+
 
 /**
  * Show toast notification
@@ -930,7 +968,6 @@ function loadPrivTable(url, request, target, roleID = "") {
 }
 
 
-//USED IN MENU
 function setupMenuEvents() {
     // Tab click handler
     $(document).off('shown.bs.tab.menu').on('shown.bs.tab.menu', 'a[data-toggle="tab"]', function(e) {
@@ -939,12 +976,12 @@ function setupMenuEvents() {
         else if (target === '#allMenus') loadMenus('all');
     });
 
-    // Add menu button
+    // Open Add Menu modal
     $('#addModal').off('click.menu').on('click.menu', function() {
         openAddModal("page/modals.php", "menuAddmodal");
     });
 
-    // Edit menu
+    // Open Edit Menu modal
     $(document).off('click.menu', '.btnEditMenu').on('click.menu', '.btnEditMenu', function() {
         const menuId = $(this).data('id');
         openEditModal("page/modals.php", "menueditmodal", "menID", menuId);
@@ -973,64 +1010,219 @@ function setupMenuEvents() {
     });
 
     // Toggle menu status
-  // Toggle menu status (works like working version + updates sidebar)
-$(document).off('change.menu', '.toggleMenuStatus').on('change.menu', '.toggleMenuStatus', function() {
-    const $switch = $(this);
-    const menID = $switch.data('id');
-    const isChecked = $switch.is(':checked');
-    const newStatus = isChecked ? 0 : 1;
+    $(document).off('change.menu', '.toggleMenuStatus').on('change.menu', '.toggleMenuStatus', function() {
+        const $switch = $(this);
+        const menID = $switch.data('id');
+        const isChecked = $switch.is(':checked');
+        const newStatus = isChecked ? 0 : 1;
 
-    if (!menID) return;
+        if (!menID) return;
+        if (!confirm(`Are you sure you want to ${isChecked ? 'activate' : 'deactivate'} this menu?`)) {
+            $switch.prop('checked', !isChecked);
+            return;
+        }
 
-    // Optional: ask for confirmation
-    if (!confirm(`Are you sure you want to ${isChecked ? 'activate' : 'deactivate'} this menu?`)) {
-        $switch.prop('checked', !isChecked);
+        $switch.prop('disabled', true);
+
+        $.post("backend/bk_menumanagement.php", { request: "toggleMenuStatus", menID, status: newStatus })
+            .done(function(resp) {
+                $switch.prop('disabled', false);
+                try {
+                    const res = typeof resp === "string" ? JSON.parse(resp) : resp;
+
+                    if (!res.success) {
+                        alert(res.message || "Update failed");
+                        $switch.prop('checked', !isChecked);
+                    } else {
+                        $switch.closest('tr').addClass('table-success');
+                        setTimeout(() => $switch.closest('tr').removeClass('table-success'), 800);
+                        if (typeof updateSidebarMenu === "function") updateSidebarMenu();
+                        if (typeof loadMenus === "function") {
+                            loadMenus('all');
+                            loadMenus('deleted');
+                        }
+                    }
+                } catch (e) {
+                    alert("Invalid response from server");
+                    $switch.prop('checked', !isChecked);
+                    console.error(e, resp);
+                }
+            })
+            .fail(function() {
+                $switch.prop('disabled', false);
+                $switch.prop('checked', !isChecked);
+                alert("Network error");
+            });
+    });
+
+    // Add Menu AJAX
+    $(document).off('click.menu', '#btnaddmenu').on('click.menu', '#btnaddmenu', function(e) {
+        e.preventDefault();
+        const btn = $(this);
+        const originalText = btn.html();
+
+        const formData = {
+            request: "addMenu",
+            menu: $("#m_menu").val().trim(),
+            mother: $("#m_mother").val() || 0,
+            desc: $("#m_desc").val().trim(),
+            code: $("#m_code").val().trim(),
+            link: $("#m_link").val().trim(),
+            arrangement: $("#m_arrange").val() || 0,
+            status: $("#m_status").val() || 0,
+            icon: $("#m_icon").val().trim()
+        };
+
+        if (!formData.menu || !formData.code) {
+            alert("Menu Name and Code are required!");
+            return;
+        }
+
+        btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
+
+        $.post("backend/bk_menumanagement.php", formData)
+            .done(function(resp) {
+                btn.prop('disabled', false).html(originalText);
+                try {
+                    const data = typeof resp === "string" ? JSON.parse(resp) : resp;
+                    if (data.success) {
+                        $('#menuAddmodal').modal('hide');
+
+                        // Clear form
+                        $("#m_menu, #m_desc, #m_code, #m_link, #m_icon").val("");
+                        $("#m_mother, #m_arrange, #m_status").val("0");
+
+                        // Live update table and sidebar
+                        if (typeof loadMenus === "function") {
+                            loadMenus('all');
+                            loadMenus('deleted');
+                        }
+                        if (typeof updateSidebarMenu === "function") updateSidebarMenu();
+                        if (typeof showToast === "function") showToast("Menu added successfully!");
+                    } else if (data.message === "DUPLICATE_CODE") {
+                        alert("Menu code already exists!");
+                    } else {
+                        alert("Error: " + data.message);
+                    }
+                } catch (e) {
+                    console.error("Add Menu parse error:", e, resp);
+                    alert("Server error. Please try again.");
+                }
+            })
+            .fail(function() {
+                btn.prop('disabled', false).html(originalText);
+                alert("Server error. Please try again.");
+            });
+    });
+
+    // Prevent form submission on Enter
+    $(document).off('submit.menu', '#addMenuForm').on('submit.menu', '#addMenuForm', function(e) {
+        e.preventDefault();
+        return false;
+    });
+}
+
+$(document).on("click", "#btnSaveMenu", function (event) {
+
+    const formData = {
+        menID: $("#menID").val(),
+        menu: $("#menu").val(),
+        desc: $("#desc").val(),
+        code: $("#code").val(),
+        link: $("#link").val(),
+        mother: $("#mother").val(),
+        arrangement: $("#arrangement").val(),
+        status: $("#status").is(":checked") ? 0 : 1,
+        icon: $("#icon").val()
+    };
+
+    saveData("backend/bk_menumanagement.php", "updateMenu", formData, function (json) {
+        loadMenus("all"); // or update specific row
+    });
+});
+
+// =========================
+// UPDATE MENU (EDIT MODAL)
+// =========================
+$(document).off('click.menu', '#btnUpdateMenu')
+.on('click.menu', '#btnUpdateMenu', function (e) {
+
+    e.preventDefault();
+
+    const btn = $(this);
+    const originalText = btn.html();
+
+    const formData = {
+        request: "updateMenu",
+        menID: $("#edit_menID").val(),
+        menu: $("#edit_menu").val().trim(),
+        desc: $("#edit_desc").val().trim(),
+        code: $("#edit_code").val().trim(),
+        link: $("#edit_link").val().trim(),
+        mother: $("#edit_mother").val() || 0,
+        arrangement: $("#edit_arrangement").val() || 0,
+        status: $("#edit_status").val() || 0,
+        icon: $("#edit_icon").val().trim()
+    };
+
+    if (!formData.menu || !formData.code) {
+        alert("Menu Name and Code are required!");
         return;
     }
 
-    $switch.prop('disabled', true);
+    btn.prop('disabled', true)
+       .html('<i class="fas fa-spinner fa-spin"></i>');
 
-    $.post("backend/bk_menumanagement.php", { request: "toggleMenuStatus", menID, status: newStatus })
-        .done(function(resp) {
-            $switch.prop('disabled', false);
+    $.post("backend/bk_menumanagement.php", formData)
+        .done(function (resp) {
+
+            btn.prop('disabled', false).html(originalText);
 
             try {
-                const res = typeof resp === "string" ? JSON.parse(resp) : resp;
+                const data = typeof resp === "string" ? JSON.parse(resp) : resp;
 
-                if (!res.success) {
-                    alert(res.message || "Update failed");
-                    $switch.prop('checked', !isChecked);
+                if (data.success) {
+
+                    // ✅ UPDATE ONLY THAT ROW
+                    const row = $("button.btnEditMenu[data-id='" + data.menID + "']")
+                                .closest("tr");
+
+                    if (row.length) {
+                        row.find("td:eq(1)").html(data.menu);
+                        row.find("td:eq(3)").text(data.desc);
+                        row.find("td:eq(4)").text(data.code);
+                        row.find("td:eq(5)").text(data.link);
+                        row.find("td:eq(6)").text(data.arrangement);
+                        row.find("td:eq(7)").text(data.icon);
+
+                        const checkbox = row.find(".toggleMenuStatus");
+                        checkbox.prop("checked", data.menuStatus == 0);
+                    }
+
+                    $('#menueditmodal').modal('hide');
+
+                    if (typeof updateSidebarMenu === "function")
+                        updateSidebarMenu();
+
+                    if (typeof showToast === "function")
+                        showToast("Menu updated successfully!");
+
+                } else if (data.message === "DUPLICATE_CODE") {
+                    alert("Menu code already exists!");
                 } else {
-                    // Highlight row
-                    $switch.closest('tr').addClass('table-success');
-                    setTimeout(() => $switch.closest('tr').removeClass('table-success'), 800);
-
-                    // **Update sidebar dynamically**
-                    if (typeof updateSidebarMenu === "function") {
-                        updateSidebarMenu(); // optionally pass RID: updateSidebarMenu(UserInfo["RID"]);
-                    }
-
-                    // Optionally reload menus table without page reload
-                    if (typeof loadMenus === "function") {
-                        loadMenus('all');
-                        loadMenus('deleted');
-                    }
+                    alert("Error: " + data.message);
                 }
 
             } catch (e) {
-                alert("Invalid response from server");
-                $switch.prop('checked', !isChecked);
-                console.error(e, resp);
+                console.error("Update parse error:", e, resp);
+                alert("Server error. Please try again.");
             }
         })
-        .fail(function() {
-            $switch.prop('disabled', false);
-            $switch.prop('checked', !isChecked);
-            alert("Network error");
+        .fail(function () {
+            btn.prop('disabled', false).html(originalText);
+            alert("Server error. Please try again.");
         });
 });
-
-}
 
 
 // Refresh sidebar for users with the given role
@@ -1055,6 +1247,10 @@ function refreshSidebarForRole(roleID) {
         }
     });
 }
+
+
+
+
 
 //USED IN PRIVILEGE MENU
 // Update helper function to setup highlighting
