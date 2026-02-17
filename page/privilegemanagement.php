@@ -106,9 +106,10 @@ $(document).on('change', '.togglePrivilege', function() {
                 setTimeout(() => $switch.closest('tr').removeClass('table-success'), 1000);
                 
                 // Only refresh sidebar if current user is affected
-                if (UserInfo["RID"] == roleID) {
-                    refreshCurrentUserSidebar();
-                }
+if (UserInfo["RID"] == roleID) {
+    fetchSidebarMenu(roleID, true);
+}
+
             } else {
                 showToast("Update failed", "error");
                 $switch.prop('checked', !isChecked);
