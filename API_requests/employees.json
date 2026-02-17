@@ -1,0 +1,22 @@
+{
+  "status": "success",
+  "type": "EMPLOYEE",
+  "data": [
+    {
+      "employee_number": "EMP0001000",
+      "name": "Satoru Gojo",
+      "sex": "Male",
+      "department": "CET",
+      "position": "Professor",
+      "employment_status": "ACTIVE"
+    },
+    {
+      "employee_number": "EMP0002000",
+      "name": "Shoko Ieiri",
+      "sex": "Female",
+      "department": "CAS",
+      "position": "Medical Officer",
+      "employment_status": "ACTIVE"
+    }
+  ]
+}

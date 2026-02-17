@@ -1,0 +1,194 @@
+[
+  {
+    "student_number": "2022100114",
+    "name": "Rivz Rivera",
+    "sex": "Male",
+    "college": "CET",
+    "course": "BSIT",
+    "secretKey": "011603"
+  },
+  {
+    "student_number": "2022100114",
+    "name": "Gojo Satoru",
+    "sex": "Male",
+    "college": "CET",
+    "course": "BSIT",
+    "secretKey": "120789"
+  },
+  {
+    "student_number": "2022100115",
+    "name": "Nobara Kugisaki",
+    "sex": "Female",
+    "college": "CVM",
+    "course": "DVM",
+    "secretKey": null
+  },
+  {
+    "student_number": "2022100116",
+    "name": "Shoko Ieiri",
+    "sex": "Female",
+    "college": "CAS",
+    "course": "BSPsych",
+    "secretKey": null
+  },
+  {
+    "student_number": "2022100117",
+    "name": "Yuji Itadori",
+    "sex": "Male",
+    "college": "CED",
+    "course": "BSIEE",
+    "secretKey": null
+  },
+  {
+    "student_number": "2022100118",
+    "name": "Megumi Fushiguro",
+    "sex": "Male",
+    "college": "CET",
+    "course": "BSCS",
+    "secretKey": null
+  },
+  {
+    "student_number": "2022100119",
+    "name": "Maki Zenin",
+    "sex": "Female",
+    "college": "CVM",
+    "course": "BSBio",
+    "secretKey": null
+  },
+  {
+    "student_number": "2022100120",
+    "name": "Toge Inumaki",
+    "sex": "Male",
+    "college": "CAS",
+    "course": "BSChem",
+    "secretKey": null
+  },
+  {
+    "student_number": "2022100121",
+    "name": "Yuta Okkotsu",
+    "sex": "Male",
+    "college": "CET",
+    "course": "BSIT",
+    "secretKey": null
+  },
+  {
+    "student_number": "2022100122",
+    "name": "Suguru Geto",
+    "sex": "Male",
+    "college": "CAS",
+    "course": "BSPsych",
+    "secretKey": null
+  },
+  {
+    "student_number": "2022100123",
+    "name": "Kento Nanami",
+    "sex": "Male",
+    "college": "CBA",
+    "course": "BSBA",
+    "secretKey": null
+  },
+  {
+    "student_number": "2022100124",
+    "name": "Mai Zenin",
+    "sex": "Female",
+    "college": "CET",
+    "course": "BSECE",
+    "secretKey": null
+  },
+  {
+    "student_number": "2022100125",
+    "name": "Panda",
+    "sex": "Male",
+    "college": "CVM",
+    "course": "BSBio",
+    "secretKey": null
+  },
+  {
+    "student_number": "2022100126",
+    "name": "Aoi Todo",
+    "sex": "Male",
+    "college": "CET",
+    "course": "BSME",
+    "secretKey": null
+  },
+  {
+    "student_number": "2022100127",
+    "name": "Kasumi Miwa",
+    "sex": "Female",
+    "college": "CAS",
+    "course": "BSPolSci",
+    "secretKey": null
+  },
+  {
+    "student_number": "2022100128",
+    "name": "Kokichi Muta",
+    "sex": "Male",
+    "college": "CET",
+    "course": "BSECE",
+    "secretKey": null
+  },
+  {
+    "student_number": "2022100129",
+    "name": "Toji Fushiguro",
+    "sex": "Male",
+    "college": "CET",
+    "course": "BSCrim",
+    "secretKey": null
+  },
+  {
+    "student_number": "2022100130",
+    "name": "Choso",
+    "sex": "Male",
+    "college": "CAS",
+    "course": "BSBio",
+    "secretKey": null
+  },
+  {
+    "student_number": "2022100131",
+    "name": "Mahito",
+    "sex": "Male",
+    "college": "CAS",
+    "course": "BSPsych",
+    "secretKey": null
+  },
+  {
+    "student_number": "2022100132",
+    "name": "Jogo",
+    "sex": "Male",
+    "college": "CET",
+    "course": "BSGeology",
+    "secretKey": null
+  },
+  {
+    "student_number": "2022100133",
+    "name": "Hanami",
+    "sex": "Female",
+    "college": "CVM",
+    "course": "BSAgriculture",
+    "secretKey": null
+  },
+  {
+    "student_number": "2022100134",
+    "name": "Dagon",
+    "sex": "Male",
+    "college": "CVM",
+    "course": "BSMarineBio",
+    "secretKey": null
+  },
+  {
+    "student_number": "2022100135",
+    "name": "Utahime Iori",
+    "sex": "Female",
+    "college": "CED",
+    "course": "BSED",
+    "secretKey": null
+  },
+  {
+    "student_number": "2022100136",
+    "name": "Mei Mei",
+    "sex": "Female",
+    "college": "CBA",
+    "course": "BSFinance",
+    "secretKey": null
+  }
+]

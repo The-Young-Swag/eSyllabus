@@ -212,38 +212,9 @@ $(document).on('change', '.toggleRoleStatus', function() {
     }
 });
 
-//  HELPER FUNCTIONS 
 
-// Validate role form
-function validateRoleForm(data) {
-    const roleName = data.r_role || data.er_role;
-    const roleCode = data.r_rolecode || data.er_rolecode;
-    
-    if (!roleName || !roleCode) {
-        alert("Role name and code are required!");
-        return false;
-    }
-    return true;
-}
 
-// Update existing role row
-function updateRoleRow(data) {
-    const roleID = data.er_submit;
-    const $row = $(`tr[data-role-id="${roleID}"]`);
-    
-    if ($row.length) {
-        $row.find("td:eq(1)").text(data.er_role);      // Role Name
-        $row.find("td:eq(2)").text(data.er_rolecode);  // Role Code
-        
-        // Update the toggle switch status (column index changed from 4 to 3)
-        const $checkbox = $row.find('.toggleRoleStatus');
-        $checkbox.prop('checked', data.er_status == 0);
-        
-        highlightRow($row);
-    } else {
-        loadRoles();
-    }
-}
+
 
 // Update role status text
 /* function updateRoleStatus(roleID, statusText) {
@@ -255,9 +226,5 @@ function updateRoleRow(data) {
     }
 } */
 
-// Highlight row
-function highlightRow($row) {
-    $row.addClass("table-success");
-    setTimeout(() => $row.removeClass("table-success"), 1500);
-}
+
 </script>

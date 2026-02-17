@@ -65,7 +65,7 @@ $(document).ready(function() {
         if (!roleID) {
             loadAllRolesAndMenus();
         } else {
-            loadTable("backend/bk_privilegemanagement.php", "showtblData", "#privilegeTableBody", roleID);
+            loadPrivTable("backend/bk_privilegemanagement.php", "showtblData", "#privilegeTableBody", roleID);
         }
     });
     
@@ -121,8 +121,8 @@ $(document).on('change', '.togglePrivilege', function() {
         }
     });
 });
-    
-	function showToast(message, type = "info") {
+    showToast(message, type = "info");
+/* 	function showToast(message, type = "info") {
     // Create toast element
     var $toast = $(`
         <div class="sidebar-toast" style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;">
@@ -138,174 +138,12 @@ $(document).on('change', '.togglePrivilege', function() {
     setTimeout(function() {
         $toast.fadeOut(300, function() { $(this).remove(); });
     }, 3000);
-}
+} */
 	
-    function loadAllRolesAndMenus() {
-        $.ajax({
-            url: "backend/bk_privilegemanagement.php",
-            method: "POST",
-            data: { request: "showAllRolesAndMenus" },
-            beforeSend: function() {
-                $("#privilegeTableBody").html(`
-                    <tr>
-                        <td colspan="4" class="text-center py-4">
-                            <div class="spinner-border spinner-border-sm text-success mr-2"></div>
-                            Loading...
-                        </td>
-                    </tr>
-                `);
-            },
-            success: function(data) {
-                $("#privilegeTableBody").html(data);
-            },
-            error: function() {
-                $("#privilegeTableBody").html(`
-                    <tr>
-                        <td colspan="4" class="text-center text-danger py-4">
-                            Error loading data
-                        </td>
-                    </tr>
-                `);
-            }
-        });
-    }
+loadAllRolesAndMenus();
 });
 
-function getrule() {
-    $.ajax({
-        url: "backend/bk_privilegemanagement.php",
-        method: "POST",
-        data: { request: 'GetRole' },
-        beforeSend: function() {
-            $("#loadingSpinner").show();
-        },
-        success: function(data) {
-            $("#loadingSpinner").hide();
-            $("#prvroleSelect").html(data);
-        },
-        error: function() {
-            $("#loadingSpinner").hide();
-            $("#prvroleSelect").html('<option value="">Error loading roles</option>');
-        }
-    });
-}
 
-function loadTable(url, request, target, roleID = "") {
-    $.ajax({
-        url: url,
-        method: "POST",
-        data: { request: request, RID: roleID },
-        beforeSend: function() {
-            $(target).html(`
-                <tr>
-                    <td colspan="4" class="text-center py-4">
-                        <div class="spinner-border spinner-border-sm text-success mr-2"></div>
-                        Loading...
-                    </td>
-                </tr>
-            `);
-        },
-        success: function(data) {
-            $(target).html(data);
-        },
-        error: function() {
-            $(target).html(`
-                <tr>
-                    <td colspan="4" class="text-center text-danger py-4">
-                        Error loading data
-                    </td>
-                </tr>
-            `);
-        }
-    });
-}
 
-// Refresh sidebar for users with the given role
-function refreshSidebarForRole(roleID) {
-    $.ajax({
-        url: "backend/bk_privilegemanagement.php",
-        method: "POST",
-        data: { 
-            request: "RefreshSidebar",
-            RID: roleID
-        },
-        success: function(response) {
-            console.log("Sidebar refresh triggered for role: " + roleID);
-            
-            // If current user has this role, refresh their sidebar
-            if (UserInfo["RID"] == roleID) {
-                refreshCurrentUserSidebar();
-            }
-        },
-        error: function() {
-            console.log("Sidebar refresh failed");
-        }
-    });
-}
 
-// Refresh current user's sidebar menu only
-function refreshCurrentUserSidebar() {
-    $.ajax({
-        type: "POST",
-        url: "backend/bk_privilegemanagement.php",
-        data: {
-            request: "GetUserMenu",
-            RID: UserInfo["RID"]
-        },
-        success: function(htmlResult) {
-            // Replace only the menu container content
-            $("#sidebarMenuContainer").html(htmlResult);
-            
-            // Re-apply menu highlighting
-            setupMenuHighlighting();
-            
-            // Show subtle notification
-            showSidebarNotification();
-        },
-        error: function() {
-            console.log("Failed to refresh sidebar menu");
-        }
-    });
-}
-
-// Update helper function to setup highlighting
-function setupMenuHighlighting() {
-    var currentPath = window.location.pathname.toLowerCase();
-    
-    $("#sidebarMenuContainer .nav-link").each(function () {
-        var $link = $(this);
-        var url = $link.attr("href");
-        
-        if (!url || url === "#") return;
-        
-        if (currentPath.includes(url.toLowerCase())) {
-            $link.addClass("active");
-            $link.closest(".nav-item").addClass("menu-open");
-            $link.closest(".nav-treeview").css("display", "block");
-        }
-    });
-}
-
-// Show sidebar update notification
-function showSidebarNotification() {
-    // Create notification element
-    var $notification = $(`
-        <div class="sidebar-notification alert alert-success alert-dismissible fade show" role="alert" 
-             style="position: fixed; top: 70px; right: 20px; z-index: 9999; max-width: 300px;">
-            <i class="fas fa-sync-alt mr-2"></i>
-            Sidebar menus updated
-            <button type="button" class="close" data-dismiss="alert">
-                <span>&times;</span>
-            </button>
-        </div>
-    `);
-    
-    // Add to page
-    $("body").append($notification);
-    
-    // Auto-remove after 3 seconds
-    setTimeout(function() {
-        $notification.alert('close');
-    }, 3000);
-}
 </script>

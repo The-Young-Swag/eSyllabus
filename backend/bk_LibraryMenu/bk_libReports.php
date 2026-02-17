@@ -1,38 +1,28 @@
 <?php
-include __DIR__ . "/../../db/dbconnection.php";
-
-header('Content-Type: application/json');
-
-function sendJson($data)
-{
-    echo json_encode($data);
-    exit;
-}
-
-function sendError($message, $status = 400)
-{
-    http_response_code($status);
-    sendJson(['success' => false, 'message' => $message]);
-}
+require_once "../db/dbconnection.php";
 
 $request = $_POST['request'] ?? '';
 
+switch($tab) {
+	
+//TAB SELECTION
+    case "users":
+        //USER TAB SECTION HERE
+        break;
+//TAB SELECTION
+    case "colleges":
+        //COLLEGE TAB SECTION HERE
+        break;
+//TAB SELECTION
+    case "courses":
+        //COURSE TAB SECTION HERE
+        break;
+//TAB SELECTION
+    case "demographics":
+        //SEX TAB SECTION HERE
+        break;
 
-switch ($request){
-        case "getLibraries":
-            $sql = "
-                SELECT SectionID, SectionCode, SectionName
-                FROM LibrarySection
-                WHERE IsActive = 1
-                ORDER BY SectionName
-            ";
-            $libraries = execsqlSRS($sql, "Search", []);
-            sendJson($libraries);
-            break;
-
-
-			
-
+    default:
+        
+        break;
 }
-
-?>

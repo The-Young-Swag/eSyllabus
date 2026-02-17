@@ -177,22 +177,22 @@
 <div class="mb-4">
     <ul class="nav nav-tabs" id="analyticsTabs" role="tablist">
         <li class="nav-item">
-            <button class="nav-link active" data-tab="users" type="button">
+            <button class="nav-link active" id="users" type="button">
                 <i class="fas fa-user-graduate me-2"></i> Users
             </button>
         </li>
         <li class="nav-item">
-            <button class="nav-link" data-tab="colleges" type="button">
+            <button class="nav-link" id="colleges" type="button">
                 <i class="fas fa-university me-2"></i> Colleges
             </button>
         </li>
         <li class="nav-item">
-            <button class="nav-link" data-tab="courses" type="button">
+            <button class="nav-link" id="courses" type="button">
                 <i class="fas fa-book me-2"></i> Courses
             </button>
         </li>
         <li class="nav-item">
-            <button class="nav-link" data-tab="demographics" type="button">
+            <button class="nav-link" id="demographics" type="button">
                 <i class="fas fa-venus-mars me-2"></i> Demographics
             </button>
         </li>
@@ -201,10 +201,10 @@
 
 
 
-
-    <!-- TAB CONTENT with improved card layouts -->
+    <!-- TAB CONTENT-->
     <div class="tab-content" id="tabContent">
-
+	<!-- INJECT TAB CONTENT HERE improved card layouts -->
+		
     </div>
 
     <!-- FOOTER with last update info -->
@@ -226,24 +226,17 @@
 
 
 <script>
+const usersBtn = document.getElementById(".users");
+const collegeBtn = document.getElementById(".college");
+const courseBtn = document.getElementById(".course");
+const sexBtn = document.getElementById(".sex");
 
+const resultParagraph = document.getElementById("result");
 
-// ---------------- Front-end Function Calls ----------------
-$(function() {
-    const contentTarget = "#tabContent";       // container where tab content will appear
-    const tabButtons = $("#analyticsTabs .nav-link"); // tab buttons
-
-    // Tab click event
-    tabButtons.click(function() {
-        const tabName = $(this).data("tab");
-        setActiveTab(tabButtons, $(this));
-        loadTab(tabName, contentTarget, tabButtons);
-    });
-
-    // Load default tab on page load
-    const defaultTab = tabButtons.filter(".active").data("tab");
-    if (defaultTab) loadTab(defaultTab, contentTarget, tabButtons);
-});
+function displayTab() {
+    console.log("You clicked the button");
+}
+usersBtn.addEventListener('click', displayTab);
 </script>
 
 
