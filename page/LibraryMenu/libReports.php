@@ -1,319 +1,251 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>Library Ranking Analytics</title>
+<div class="container-fluid py-4">
+    <!-- HEADER SECTION with improved visual hierarchy -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+        <div class="d-flex align-items-center gap-3">
 
-<!-- Bootstrap 5 -->
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-
-<!-- FontAwesome -->
-<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
-
-<!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<style>
-body {
-    background-color: #f4f6f9;
-}
-.section-title {
-    font-weight: 600;
-    margin-top: 50px;
-    margin-bottom: 20px;
-}
-.card {
-    border-radius: 12px;
-}
-.chart-container {
-    height: 320px;
-}
-</style>
-</head>
-
-<body>
-
-<div class="container-fluid py-4 px-4">
-
-<!-- HEADER -->
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h4 class="fw-bold mb-0">Library Ranking Analytics</h4>
-        <small class="text-muted">Top 3 insights based on selected date range</small>
+            <div>
+                <h4 class="fw-bold mb-1">Library Analytics Dashboard</h4>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-light text-dark px-3 py-2">
+                        <i class="fas fa-calendar-alt me-1 text-muted"></i> Last 30 Days
+                    </span>
+                    <span class="badge bg-light text-dark px-3 py-2">
+                        <i class="fas fa-users me-1 text-muted"></i> 1,234 Visitors
+                    </span>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-secondary btn-sm" id="refreshBtn">
+                <i class="fas fa-sync-alt me-1"></i> Refresh
+            </button>
+            <button class="btn btn-danger btn-sm" id="exportPDF">
+                <i class="fas fa-file-pdf me-1"></i> Export Report
+            </button>
+        </div>
     </div>
-    <button class="btn btn-outline-danger btn-sm">
-        <i class="fas fa-file-pdf me-1"></i> Export PDF
-    </button>
+
+    <!-- ENHANCED FILTER SECTION with better layout -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-12">
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <i class="fas fa-sliders-h text-primary"></i>
+                        <h6 class="fw-semibold mb-0">Report Parameters</h6>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small fw-semibold">Start Date</label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-light border-end-0">
+                            <i class="fas fa-calendar text-muted"></i>
+                        </span>
+                        <input type="date" class="form-control border-start-0 ps-0" id="startDate">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small fw-semibold">End Date</label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-light border-end-0">
+                            <i class="fas fa-calendar-check text-muted"></i>
+                        </span>
+                        <input type="date" class="form-control border-start-0 ps-0" id="endDate">
+                    </div>
+                </div>
+
+                <div class="col-md-4 d-flex align-items-end gap-2">
+                    <button class="btn btn-primary flex-grow-1" id="generateBtn">
+                        <i class="fas fa-chart-bar me-1"></i> Generate Analytics
+                    </button>
+             
+                </div>
+                
+                <!-- Advanced Filters (Collapsible) -->
+                <div class="col-12 collapse" id="advancedFilters">
+                    <div class="row g-3 mt-2 pt-2 border-top">
+                        <div class="col-md-3">
+                            <label class="form-label small fw-semibold">Library Branch</label>
+                            <select class="form-select form-select-sm">
+                                <option>All Branches</option>
+                                <option>Main Library</option>
+                                <option>Science Library</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-semibold">User Type</label>
+                            <select class="form-select form-select-sm">
+                                <option>All Users</option>
+                                <option>Undergraduate</option>
+                                <option>Graduate</option>
+                                <option>Faculty</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-semibold">Time of Day</label>
+                            <select class="form-select form-select-sm">
+                                <option>All Hours</option>
+                                <option>Morning (8AM-12PM)</option>
+                                <option>Afternoon (12PM-5PM)</option>
+                                <option>Evening (5PM-10PM)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- KEY METRICS OVERVIEW (New section for better analytics) -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm bg-primary bg-opacity-10">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="small text-muted">Total Check-ins</span>
+                            <h3 class="fw-bold mt-1 mb-0">12,345</h3>
+                            <span class="badge bg-success bg-opacity-25 text-success mt-2">
+                                <i class="fas fa-arrow-up me-1"></i> +12.3%
+                            </span>
+                        </div>
+                        <div class="bg-primary bg-opacity-25 p-3 rounded-3">
+                            <i class="fas fa-user-check text-primary fs-3"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm bg-info bg-opacity-10">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="small text-muted">Avg. Duration</span>
+                            <h3 class="fw-bold mt-1 mb-0">2.4 hrs</h3>
+                            <span class="badge bg-success bg-opacity-25 text-success mt-2">
+                                <i class="fas fa-arrow-up me-1"></i> +5.2%
+                            </span>
+                        </div>
+                        <div class="bg-info bg-opacity-25 p-3 rounded-3">
+                            <i class="fas fa-clock text-info fs-3"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm bg-warning bg-opacity-10">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="small text-muted">Active Colleges</span>
+                            <h3 class="fw-bold mt-1 mb-0">24</h3>
+                            <span class="badge bg-success bg-opacity-25 text-success mt-2">
+                                <i class="fas fa-arrow-up me-1"></i> +3
+                            </span>
+                        </div>
+                        <div class="bg-warning bg-opacity-25 p-3 rounded-3">
+                            <i class="fas fa-university text-warning fs-3"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm bg-success bg-opacity-10">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="small text-muted">Unique Courses</span>
+                            <h3 class="fw-bold mt-1 mb-0">156</h3>
+                            <span class="badge bg-success bg-opacity-25 text-success mt-2">
+                                <i class="fas fa-arrow-up me-1"></i> +8.1%
+                            </span>
+                        </div>
+                        <div class="bg-success bg-opacity-25 p-3 rounded-3">
+                            <i class="fas fa-book text-success fs-3"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SECTION TABS for better organization -->
+<!-- TAB NAVIGATION -->
+<div class="mb-4">
+    <ul class="nav nav-tabs" id="analyticsTabs" role="tablist">
+        <li class="nav-item">
+            <button class="nav-link active" data-tab="users" type="button">
+                <i class="fas fa-user-graduate me-2"></i> Users
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-tab="colleges" type="button">
+                <i class="fas fa-university me-2"></i> Colleges
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-tab="courses" type="button">
+                <i class="fas fa-book me-2"></i> Courses
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-tab="demographics" type="button">
+                <i class="fas fa-venus-mars me-2"></i> Demographics
+            </button>
+        </li>
+    </ul>
 </div>
 
-<!-- FILTERS -->
-<div class="card shadow-sm mb-4">
-    <div class="card-body">
-        <div class="row g-3 align-items-end">
-            <div class="col-md-3">
-                <label class="form-label small text-muted">Start Date</label>
-                <input type="date" class="form-control" id="startDate">
-            </div>
-            <div class="col-md-3">
-                <label class="form-label small text-muted">End Date</label>
-                <input type="date" class="form-control" id="endDate">
-            </div>
-            <div class="col-md-3 d-grid">
-                <button class="btn btn-primary" id="generateBtn">
-                    Generate Report
-                </button>
-            </div>
-            <div class="col-md-3 text-end">
-                <small class="text-muted" id="dateRangeLabel">
-                    Showing data for: All Dates
-                </small>
-            </div>
+
+
+
+    <!-- TAB CONTENT with improved card layouts -->
+    <div class="tab-content" id="tabContent">
+
+    </div>
+
+    <!-- FOOTER with last update info -->
+    <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
+        <small class="text-muted">
+            <i class="fas fa-sync-alt me-1"></i> Last updated: Today at 10:30 AM
+        </small>
+        <div class="d-flex gap-3">
+            <small class="text-muted">
+                <i class="fas fa-database me-1"></i> Source: Library System
+            </small>
+            <small class="text-muted">
+                <i class="fas fa-chart-pie me-1"></i> 8 metrics displayed
+            </small>
         </div>
     </div>
 </div>
 
-<!-- STUDENTS -->
-<h5 class="section-title">Students Ranking</h5>
-<div class="row g-4">
-    <div class="col-lg-6">
-        <div class="card shadow-sm">
-            <div class="card-body">
-                <small class="text-muted">Top 3 Highest Check-Ins</small>
-                <div class="chart-container">
-                    <canvas id="chartStudentsCheckin"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-lg-6">
-        <div class="card shadow-sm">
-            <div class="card-body">
-                <small class="text-muted">Top 3 Longest Stay Duration (Hours)</small>
-                <div class="chart-container">
-                    <canvas id="chartStudentsDuration"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
 
-<!-- COLLEGES -->
-<h5 class="section-title">Colleges Ranking</h5>
-<div class="row g-4">
-    <div class="col-lg-6">
-        <div class="card shadow-sm">
-            <div class="card-body">
-                <small class="text-muted">Top 3 Colleges by Check-Ins</small>
-                <div class="chart-container">
-                    <canvas id="chartCollegesCheckin"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-lg-6">
-        <div class="card shadow-sm">
-            <div class="card-body">
-                <small class="text-muted">Top 3 Colleges by Longest Stay</small>
-                <div class="chart-container">
-                    <canvas id="chartCollegesDuration"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- COURSES -->
-<h5 class="section-title">Courses Ranking</h5>
-<div class="row g-4">
-    <div class="col-lg-6">
-        <div class="card shadow-sm">
-            <div class="card-body">
-                <small class="text-muted">Top 3 Courses by Check-Ins</small>
-                <div class="chart-container">
-                    <canvas id="chartCoursesCheckin"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-lg-6">
-        <div class="card shadow-sm">
-            <div class="card-body">
-                <small class="text-muted">Top 3 Courses by Longest Stay</small>
-                <div class="chart-container">
-                    <canvas id="chartCoursesDuration"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- SEX -->
-<h5 class="section-title">Demographics</h5>
-<div class="row g-4">
-    <div class="col-lg-6">
-        <div class="card shadow-sm">
-            <div class="card-body">
-                <small class="text-muted">Most Check-Ins by Sex</small>
-                <div class="chart-container">
-                    <canvas id="chartSexCheckin"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-lg-6">
-        <div class="card shadow-sm">
-            <div class="card-body">
-                <small class="text-muted">Longest Stay Duration by Sex</small>
-                <div class="chart-container">
-                    <canvas id="chartSexDuration"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-</div>
 
 <script>
-const charts = {};
 
-/* STUDENT MASTER DATA */
-const students = {
-    "2022100114": {name: "Rivz Rivera", sex: "Male", college: "CET", course: "BSIT"},
-    "2022100114_1": {name: "Gojo Satoru", sex: "Male", college: "CET", course: "BSIT"},
-    "2022100115": {name: "Nobara Kugisaki", sex: "Female", college: "CVM", course: "DVM"},
-    "2022100116": {name: "Shoko Ieiri", sex: "Female", college: "CAS", course: "BSPsych"},
-    "2022100117": {name: "Yuji Itadori", sex: "Male", college: "CED", course: "BSIEE"},
-    "2022100118": {name: "Megumi Fushiguro", sex: "Male", college: "CET", course: "BSCS"},
-    "2022100119": {name: "Maki Zenin", sex: "Female", college: "CVM", course: "BSBio"},
-    "2022100120": {name: "Toge Inumaki", sex: "Male", college: "CAS", course: "BSChem"}
-};
 
-/* SAMPLE LOGS — for demo, each student has 1–3 check-ins with duration in hours */
-const logs = [
-    {date:"2026-02-01", student:"Rivz Rivera", college:"CET", course:"BSIT", sex:"Male", duration:4},
-    {date:"2026-02-01", student:"Gojo Satoru", college:"CET", course:"BSIT", sex:"Male", duration:3},
-    {date:"2026-02-02", student:"Nobara Kugisaki", college:"CVM", course:"DVM", sex:"Female", duration:5},
-    {date:"2026-02-03", student:"Shoko Ieiri", college:"CAS", course:"BSPsych", sex:"Female", duration:6},
-    {date:"2026-02-03", student:"Yuji Itadori", college:"CED", course:"BSIEE", sex:"Male", duration:2},
-    {date:"2026-02-04", student:"Megumi Fushiguro", college:"CET", course:"BSCS", sex:"Male", duration:8},
-    {date:"2026-02-05", student:"Maki Zenin", college:"CVM", course:"BSBio", sex:"Female", duration:4},
-    {date:"2026-02-06", student:"Toge Inumaki", college:"CAS", course:"BSChem", sex:"Male", duration:3},
-    {date:"2026-02-06", student:"Rivz Rivera", college:"CET", course:"BSIT", sex:"Male", duration:5},
-    {date:"2026-02-07", student:"Gojo Satoru", college:"CET", course:"BSIT", sex:"Male", duration:6}
-];
+// ---------------- Front-end Function Calls ----------------
+$(function() {
+    const contentTarget = "#tabContent";       // container where tab content will appear
+    const tabButtons = $("#analyticsTabs .nav-link"); // tab buttons
 
-/* =============================
-   UTILITIES
-============================= */
-function renderChart(id, type, labels, data, color){
-    if(charts[id]) charts[id].destroy();
-    const options = {
-        responsive:true,
-        maintainAspectRatio:false,
-        plugins:{legend:{display:type==='bar'?false:true}},
-    };
-    if(type==='bar'){
-        options.scales = {
-            y:{
-                beginAtZero:true,
-                ticks:{precision:0, stepSize:1},
-                title:{display:true, text:'Total Check-Ins / Hours'}
-            }
-        }
-    }
-    charts[id] = new Chart(document.getElementById(id), {
-        type,
-        data:{labels,datasets:[{data,backgroundColor:color,borderRadius:6}]},
-        options
+    // Tab click event
+    tabButtons.click(function() {
+        const tabName = $(this).data("tab");
+        setActiveTab(tabButtons, $(this));
+        loadTab(tabName, contentTarget, tabButtons);
     });
-}
 
-function groupAndRank(data, key, metric){
-    const grouped = {};
-    data.forEach(item=>{
-        if(!grouped[item[key]]) grouped[item[key]]={count:0,duration:0};
-        grouped[item[key]].count++;
-        grouped[item[key]].duration+=item.duration;
-    });
-    return Object.entries(grouped)
-        .map(([key,val])=>({label:key,value:metric==="count"?val.count:val.duration}))
-        .sort((a,b)=>b.value-a.value)
-        .slice(0,3);
-}
-
-function filterByDate(){
-    const start=document.getElementById("startDate").value;
-    const end=document.getElementById("endDate").value;
-    if(!start||!end) return logs;
-    return logs.filter(log=>log.date>=start && log.date<=end);
-}
-
-/* =============================
-   GENERATE REPORT
-============================= */
-document.getElementById("generateBtn").addEventListener("click",()=>{
-    const filtered = filterByDate();
-
-    document.getElementById("dateRangeLabel").innerText =
-        `Showing data for: ${document.getElementById("startDate").value || "All"} to ${document.getElementById("endDate").value || "All"}`;
-
-    const studentsCheckin = groupAndRank(filtered,"student","count");
-    const studentsDuration = groupAndRank(filtered,"student","duration");
-    const collegesCheckin = groupAndRank(filtered,"college","count");
-    const collegesDuration = groupAndRank(filtered,"college","duration");
-    const coursesCheckin = groupAndRank(filtered,"course","count");
-    const coursesDuration = groupAndRank(filtered,"course","duration");
-    const sexCheckin = groupAndRank(filtered,"sex","count");
-    const sexDuration = groupAndRank(filtered,"sex","duration");
-
-    renderChart("chartStudentsCheckin","bar",
-        studentsCheckin.map(x=>x.label),
-        studentsCheckin.map(x=>x.value),
-        "#0d6efd");
-
-    renderChart("chartStudentsDuration","bar",
-        studentsDuration.map(x=>x.label),
-        studentsDuration.map(x=>x.value),
-        "#6610f2");
-
-    renderChart("chartCollegesCheckin","bar",
-        collegesCheckin.map(x=>x.label),
-        collegesCheckin.map(x=>x.value),
-        "#198754");
-
-    renderChart("chartCollegesDuration","bar",
-        collegesDuration.map(x=>x.label),
-        collegesDuration.map(x=>x.value),
-        "#20c997");
-
-    renderChart("chartCoursesCheckin","bar",
-        coursesCheckin.map(x=>x.label),
-        coursesCheckin.map(x=>x.value),
-        "#ffc107");
-
-    renderChart("chartCoursesDuration","bar",
-        coursesDuration.map(x=>x.label),
-        coursesDuration.map(x=>x.value),
-        "#fd7e14");
-
-    renderChart("chartSexCheckin","pie",
-        sexCheckin.map(x=>x.label),
-        sexCheckin.map(x=>x.value),
-        ["#0d6efd","#d63384"]);
-
-    renderChart("chartSexDuration","doughnut",
-        sexDuration.map(x=>x.label),
-        sexDuration.map(x=>x.value),
-        ["#20c997","#6610f2"]);
+    // Load default tab on page load
+    const defaultTab = tabButtons.filter(".active").data("tab");
+    if (defaultTab) loadTab(defaultTab, contentTarget, tabButtons);
 });
-
-/* =============================
-   AUTO LOAD
-============================= */
-document.getElementById("generateBtn").click();
 </script>
 
 
-</body>
-</html>
+
+
