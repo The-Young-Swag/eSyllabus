@@ -886,7 +886,7 @@ function updateSidebarMenu(RID = null) {
         },
 
         beforeSend: function () {
-            // 🔥 Show spinner smoothly
+            //Show spinner smoothly
             $spinner.css("display", "flex").hide().fadeIn(200);
         },
 
