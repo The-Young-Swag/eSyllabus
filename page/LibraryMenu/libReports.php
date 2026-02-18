@@ -28,149 +28,112 @@
     <!-- ENHANCED FILTER SECTION with better layout -->
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body">
-            <div class="row g-3">
-                <div class="col-12">
-                    <div class="d-flex align-items-center gap-2 mb-3">
-                        <i class="fas fa-sliders-h text-primary"></i>
-                        <h6 class="fw-semibold mb-0">Report Parameters</h6>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label small fw-semibold">Start Date</label>
-                    <div class="input-group input-group-sm">
-                        <span class="input-group-text bg-light border-end-0">
-                            <i class="fas fa-calendar text-muted"></i>
-                        </span>
-                        <input type="date" class="form-control border-start-0 ps-0" id="startDate">
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label small fw-semibold">End Date</label>
-                    <div class="input-group input-group-sm">
-                        <span class="input-group-text bg-light border-end-0">
-                            <i class="fas fa-calendar-check text-muted"></i>
-                        </span>
-                        <input type="date" class="form-control border-start-0 ps-0" id="endDate">
-                    </div>
-                </div>
 
-                <div class="col-md-4 d-flex align-items-end gap-2">
-                    <button class="btn btn-primary flex-grow-1" id="generateBtn">
-                        <i class="fas fa-chart-bar me-1"></i> Generate Analytics
-                    </button>
-             
-                </div>
-                
-                <!-- Advanced Filters (Collapsible) -->
-                <div class="col-12 collapse" id="advancedFilters">
-                    <div class="row g-3 mt-2 pt-2 border-top">
-                        <div class="col-md-3">
-                            <label class="form-label small fw-semibold">Library Branch</label>
-                            <select class="form-select form-select-sm">
-                                <option>All Branches</option>
-                                <option>Main Library</option>
-                                <option>Science Library</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label small fw-semibold">User Type</label>
-                            <select class="form-select form-select-sm">
-                                <option>All Users</option>
-                                <option>Undergraduate</option>
-                                <option>Graduate</option>
-                                <option>Faculty</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label small fw-semibold">Time of Day</label>
-                            <select class="form-select form-select-sm">
-                                <option>All Hours</option>
-                                <option>Morning (8AM-12PM)</option>
-                                <option>Afternoon (12PM-5PM)</option>
-                                <option>Evening (5PM-10PM)</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-            </div>
+<div class="row g-3">
+    <div class="col-md-3">
+        <label class="form-label small fw-semibold">Start Date</label>
+        <div class="input-group input-group-sm">
+            <span class="input-group-text bg-light border-end-0">
+                <i class="fas fa-calendar text-muted"></i>
+            </span>
+            <input type="date" class="form-control border-start-0 ps-0" id="startDate">
+        </div>
+    </div>
+    <div class="col-md-3">
+        <label class="form-label small fw-semibold">End Date</label>
+        <div class="input-group input-group-sm">
+            <span class="input-group-text bg-light border-end-0">
+                <i class="fas fa-calendar-check text-muted"></i>
+            </span>
+            <input type="date" class="form-control border-start-0 ps-0" id="endDate">
+        </div>
+    </div>
+    <div class="col-md-3 d-flex align-items-end">
+        <button class="btn btn-primary flex-grow-1" id="generateBtn">
+            <i class="fas fa-chart-bar me-1"></i> Generate Analytics
+        </button>
+    </div>
+</div>
+</div>
         </div>
     </div>
 
     <!-- KEY METRICS OVERVIEW (New section for better analytics) -->
-    <div class="row g-3 mb-4">
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm bg-primary bg-opacity-10">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <span class="small text-muted">Total Check-ins</span>
-                            <h3 class="fw-bold mt-1 mb-0">12,345</h3>
-                            <span class="badge bg-success bg-opacity-25 text-success mt-2">
-                                <i class="fas fa-arrow-up me-1"></i> +12.3%
-                            </span>
-                        </div>
-                        <div class="bg-primary bg-opacity-25 p-3 rounded-3">
-                            <i class="fas fa-user-check text-primary fs-3"></i>
-                        </div>
+<!-- KEY METRICS OVERVIEW with IDs -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm bg-primary bg-opacity-10">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="small text-muted">Total Check-ins</span>
+                        <h3 class="fw-bold mt-1 mb-0" id="totalCheckinsValue">—</h3>
+                        <span class="badge bg-success bg-opacity-25 text-success mt-2">
+                            <i class="fas fa-arrow-up me-1"></i> +12.3%
+                        </span>
                     </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm bg-info bg-opacity-10">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <span class="small text-muted">Avg. Duration</span>
-                            <h3 class="fw-bold mt-1 mb-0">2.4 hrs</h3>
-                            <span class="badge bg-success bg-opacity-25 text-success mt-2">
-                                <i class="fas fa-arrow-up me-1"></i> +5.2%
-                            </span>
-                        </div>
-                        <div class="bg-info bg-opacity-25 p-3 rounded-3">
-                            <i class="fas fa-clock text-info fs-3"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm bg-warning bg-opacity-10">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <span class="small text-muted">Active Colleges</span>
-                            <h3 class="fw-bold mt-1 mb-0">24</h3>
-                            <span class="badge bg-success bg-opacity-25 text-success mt-2">
-                                <i class="fas fa-arrow-up me-1"></i> +3
-                            </span>
-                        </div>
-                        <div class="bg-warning bg-opacity-25 p-3 rounded-3">
-                            <i class="fas fa-university text-warning fs-3"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm bg-success bg-opacity-10">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <span class="small text-muted">Unique Courses</span>
-                            <h3 class="fw-bold mt-1 mb-0">156</h3>
-                            <span class="badge bg-success bg-opacity-25 text-success mt-2">
-                                <i class="fas fa-arrow-up me-1"></i> +8.1%
-                            </span>
-                        </div>
-                        <div class="bg-success bg-opacity-25 p-3 rounded-3">
-                            <i class="fas fa-book text-success fs-3"></i>
-                        </div>
+                    <div class="bg-primary bg-opacity-25 p-3 rounded-3">
+                        <i class="fas fa-user-check text-primary fs-3"></i>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm bg-info bg-opacity-10">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="small text-muted">Avg. Duration</span>
+                        <h3 class="fw-bold mt-1 mb-0" id="avgDurationValue">—</h3>
+                        <span class="badge bg-success bg-opacity-25 text-success mt-2">
+                            <i class="fas fa-arrow-up me-1"></i> +5.2%
+                        </span>
+                    </div>
+                    <div class="bg-info bg-opacity-25 p-3 rounded-3">
+                        <i class="fas fa-clock text-info fs-3"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm bg-warning bg-opacity-10">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="small text-muted">Active Colleges</span>
+                        <h3 class="fw-bold mt-1 mb-0" id="activeCollegesValue">—</h3>
+                        <span class="badge bg-success bg-opacity-25 text-success mt-2">
+                            <i class="fas fa-arrow-up me-1"></i> +3
+                        </span>
+                    </div>
+                    <div class="bg-warning bg-opacity-25 p-3 rounded-3">
+                        <i class="fas fa-university text-warning fs-3"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm bg-success bg-opacity-10">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="small text-muted">Unique Courses</span>
+                        <h3 class="fw-bold mt-1 mb-0" id="uniqueCoursesValue">—</h3>
+                        <span class="badge bg-success bg-opacity-25 text-success mt-2">
+                            <i class="fas fa-arrow-up me-1"></i> +8.1%
+                        </span>
+                    </div>
+                    <div class="bg-success bg-opacity-25 p-3 rounded-3">
+                        <i class="fas fa-book text-success fs-3"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
     <!-- SECTION TABS for better organization -->
 <!-- TAB NAVIGATION -->
@@ -216,7 +179,6 @@
 
 <script>
 $(function () {
-
     const UI = {
         tabContent: $("#tabContent"),
         tabs: $("#analyticsTabs .nav-link"),
@@ -227,32 +189,27 @@ $(function () {
 
     let currentRequest = null;
     let activeTab = 'users';
+    let currentClassification = 'All'; // store the selected classification
 
     /* ===========================
-       Chart Manager (No Leaks)
+       Chart Manager
     ============================ */
     const ChartManager = {
         instances: {},
-
         destroy(id) {
             if (this.instances[id]) {
                 this.instances[id].destroy();
                 delete this.instances[id];
             }
         },
-
         create(id, config) {
             const canvas = document.getElementById(id);
             if (!canvas) return;
-
             this.destroy(id);
             this.instances[id] = new Chart(canvas, config);
         }
     };
 
-    /* ===========================
-       Loading State
-    ============================ */
     function showLoading() {
         UI.tabContent.html(`
             <div class="d-flex justify-content-center align-items-center" style="height:300px">
@@ -261,164 +218,115 @@ $(function () {
         `);
     }
 
-    /* ===========================
-       Load Tab (AJAX Only)
-    ============================ */
     function loadTab(tab) {
-
         activeTab = tab;
-
         if (currentRequest) currentRequest.abort();
-
         showLoading();
+
+        // Determine classification: only for Users tab, otherwise 'All'
+        let classification = 'All';
+        if (tab === 'users') {
+            // If the dropdown exists, use its value; otherwise fallback to stored
+            classification = $('#userClassificationFilter').val() || currentClassification;
+        }
 
         currentRequest = $.ajax({
             url: "backend/bk_LibraryMenu/bk_libReports.php",
             type: "POST",
             dataType: "json",
             data: {
-                tab,
+                tab: tab,
                 startDate: UI.startDate.val(),
-                endDate: UI.endDate.val()
+                endDate: UI.endDate.val(),
+                classification: classification
             }
         })
-        .done(response => {
-
+        .done(function(response) {
             if (response.status !== 'success') {
                 UI.tabContent.html(`<div class="text-danger p-4">${response.message}</div>`);
                 return;
             }
 
+            // Insert the HTML for the tab
             UI.tabContent.html(response.html);
+
+            // Update global metric cards (always from unfiltered data)
+            $('#totalCheckinsValue').text(response.totalVisits.toLocaleString());
+            $('#avgDurationValue').text(response.avgDuration + ' hrs');
+            $('#activeCollegesValue').text(response.activeColleges);
+            $('#uniqueCoursesValue').text(response.uniqueCourses);
+
+            // Update footer timestamp
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true });
+            $('.text-muted:contains("Last updated")').html(`<i class="fas fa-sync-alt me-1"></i> Last updated: Today at ${timeStr}`);
+
+            // Initialize charts for this tab
             initializeCharts(response, tab);
+
+            // If Users tab, handle classification dropdown
+            if (tab === 'users') {
+                // Set the dropdown to the current value
+                const $filter = $('#userClassificationFilter');
+                $filter.val(currentClassification);
+
+                // Bind change event
+                $filter.off('change').on('change', function() {
+                    currentClassification = $(this).val();
+                    loadTab('users');
+                });
+            }
         })
-        .fail(() => {
-            UI.tabContent.html(`<div class="text-danger p-4">Failed to load analytics.</div>`);
+        .fail(function(jqXHR, textStatus, errorThrown) {
+            console.error("AJAX error:", textStatus, errorThrown);
+            UI.tabContent.html(`<div class="text-danger p-4">Failed to load analytics. Check console.</div>`);
         });
     }
 
-    /* ===========================
-       Chart Initialization
-    ============================ */
+    // Chart initialization functions (unchanged)
     function initializeCharts(data, tab) {
-
         if (tab === 'users') {
-
-            renderBar(
-                'chartUsersCheckin',
-                extractLabels(data.topCheckins),
-                extractValues(data.topCheckins),
-                'Check-ins'
-            );
-
-            renderBar(
-                'chartUsersDuration',
-                extractLabels(data.topDuration),
-                extractValues(data.topDuration),
-                'Duration (min)'
-            );
+            renderBar('chartUsersCheckin', extractLabels(data.topCheckins), extractValues(data.topCheckins), 'Check-ins');
+            renderBar('chartUsersDuration', extractLabels(data.topDuration), extractValues(data.topDuration), 'Duration (min)');
         }
-
         if (tab === 'colleges') {
-
-            renderBar(
-                'chartCollegeCheckin',
-                Object.keys(data.top3CollegesCheckin),
-                Object.values(data.top3CollegesCheckin),
-                'Check-ins'
-            );
-
-            renderBar(
-                'chartCollegeDuration',
-                Object.keys(data.top3CollegesDuration),
-                Object.values(data.top3CollegesDuration),
-                'Duration (min)'
-            );
+            renderBar('chartCollegeCheckin', Object.keys(data.top3CollegesCheckin), Object.values(data.top3CollegesCheckin), 'Check-ins');
+            renderBar('chartCollegeDuration', Object.keys(data.top3CollegesDuration), Object.values(data.top3CollegesDuration), 'Duration (min)');
         }
-
         if (tab === 'courses') {
-
             Object.keys(data.topCoursesCheckin).forEach(college => {
-
-                const cleanId = college.replace(/[^a-zA-Z0-9]/g,'');
-
-                renderBar(
-                    'chartCourseCheckin_' + cleanId,
-                    Object.keys(data.topCoursesCheckin[college]),
-                    Object.values(data.topCoursesCheckin[college]),
-                    'Check-ins'
-                );
-
+                const cleanId = college.replace(/[^a-zA-Z0-9]/g, '');
+                renderBar('chartCourseCheckin_' + cleanId, Object.keys(data.topCoursesCheckin[college]), Object.values(data.topCoursesCheckin[college]), 'Check-ins');
                 if (data.topCoursesDuration[college]) {
-                    renderBar(
-                        'chartCourseDuration_' + cleanId,
-                        Object.keys(data.topCoursesDuration[college]),
-                        Object.values(data.topCoursesDuration[college]),
-                        'Duration (min)'
-                    );
+                    renderBar('chartCourseDuration_' + cleanId, Object.keys(data.topCoursesDuration[college]), Object.values(data.topCoursesDuration[college]), 'Duration (min)');
                 }
             });
         }
-
         if (tab === 'demographics') {
-
-            renderPie(
-                'chartSexCheckin',
-                Object.keys(data.sexDistribution),
-                Object.values(data.sexDistribution)
-            );
+            renderPie('chartSexCheckin', Object.keys(data.sexDistribution), Object.values(data.sexDistribution));
         }
     }
 
-    /* ===========================
-       Chart Helpers
-    ============================ */
     function renderBar(id, labels, data, label) {
         ChartManager.create(id, {
             type: 'bar',
-            data: {
-                labels,
-                datasets: [{
-                    label,
-                    data,
-                    backgroundColor: 'rgba(54,162,235,0.7)',
-                    borderRadius: 8,
-                    maxBarThickness: 40
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { y: { beginAtZero: true } }
-            }
+            data: { labels, datasets: [{ label, data, backgroundColor: 'rgba(54,162,235,0.7)', borderRadius: 8, maxBarThickness: 40 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
         });
     }
 
     function renderPie(id, labels, data) {
         ChartManager.create(id, {
             type: 'doughnut',
-            data: {
-                labels,
-                datasets: [{
-                    data,
-                    backgroundColor: ['#4F46E5','#06B6D4','#F59E0B','#EF4444']
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                cutout: '65%'
-            }
+            data: { labels, datasets: [{ data, backgroundColor: ['#4F46E5', '#06B6D4', '#F59E0B', '#EF4444'] }] },
+            options: { responsive: true, maintainAspectRatio: false, cutout: '65%' }
         });
     }
 
     function extractLabels(groupedData) {
         const labels = [];
         Object.values(groupedData).forEach(group => {
-            Object.entries(group).forEach(([key]) => {
-                labels.push(key.split('|')[1]);
-            });
+            Object.entries(group).forEach(([key]) => labels.push(key.split('|')[1]));
         });
         return labels;
     }
@@ -426,17 +334,14 @@ $(function () {
     function extractValues(groupedData) {
         const values = [];
         Object.values(groupedData).forEach(group => {
-            Object.values(group).forEach(val => {
-                values.push(val);
-            });
+            Object.values(group).forEach(val => values.push(val));
         });
         return values;
     }
 
-    /* ===========================
-       Events
-    ============================ */
-    UI.tabs.on('click', function () {
+    // Event handlers
+    UI.tabs.on('click', function (e) {
+        e.preventDefault();
         UI.tabs.removeClass('active');
         $(this).addClass('active');
         loadTab($(this).data('tab'));
@@ -456,7 +361,14 @@ $(function () {
         }
     });
 
-    /* Initial Load */
+    // Initial load (default dates if empty: last 7 days)
+    if (!UI.startDate.val()) {
+        let today = new Date();
+        let lastWeek = new Date(today);
+        lastWeek.setDate(today.getDate() - 7);
+        UI.startDate.val(lastWeek.toISOString().split('T')[0]);
+        UI.endDate.val(today.toISOString().split('T')[0]);
+    }
     loadTab('users');
 });
 </script>

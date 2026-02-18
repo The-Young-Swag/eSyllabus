@@ -1,17 +1,12 @@
 <?php
-/**
- * bk_libReports.php
- * Backend for Library Analytics Dashboard
- * Returns JSON with HTML + aggregated data for charts per tab
- */
-
-include "../../db/dbconnection.php"; // Your DB connection
+include "../../db/dbconnection.php";
 header('Content-Type: application/json');
 
 // ------------------- POST PARAMETERS -------------------
 $requestedTab = $_POST['tab'] ?? 'users';
 $startDate    = $_POST['startDate'] ?? null;
 $endDate      = $_POST['endDate'] ?? null;
+$classification = $_POST['classification'] ?? 'All';
 
 // ------------------- VALIDATION -------------------
 $validTabs = ['users','colleges','courses','demographics'];
@@ -20,7 +15,7 @@ if(!in_array($requestedTab, $validTabs)){
     exit;
 }
 
-// ------------------- DATE FILTER -------------------
+// ------------------- DATE FILTER ONLY (classification removed) -------------------
 $dateFilter = '';
 $params = [];
 if($startDate){
@@ -31,19 +26,42 @@ if($endDate){
     $dateFilter .= " AND checkin_time <= :endDate";
     $params[':endDate'] = $endDate;
 }
+// No classification in SQL anymore – it will be applied in PHP
 
-// ------------------- FETCH LIBRARY LOGS -------------------
-// Join Library_logs.library -> LibrarySection.SectionID to get section name
+// ------------------- FETCH ALL LOGS (UNFILTERED BY CLASSIFICATION) -------------------
 $sqlLogs = "
-    SELECT TOP (1000) 
-        l.id, l.id_number, l.name, l.college, l.course, l.library, s.SectionName AS libraryName,
-        l.checkin_time, l.checkout_time, l.sex, l.classification
+    SELECT 
+        l.id, l.id_number, l.name, l.college, l.course, l.library,
+        s.SectionName AS libraryName,
+        l.checkin_time, l.checkout_time,
+        l.sex, l.classification
     FROM Library_logs l
     LEFT JOIN LibrarySection s ON l.library = s.SectionID
     WHERE 1=1 $dateFilter
     ORDER BY l.checkin_time DESC
 ";
-$libraryLogs = execsqlSRS($sqlLogs, 'Select', $params);
+
+$allLogs = execsqlSRS($sqlLogs, 'Select', $params);   // Renamed to $allLogs
+
+// ------------------- GLOBAL KPI METRICS (from unfiltered logs) -------------------
+$totalVisits = count($allLogs);
+$totalDuration = array_sum(array_map(function($log){
+    return calculateDuration($log['checkin_time'], $log['checkout_time']);
+}, $allLogs));
+$uniqueUsers = count(array_unique(array_column($allLogs,'id_number')));
+$avgDuration = $totalVisits ? round($totalDuration / $totalVisits, 1) : 0;
+$activeColleges = count(array_unique(array_filter(array_column($allLogs, 'college'))));
+$uniqueCourses  = count(array_unique(array_filter(array_column($allLogs, 'course'))));
+
+// ------------------- APPLY CLASSIFICATION FILTER FOR TAB CONTENT -------------------
+if ($classification !== 'All') {
+    $filteredLogs = array_filter($allLogs, fn($log) => strtolower($log['classification']) === strtolower($classification));
+} else {
+    $filteredLogs = $allLogs;
+}
+
+// Overwrite $libraryLogs for the rest of the code (tabs use filtered data)
+$libraryLogs = $filteredLogs;
 
 // ------------------- HELPER FUNCTIONS -------------------
 function calculateDuration($checkin, $checkout){
@@ -51,12 +69,10 @@ function calculateDuration($checkin, $checkout){
     return (strtotime($checkout) - strtotime($checkin)) / 60; // minutes
 }
 
-// Filter logs by classification
 function filterLogsByClassification(array $logs, string $classification): array {
     return array_filter($logs, fn($log) => strtolower($log['classification']) === strtolower($classification));
 }
 
-// Top N helper
 function topN(array $array, int $n = 3): array {
     arsort($array);
     return array_slice($array, 0, $n, true);
@@ -85,34 +101,22 @@ foreach($classifications as $class){
 // ------------------- COLLEGES TAB -------------------
 $collegeLogs = array_filter($libraryLogs, fn($log) => strtolower($log['classification']) !== 'guest');
 
-// Initialize arrays
 $collegesCheckin = [];
 $collegesDuration = [];
-$collegeSex = [];
-
-// Unique users per college
 $collegeUsers = [];
 
 foreach($collegeLogs as $log){
     $college = $log['college'] ?: 'Unknown';
     $userId = $log['id_number'];
     $duration = calculateDuration($log['checkin_time'], $log['checkout_time']);
-    $sex = $log['sex'] ?: 'Unknown';
 
-    // Count unique users for check-in per college
     if(!isset($collegeUsers[$college][$userId])){
         $collegeUsers[$college][$userId] = true;
         $collegesCheckin[$college] = ($collegesCheckin[$college] ?? 0) + 1;
     }
-
-    // Add duration per college (sum of durations for all visits)
     $collegesDuration[$college] = ($collegesDuration[$college] ?? 0) + $duration;
-
-    // Sex distribution per college
-    $collegeSex[$sex] = ($collegeSex[$sex] ?? 0) + 1;
 }
 
-// Top 3 Colleges
 $top3CollegesCheckin = topN($collegesCheckin, 3);
 $top3CollegesDuration = topN($collegesDuration, 3);
 
@@ -127,17 +131,13 @@ foreach($collegeLogs as $log){
     $userId  = $log['id_number'];
     $duration = calculateDuration($log['checkin_time'], $log['checkout_time']);
 
-    // Unique user per course
     if(!isset($courseUsers[$college][$course][$userId])){
         $courseUsers[$college][$course][$userId] = true;
         $coursesCheckin[$college][$course] = ($coursesCheckin[$college][$course] ?? 0) + 1;
     }
-
-    // Sum duration per course
     $coursesDuration[$college][$course] = ($coursesDuration[$college][$course] ?? 0) + $duration;
 }
 
-// Top 3 courses per college
 $topCoursesCheckin = [];
 $topCoursesDuration = [];
 foreach($coursesCheckin as $college => $courseList){
@@ -147,7 +147,6 @@ foreach($coursesDuration as $college => $courseList){
     $topCoursesDuration[$college] = topN($courseList, 3);
 }
 
-
 // ------------------- DEMOGRAPHICS -------------------
 $sexDistribution = [];
 foreach($libraryLogs as $log){
@@ -155,7 +154,7 @@ foreach($libraryLogs as $log){
     $sexDistribution[$sex] = ($sexDistribution[$sex] ?? 0) + 1;
 }
 
-// ------------------- HTML GENERATION -------------------
+// ------------------- HTML GENERATION (unchanged) -------------------
 ob_start();
 
 switch($requestedTab){
@@ -171,7 +170,15 @@ switch($requestedTab){
                     <i class="fas fa-users me-1 text-muted"></i> <?= count($libraryLogs) ?> Active Users
                 </div>
             </div>
-
+            <div class="d-flex align-items-center gap-2 mb-3">
+                <label class="small fw-semibold me-1">Classification:</label>
+                <select class="form-select form-select-sm" id="userClassificationFilter" style="width: auto;">
+                    <option value="All" <?= $classification == 'All' ? 'selected' : '' ?>>All</option>
+                    <option value="Student" <?= $classification == 'Student' ? 'selected' : '' ?>>Student</option>
+                    <option value="Employee" <?= $classification == 'Employee' ? 'selected' : '' ?>>Employee</option>
+                    <option value="Guest" <?= $classification == 'Guest' ? 'selected' : '' ?>>Guest</option>
+                </select>
+            </div>
             <div class="row g-4 mb-4">
                 <?php foreach($classifications as $class): 
                     $count = count(filterLogsByClassification($libraryLogs, $class));
@@ -483,7 +490,7 @@ case 'demographics':
 break;
 
 
-    default:
+      default:
         $html = "<div class='text-center text-danger p-4'>Tab not found.</div>";
 }
 
@@ -493,6 +500,16 @@ $html = ob_get_clean();
 echo json_encode([
     'status' => 'success',
     'html'   => $html,
+
+    // Global KPIs (from unfiltered logs)
+    'totalVisits'   => $totalVisits,
+    'totalDuration' => round($totalDuration),
+    'avgDuration'   => $avgDuration,
+    'uniqueUsers'   => $uniqueUsers,
+    'activeColleges' => $activeColleges,
+    'uniqueCourses'  => $uniqueCourses,
+
+    // Tab-specific data (filtered)
     'logs'   => $libraryLogs,
     'topCheckins' => $topCheckins,
     'topDuration' => $topDuration,
