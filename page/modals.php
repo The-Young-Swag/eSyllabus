@@ -450,15 +450,6 @@ $sections = execsqlSRS("
                                    placeholder="Position ID (optional)">
                         </div>
 
-<div class="form-group">
-    <div class="custom-control custom-switch">
-        <input type="checkbox" class="custom-control-input" id="u_changepass" checked>
-        <label class="custom-control-label" for="u_changepass">
-            Require password change on first login
-        </label>
-    </div>
-</div>
-
                         <div class="form-group">
                             <div class="custom-control custom-switch">
                                 <input type="checkbox" class="custom-control-input" id="u_status" checked>
@@ -749,6 +740,20 @@ function generateOfficeAccessModal() {
                                 data-EditEmpID="">Add Office Access</button>
                     </div>
                     <hr>
+
+<div class="form-group">
+    <label>New Password</label>
+    <input type="password" class="form-control" id="edit_newpassword"
+           placeholder="Leave blank to keep current password">
+    <small class="text-muted">Only fill this if you want to change the password.</small>
+</div>
+
+<div class="form-group">
+    <label>Confirm New Password</label>
+    <input type="password" class="form-control" id="edit_confirmpassword"
+           placeholder="Confirm new password">
+</div>
+
                     
                     <!-- Access List -->
                     <div class="table-responsive" style="max-height: 400px; overflow-y: auto;" id="scrollOfficeList">

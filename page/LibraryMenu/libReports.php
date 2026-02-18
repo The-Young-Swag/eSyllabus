@@ -177,35 +177,26 @@
 <div class="mb-4">
     <ul class="nav nav-tabs" id="analyticsTabs" role="tablist">
         <li class="nav-item">
-            <button class="nav-link active" id="users" type="button">
-                <i class="fas fa-user-graduate me-2"></i> Users
-            </button>
+            <button class="nav-link active" data-tab="users">Users</button>
         </li>
         <li class="nav-item">
-            <button class="nav-link" id="colleges" type="button">
-                <i class="fas fa-university me-2"></i> Colleges
-            </button>
+            <button class="nav-link" data-tab="colleges">Colleges</button>
         </li>
         <li class="nav-item">
-            <button class="nav-link" id="courses" type="button">
-                <i class="fas fa-book me-2"></i> Courses
-            </button>
+            <button class="nav-link" data-tab="courses">Courses</button>
         </li>
         <li class="nav-item">
-            <button class="nav-link" id="demographics" type="button">
-                <i class="fas fa-venus-mars me-2"></i> Demographics
-            </button>
+            <button class="nav-link" data-tab="demographics">Demographics</button>
         </li>
     </ul>
 </div>
 
+<!-- TAB CONTENT -->
+<div id="tabContent" class="tab-content">
+    <div class="text-center p-4">Select a tab to view content...</div>
+</div>
 
 
-    <!-- TAB CONTENT-->
-    <div class="tab-content" id="tabContent">
-	<!-- INJECT TAB CONTENT HERE improved card layouts -->
-		
-    </div>
 
     <!-- FOOTER with last update info -->
     <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
@@ -223,22 +214,249 @@
     </div>
 </div>
 
-
-
 <script>
-const usersBtn = document.getElementById(".users");
-const collegeBtn = document.getElementById(".college");
-const courseBtn = document.getElementById(".course");
-const sexBtn = document.getElementById(".sex");
+$(function () {
 
-const resultParagraph = document.getElementById("result");
+    const UI = {
+        tabContent: $("#tabContent"),
+        tabs: $("#analyticsTabs .nav-link"),
+        startDate: $('#startDate'),
+        endDate: $('#endDate'),
+        generateBtn: $('#generateBtn')
+    };
 
-function displayTab() {
-    console.log("You clicked the button");
-}
-usersBtn.addEventListener('click', displayTab);
+    let currentRequest = null;
+    let activeTab = 'users';
+
+    /* ===========================
+       Chart Manager (No Leaks)
+    ============================ */
+    const ChartManager = {
+        instances: {},
+
+        destroy(id) {
+            if (this.instances[id]) {
+                this.instances[id].destroy();
+                delete this.instances[id];
+            }
+        },
+
+        create(id, config) {
+            const canvas = document.getElementById(id);
+            if (!canvas) return;
+
+            this.destroy(id);
+            this.instances[id] = new Chart(canvas, config);
+        }
+    };
+
+    /* ===========================
+       Loading State
+    ============================ */
+    function showLoading() {
+        UI.tabContent.html(`
+            <div class="d-flex justify-content-center align-items-center" style="height:300px">
+                <div class="spinner-border text-primary"></div>
+            </div>
+        `);
+    }
+
+    /* ===========================
+       Load Tab (AJAX Only)
+    ============================ */
+    function loadTab(tab) {
+
+        activeTab = tab;
+
+        if (currentRequest) currentRequest.abort();
+
+        showLoading();
+
+        currentRequest = $.ajax({
+            url: "backend/bk_LibraryMenu/bk_libReports.php",
+            type: "POST",
+            dataType: "json",
+            data: {
+                tab,
+                startDate: UI.startDate.val(),
+                endDate: UI.endDate.val()
+            }
+        })
+        .done(response => {
+
+            if (response.status !== 'success') {
+                UI.tabContent.html(`<div class="text-danger p-4">${response.message}</div>`);
+                return;
+            }
+
+            UI.tabContent.html(response.html);
+            initializeCharts(response, tab);
+        })
+        .fail(() => {
+            UI.tabContent.html(`<div class="text-danger p-4">Failed to load analytics.</div>`);
+        });
+    }
+
+    /* ===========================
+       Chart Initialization
+    ============================ */
+    function initializeCharts(data, tab) {
+
+        if (tab === 'users') {
+
+            renderBar(
+                'chartUsersCheckin',
+                extractLabels(data.topCheckins),
+                extractValues(data.topCheckins),
+                'Check-ins'
+            );
+
+            renderBar(
+                'chartUsersDuration',
+                extractLabels(data.topDuration),
+                extractValues(data.topDuration),
+                'Duration (min)'
+            );
+        }
+
+        if (tab === 'colleges') {
+
+            renderBar(
+                'chartCollegeCheckin',
+                Object.keys(data.top3CollegesCheckin),
+                Object.values(data.top3CollegesCheckin),
+                'Check-ins'
+            );
+
+            renderBar(
+                'chartCollegeDuration',
+                Object.keys(data.top3CollegesDuration),
+                Object.values(data.top3CollegesDuration),
+                'Duration (min)'
+            );
+        }
+
+        if (tab === 'courses') {
+
+            Object.keys(data.topCoursesCheckin).forEach(college => {
+
+                const cleanId = college.replace(/[^a-zA-Z0-9]/g,'');
+
+                renderBar(
+                    'chartCourseCheckin_' + cleanId,
+                    Object.keys(data.topCoursesCheckin[college]),
+                    Object.values(data.topCoursesCheckin[college]),
+                    'Check-ins'
+                );
+
+                if (data.topCoursesDuration[college]) {
+                    renderBar(
+                        'chartCourseDuration_' + cleanId,
+                        Object.keys(data.topCoursesDuration[college]),
+                        Object.values(data.topCoursesDuration[college]),
+                        'Duration (min)'
+                    );
+                }
+            });
+        }
+
+        if (tab === 'demographics') {
+
+            renderPie(
+                'chartSexCheckin',
+                Object.keys(data.sexDistribution),
+                Object.values(data.sexDistribution)
+            );
+        }
+    }
+
+    /* ===========================
+       Chart Helpers
+    ============================ */
+    function renderBar(id, labels, data, label) {
+        ChartManager.create(id, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{
+                    label,
+                    data,
+                    backgroundColor: 'rgba(54,162,235,0.7)',
+                    borderRadius: 8,
+                    maxBarThickness: 40
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+    }
+
+    function renderPie(id, labels, data) {
+        ChartManager.create(id, {
+            type: 'doughnut',
+            data: {
+                labels,
+                datasets: [{
+                    data,
+                    backgroundColor: ['#4F46E5','#06B6D4','#F59E0B','#EF4444']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '65%'
+            }
+        });
+    }
+
+    function extractLabels(groupedData) {
+        const labels = [];
+        Object.values(groupedData).forEach(group => {
+            Object.entries(group).forEach(([key]) => {
+                labels.push(key.split('|')[1]);
+            });
+        });
+        return labels;
+    }
+
+    function extractValues(groupedData) {
+        const values = [];
+        Object.values(groupedData).forEach(group => {
+            Object.values(group).forEach(val => {
+                values.push(val);
+            });
+        });
+        return values;
+    }
+
+    /* ===========================
+       Events
+    ============================ */
+    UI.tabs.on('click', function () {
+        UI.tabs.removeClass('active');
+        $(this).addClass('active');
+        loadTab($(this).data('tab'));
+    });
+
+    UI.generateBtn.on('click', function () {
+        if (!UI.startDate.val() || !UI.endDate.val()) {
+            alert("Select start and end date.");
+            return;
+        }
+        loadTab(activeTab);
+    });
+
+    UI.startDate.add(UI.endDate).on('change', function () {
+        if (UI.startDate.val() && UI.endDate.val()) {
+            loadTab(activeTab);
+        }
+    });
+
+    /* Initial Load */
+    loadTab('users');
+});
 </script>
-
-
-
-

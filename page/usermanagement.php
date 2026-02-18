@@ -241,6 +241,7 @@ $(document).off('click.user', '#btnUpdateUser').on('click.user', '#btnUpdateUser
         allOfficeAccess: $('#edit_alloffice').val(),
         changePass: $('#edit_changepass').val(),
         libAccess: $('#edit_libAccess').val()  // Add this line
+
     };
     
     // Validation

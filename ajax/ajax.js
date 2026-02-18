@@ -96,6 +96,8 @@ $(document).on('click', '#callpages', function(e) {
  * 
  * Login Button
  */
+ //SESSION IS SAVED HERE
+
  
 $(document).on('click', '#btnLogin', function(e) {
     var lgtxtEmail = $("#lgtxtEmail").val();
@@ -580,6 +582,7 @@ function loadMenus(type) {
         $(tableId).html(data);
     });
 }
+
 function postJSON(url, data, onSuccess, onFail) {
     return $.post(url, data)
         .done(res => {
