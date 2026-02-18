@@ -12,7 +12,6 @@ case "addUser":
     $roleID = trim($_POST["roleID"] ?? "");
     $officeID = trim($_POST["officeID"] ?? "");
     $positionID = trim($_POST["positionID"] ?? "");
-    $changePass = isset($_POST["changePass"]) ? 1 : 0; // Add this line
     
     if (empty($empID) || empty($name) || empty($roleID)) {
         echo "MISSING_REQUIRED_FIELDS";
@@ -52,7 +51,6 @@ execsqlSRS($sqlUser, "Insert", [$empID, $email, $password, $name, $roleID, $offi
     break;
         
 case "updateUser":
-
     $userID = $_POST["userID"] ?? "";
     $empID = trim($_POST["empID"] ?? "");
     $email = trim($_POST["email"] ?? "");
@@ -70,55 +68,22 @@ case "updateUser":
     }
 
     try {
+        // Build the SET part dynamically
+        $setFields = "EmpID = ?, EmailAddress = ?, Name = ?, RID = ?, Office_id = ?, Position_id = ?, IsActive = ?, AllOfficeAcess = ?";
+        $params = [$empID, $email, $name, $roleID, $officeID, $positionID, $isActive, $allOfficeAccess];
 
-        // 🔐 If admin entered a new password
+        // If a new password is provided, hash it and add to update
         if (!empty($newPassword)) {
-
-            $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
-
-            $sqlUser = "UPDATE Sys_UserAccount 
-                        SET EmpID = ?, EmailAddress = ?, Name = ?, RID = ?, 
-                            Office_id = ?, Position_id = ?, 
-                            IsActive = ?, AllOfficeAcess = ?, 
-                            Password = ?
-                        WHERE UserID = ?";
-
-            execsqlSRS($sqlUser, "Update", [
-                $empID,
-                $email,
-                $name,
-                $roleID,
-                $officeID,
-                $positionID,
-                $isActive,
-                $allOfficeAccess,
-                $hashedPassword,
-                $userID
-            ]);
-
-        } else {
-
-            // 🧾 Update without changing password
-            $sqlUser = "UPDATE Sys_UserAccount 
-                        SET EmpID = ?, EmailAddress = ?, Name = ?, RID = ?, 
-                            Office_id = ?, Position_id = ?, 
-                            IsActive = ?, AllOfficeAcess = ?
-                        WHERE UserID = ?";
-
-            execsqlSRS($sqlUser, "Update", [
-                $empID,
-                $email,
-                $name,
-                $roleID,
-                $officeID,
-                $positionID,
-                $isActive,
-                $allOfficeAccess,
-                $userID
-            ]);
+            $setFields .= ", Password = ?";
+            $params[] = $newPassword; // still plain text – see note below
         }
 
-        // 🔄 Sync tbl_OfficeStaff
+        $params[] = $userID; // for WHERE clause
+
+        $sqlUser = "UPDATE Sys_UserAccount SET $setFields WHERE UserID = ?";
+        execsqlSRS($sqlUser, "Update", $params);
+
+        // 🔄 Sync tbl_OfficeStaff (unchanged)
         $checkStaff = execsqlSRS(
             "SELECT COUNT(*) as count FROM tbl_OfficeStaff WHERE EmpID = ?",
             "Search",
@@ -126,39 +91,19 @@ case "updateUser":
         );
 
         if ($checkStaff[0]['count'] > 0) {
-
-            $sqlStaff = "UPDATE tbl_OfficeStaff 
-                         SET OfficeID = ?, PositionID = ?
-                         WHERE EmpID = ?";
-
-            execsqlSRS($sqlStaff, "Update", [
-                $officeID,
-                $positionID,
-                $empID
-            ]);
-
+            $sqlStaff = "UPDATE tbl_OfficeStaff SET OfficeID = ?, PositionID = ? WHERE EmpID = ?";
+            execsqlSRS($sqlStaff, "Update", [$officeID, $positionID, $empID]);
         } else {
-
             if (!empty($officeID) && !empty($positionID)) {
-
-                $sqlStaff = "INSERT INTO tbl_OfficeStaff 
-                             (OfficeID, EmpID, PositionID, Plantilla) 
-                             VALUES (?, ?, ?, '')";
-
-                execsqlSRS($sqlStaff, "Insert", [
-                    $officeID,
-                    $empID,
-                    $positionID
-                ]);
+                $sqlStaff = "INSERT INTO tbl_OfficeStaff (OfficeID, EmpID, PositionID, Plantilla) VALUES (?, ?, ?, '')";
+                execsqlSRS($sqlStaff, "Insert", [$officeID, $empID, $positionID]);
             }
         }
 
         echo "SUCCESS";
-
     } catch (Exception $e) {
         echo "UPDATE_ERROR: " . $e->getMessage();
     }
-
     break;
 
         

@@ -12,42 +12,46 @@ $request = $_POST["request"] ?? '';
 try {
     switch($request){
 
-        case "getLibraries":
-            $libraries = execsqlSRS("SELECT SectionID, SectionName FROM LibrarySection WHERE IsActive=1 ORDER BY SectionID ASC","Query",[]);
-            send(["success"=>true,"data"=>$libraries]);
-        break;
+case "getLibraries":
+    $userID = intval($_POST["userID"] ?? 0);
+    if (!$userID) {
+        send(["success" => false, "error" => "User ID required"]);
+    }
 
-        case "validateUser":
-            $idNumber = trim($_POST["idNumber"] ?? '');
-            $students = json_decode(file_get_contents(__DIR__."/../../API_requests/students.json"), true)["data"] ?? [];
-            $employees = json_decode(file_get_contents(__DIR__."/../../API_requests/employees.json"), true)["data"] ?? [];
+    try {
+        $pdo = dbconES(); // Make sure this returns a valid PDO object
 
-            $matchedStudents = array_filter($students, fn($s)=> $s["id_number"] === $idNumber);
-            if(count($matchedStudents)===1){
-                $s=array_values($matchedStudents)[0];
-                send(["success"=>true,"data"=>[
-                    "id_number"=>$s["id_number"],"name"=>$s["name"],"sex"=>$s["sex"],
-                    "college"=>$s["college"],"course"=>$s["course"],"classification"=>"STUDENT",
-                    "secretKey"=>$s["secret_key"]
-                ]]);
-            } elseif(count($matchedStudents)>1){
-                $matches = array_map(fn($s)=>[
-                    "id_number"=>$s["id_number"],"name"=>$s["name"],"sex"=>$s["sex"],
-                    "college"=>$s["college"],"course"=>$s["course"],"classification"=>"STUDENT",
-                    "secretKey"=>$s["secret_key"]
-                ], array_values($matchedStudents));
-                send(["duplicate"=>true,"matches"=>$matches]);
-            } else {
-                $matchedEmp = array_filter($employees, fn($e)=> $e["employee_number"]===$idNumber);
-                if(count($matchedEmp)===1){
-                    $e = array_values($matchedEmp)[0];
-                    send(["success"=>true,"data"=>[
-                        "id_number"=>$e["employee_number"],"name"=>$e["name"],"sex"=>$e["sex"],
-                        "college"=>$e["department"],"course"=>$e["position"],"classification"=>"EMPLOYEE","secretKey"=>null
-                    ]]);
-                } else send(["error"=>"User not found"]);
-            }
-        break;
+        // Check if user is admin (adjust RID as needed)
+        $stmt = $pdo->prepare("SELECT RID FROM Sys_UserAccount WHERE UserID = ?");
+        $stmt->execute([$userID]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        $isAdmin = ($user && $user['RID'] == 1); // Assuming RID=1 is admin
+
+        if ($isAdmin) {
+            // Admin: return all active libraries
+            $libraries = execsqlSRS(
+                "SELECT SectionID, SectionName FROM LibrarySection WHERE IsActive = 1 ORDER BY SectionName",
+                "Select",
+                []
+            );
+        } else {
+            // Regular user: get libraries from LibraryAccess
+            $stmt = $pdo->prepare("
+                SELECT ls.SectionID, ls.SectionName
+                FROM LibraryAccess la
+                INNER JOIN LibrarySection ls ON la.SectionID = ls.SectionID
+                WHERE la.UserID = ? AND ls.IsActive = 1
+                ORDER BY ls.SectionName
+            ");
+            $stmt->execute([$userID]);
+            $libraries = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        }
+
+        send(["success" => true, "data" => $libraries]);
+    } catch (Exception $e) {
+        send(["success" => false, "error" => $e->getMessage()]);
+    }
+    break;
 
         case "saveAttendance":
             $idNumber=trim($_POST["idNumber"]??''); $sectionID=intval($_POST["sectionID"]??0);

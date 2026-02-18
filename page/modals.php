@@ -524,132 +524,150 @@ function generateUserEditModal($userID = 0) {
     ob_start();
     ?>
     <!-- Edit User Modal -->
-    <div class="modal fade" id="usereditmodal" tabindex="-1" aria-labelledby="userEditModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="userEditModalLabel">
-                        <i class="fas fa-user-edit mr-2"></i> Edit User
-                    </h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
+<div class="modal fade" id="usereditmodal" tabindex="-1" aria-labelledby="userEditModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="userEditModalLabel">
+                    <i class="fas fa-user-edit mr-2"></i> Edit User
+                </h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            
+            <div class="modal-body">
+                <!-- Hidden UserID -->
+                <input type="hidden" id="edit_userID" value="<?php echo htmlspecialchars($user['UserID']); ?>">
                 
-                <div class="p-3">
-                    <!-- Hidden UserID -->
-                    <input type="hidden" id="edit_userID" value="<?php echo htmlspecialchars($user['UserID']); ?>">
-                    
-                    <div class="form-group">
-                        <label>Employee ID (EmpID)</label>
-                        <input type="text" class="form-control" id="edit_empID" 
-                               value="<?php echo htmlspecialchars($user['EmpID']); ?>"
-                               placeholder="Employee ID">
+                <!-- Basic Information Section -->
+                <h6 class="font-weight-bold mb-3">Basic Information</h6>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>Employee ID <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="edit_empID" 
+                                   value="<?php echo htmlspecialchars($user['EmpID']); ?>" 
+                                   placeholder="Employee ID">
+                        </div>
                     </div>
-                    
-                    <div class="form-group">
-                        <label>Email Address</label>
-                        <input type="email" class="form-control" id="edit_email" 
-                               value="<?php echo htmlspecialchars($user['EmailAddress']); ?>">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Name</label>
-                        <input type="text" class="form-control" id="edit_name" 
-                               value="<?php echo htmlspecialchars($user['Name']); ?>">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Role</label>
-                        <select class="form-control" id="edit_role">
-                            <option value="">-- Select Role --</option>
-                            <?php foreach ($roles as $role): ?>
-                                <option value="<?php echo $role['RID']; ?>" 
-                                    <?php echo ($role['RID'] == $user['RID']) ? 'selected' : ''; ?>>
-                                    <?php echo htmlspecialchars($role['Role']); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Office</label>
-                        <select class="form-control" id="edit_office">
-                            <option value="">-- Select Office --</option>
-                            <?php foreach ($offices as $office): ?>
-                                <option value="<?php echo $office['OfficeMenID']; ?>" 
-                                    <?php echo ($office['OfficeMenID'] == $user['Office_id']) ? 'selected' : ''; ?>>
-                                    <?php echo htmlspecialchars($office['OfficeName']); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Position ID</label>
-                        <input type="text" class="form-control" id="edit_position" 
-                               value="<?php echo htmlspecialchars($user['Position_id']); ?>">
-                    </div>
-                    
-<div class="row">
-    <div class="col-md-4">
-        <div class="form-group">
-            <label>Active Status</label>
-            <select class="form-control" id="edit_status">
-                <option value="0" <?php echo $user['IsActive'] == 0 ? 'selected' : ''; ?>>Active</option>
-                <option value="1" <?php echo $user['IsActive'] == 1 ? 'selected' : ''; ?>>Inactive</option>
-            </select>
-        </div>
-    </div>
-
-    <div class="col-md-4">
-        <div class="form-group">
-            <label>All Office Access</label>
-            <select class="form-control" id="edit_alloffice">
-                <option value="0" <?php echo $user['AllOfficeAcess'] == 0 ? 'selected' : ''; ?>>No</option>
-                <option value="1" <?php echo $user['AllOfficeAcess'] == 1 ? 'selected' : ''; ?>>Yes</option>
-            </select>
-        </div>
-    </div>
-
-    <div class="col-md-4">
-        <div class="form-group">
-            <label>Library Section Access</label>
-            <select class="form-control" id="edit_libAccess">
-                <option value="">-- Select Section --</option>
-                <?php foreach ($sections as $sec): ?>
-                    <option value="<?php echo $sec['SectionID']; ?>"
-                        <?php echo ($sec['SectionID'] == $user['libAccess']) ? 'selected' : ''; ?>>
-                        <?php echo htmlspecialchars($sec['SectionName']); ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-    </div>
-</div>
-
-<div class="form-group">
-    <label>Change Password</label>
-    <select class="form-control" id="edit_changepass">
-        <option value="0" <?php echo $user['ChangePass'] == 0 ? 'selected' : ''; ?>>No</option>
-        <option value="1" <?php echo $user['ChangePass'] == 1 ? 'selected' : ''; ?>>Yes</option>
-    </select>
-</div>
-
-                    
-                    <div class="mt-3">
-                        <button class="btn btn-primary btn-block" id="btnUpdateUser">
-                            <i class="fas fa-save mr-2"></i> Update User
-                        </button>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>Email Address</label>
+                            <input type="email" class="form-control" id="edit_email" 
+                                   value="<?php echo htmlspecialchars($user['EmailAddress']); ?>">
+                        </div>
                     </div>
                 </div>
                 
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <div class="form-group">
+                    <label>Full Name <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="edit_name" 
+                           value="<?php echo htmlspecialchars($user['Name']); ?>">
                 </div>
+                
+                <!-- Password Change Card (Optional) -->
+                <div class="card border-primary mb-4">
+                    <div class="card-header bg-primary text-white py-2">
+                        <i class="fas fa-key mr-1"></i> Change Password (Optional)
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>New Password</label>
+                                    <input type="password" class="form-control" id="edit_newPassword" 
+                                           placeholder="Enter new password">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Confirm New Password</label>
+                                    <input type="password" class="form-control" id="edit_confirmPassword" 
+                                           placeholder="Confirm new password">
+                                </div>
+                            </div>
+                        </div>
+                        <small class="text-muted">Leave both fields blank to keep current password.</small>
+                    </div>
+                </div>
+                
+                <!-- Role & Assignment Section -->
+                <h6 class="font-weight-bold mb-3">Role & Assignment</h6>
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label>Role <span class="text-danger">*</span></label>
+                            <select class="form-control" id="edit_role">
+                                <option value="">-- Select Role --</option>
+                                <?php foreach ($roles as $role): ?>
+                                    <option value="<?php echo $role['RID']; ?>" 
+                                        <?php echo ($role['RID'] == $user['RID']) ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($role['Role']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label>Office</label>
+                            <select class="form-control" id="edit_office">
+                                <option value="">-- Select Office --</option>
+                                <?php foreach ($offices as $office): ?>
+                                    <option value="<?php echo $office['OfficeMenID']; ?>" 
+                                        <?php echo ($office['OfficeMenID'] == $user['Office_id']) ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($office['OfficeName']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label>Position ID</label>
+                            <input type="text" class="form-control" id="edit_position" 
+                                   value="<?php echo htmlspecialchars($user['Position_id']); ?>" 
+                                   placeholder="Position ID">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Status & Permissions Section -->
+                <h6 class="font-weight-bold mb-3">Status & Permissions</h6>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>Active Status</label>
+                            <select class="form-control" id="edit_status">
+                                <option value="0" <?php echo $user['IsActive'] == 0 ? 'selected' : ''; ?>>Active</option>
+                                <option value="1" <?php echo $user['IsActive'] == 1 ? 'selected' : ''; ?>>Inactive</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>All Office Access</label>
+                            <select class="form-control" id="edit_alloffice">
+                                <option value="0" <?php echo $user['AllOfficeAcess'] == 0 ? 'selected' : ''; ?>>No</option>
+                                <option value="1" <?php echo $user['AllOfficeAcess'] == 1 ? 'selected' : ''; ?>>Yes</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Update Button -->
+                <button class="btn btn-primary btn-block mt-4" id="btnUpdateUser">
+                    <i class="fas fa-save mr-2"></i> Update User
+                </button>
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
             </div>
         </div>
     </div>
+</div>
     <?php
     return ob_get_clean();
 }

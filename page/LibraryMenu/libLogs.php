@@ -43,46 +43,43 @@
         <?php endforeach; ?>
     </div>
 
-    <!-- LOG ATTENDANCE -->
-    <div class="card shadow-sm border-0 mb-4">
-        <div class="card-header bg-primary text-white d-flex flex-column flex-md-row justify-content-between align-items-md-center">
-            <div class="fw-semibold fs-6">
-                Log Attendance - <span id="currentLibrarySection"></span>
-            </div>
-            <div class="mt-2 mt-md-0 col-md-3">
-                <label for="inputLibrary" class="form-label small fw-semibold mb-1">Library</label>
-                <select class="form-select form-select-sm" id="inputLibrary"></select>
-            </div>
+<!-- LOG ATTENDANCE -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-primary text-white d-flex flex-column flex-md-row justify-content-between align-items-md-center">
+        <div class="fw-semibold fs-6">
+            Log Attendance - <span id="currentLibrarySection"></span>
         </div>
-        <div class="card-body">
-            <form id="logForm" class="row g-3 align-items-end">
-                <div class="col-lg-4">
-                    <label class="form-label fw-semibold">Identification Number</label>
-                    <small class="text-muted d-block mb-2">(Student Number or Employee Number)</small>
-                    <div class="input-group">
-                        <input type="password" class="form-control form-control-lg" id="inputStudentNumber" placeholder="Enter identification number" autocomplete="off">
-                        <button type="button" class="btn btn-outline-secondary" id="toggleIdVisibility">
-                            <i class="fas fa-eye" id="toggleIcon"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <div class="col-lg-3" id="specialKeyContainer" style="display:none;">
-                    <label class="form-label fw-semibold">Special Key (Birthday: MMDDYY)</label>
-                    <input type="password" class="form-control form-control-lg" id="inputSpecialKey" maxlength="6" placeholder="Enter 6-digit key" autocomplete="off">
-                </div>
-
-                <div class="col-lg-3">
-                    <label class="form-label fw-semibold">Library Section</label>
-                    <div class="form-control form-control-lg bg-light" id="currentLibraryDisplay"></div>
-                </div>
-
-                <div class="col-lg-2 d-grid">
-                    <button type="submit" class="btn btn-success btn-lg fw-semibold" id="submitButton">Submit</button>
-                </div>
-            </form>
-        </div>
+        <!-- Library dropdown removed -->
     </div>
+    <div class="card-body">
+        <form id="logForm" class="row g-3 align-items-end">
+            <div class="col-lg-5">
+                <label class="form-label fw-semibold">Identification Number</label>
+                <small class="text-muted d-block mb-2">(Student Number or Employee Number)</small>
+                <div class="input-group">
+                    <input type="password" class="form-control form-control-lg" id="inputStudentNumber" placeholder="Enter identification number" autocomplete="off">
+                    <button type="button" class="btn btn-outline-secondary" id="toggleIdVisibility">
+                        <i class="fas fa-eye" id="toggleIcon"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="col-lg-4" id="specialKeyContainer" style="display:none;">
+                <label class="form-label fw-semibold">Special Key (Birthday: MMDDYY)</label>
+                <input type="password" class="form-control form-control-lg" id="inputSpecialKey" maxlength="6" placeholder="Enter 6-digit key" autocomplete="off">
+            </div>
+
+            <div class="col-lg-3">
+                <label class="form-label fw-semibold">Library Section</label>
+                <div class="form-control form-control-lg bg-light" id="currentLibraryDisplay"></div>
+            </div>
+
+            <div class="col-lg-12 d-grid mt-3">
+                <button type="submit" class="btn btn-success btn-lg fw-semibold" id="submitButton">Submit</button>
+            </div>
+        </form>
+    </div>
+</div>
 
 </div>
 
@@ -116,28 +113,66 @@ $(document).ready(function() {
     }
     startClock();
 
-    // ======================
-    // LOAD LIBRARIES
-    // ======================
-    function loadLibraries() {
-        $.post("backend/bk_LibraryMenu/bk_libLogs.php", { request: "getLibraries" }, function(res) {
-            if(res.error) return console.error(res.error);
-
-            const $select = $("#inputLibrary").empty();
-            if(!res.data || !res.data.length){
-                currentLibraryName = "No Library Available";
-                $("#currentLibrarySection, #currentLibraryDisplay").text(currentLibraryName);
-                return;
-            }
-
-            res.data.forEach(lib => $select.append(`<option value="${lib.SectionID}">${lib.SectionName}</option>`));
-            currentLibraryID = res.data[0].SectionID;
-            currentLibraryName = res.data[0].SectionName;
-            $select.val(currentLibraryID);
-            $("#currentLibrarySection, #currentLibraryDisplay").text(currentLibraryName);
-            loadKPI(currentLibraryID);
-        });
+// ======================
+// LOAD LIBRARIES (automatically set based on user access)
+// ======================
+function loadLibraries() {
+    if (typeof UserInfo === 'undefined' || !UserInfo.UserID) {
+        console.error("User not logged in – UserInfo is undefined or missing UserID");
+        $("#currentLibrarySection, #currentLibraryDisplay").text("User not logged in");
+        return;
     }
+
+    console.log("Loading libraries for user ID:", UserInfo.UserID);
+
+    $.post("backend/bk_LibraryMenu/bk_libLogs.php", {
+        request: "getLibraries",
+        userID: UserInfo.UserID
+    }, function(res) {
+        console.log("Raw response from getLibraries:", res);
+
+        if (res.error) {
+            console.error("Server returned error:", res.error);
+            $("#currentLibrarySection, #currentLibraryDisplay").text("Error: " + res.error);
+            return;
+        }
+
+        if (!res.success) {
+            console.error("Server returned success=false, data:", res);
+            $("#currentLibrarySection, #currentLibraryDisplay").text("Failed to load libraries");
+            return;
+        }
+
+        if (!res.data || !res.data.length) {
+            console.warn("No libraries found for this user. Data array is empty.");
+            currentLibraryName = "No Library Access";
+            currentLibraryID = null;
+            $("#currentLibrarySection, #currentLibraryDisplay").text(currentLibraryName);
+            $("#submitButton").prop('disabled', true);
+            return;
+        }
+
+        console.log("Libraries received:", res.data);
+
+        // Use the first library (or you could add logic if multiple)
+        const firstLib = res.data[0];
+        currentLibraryID = firstLib.SectionID;
+        currentLibraryName = firstLib.SectionName;
+
+        console.log("Selected library:", currentLibraryName, "(ID:", currentLibraryID, ")");
+
+        // Update displays
+        $("#currentLibrarySection, #currentLibraryDisplay").text(currentLibraryName);
+        $("#submitButton").prop('disabled', false);
+
+        // Load KPI for this library
+        loadKPI(currentLibraryID);
+    }).fail(function(jqXHR, textStatus, errorThrown) {
+        console.error("AJAX request failed:", textStatus, errorThrown);
+        console.error("Response text:", jqXHR.responseText);
+        $("#currentLibrarySection, #currentLibraryDisplay").text("AJAX error: " + textStatus);
+    });
+}
     loadLibraries();
 
     // ======================

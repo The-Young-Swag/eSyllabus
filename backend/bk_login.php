@@ -7,49 +7,50 @@ $request = isset($_POST["request"]) ? $_POST["request"] : "";
 switch ($request) {
 
 case "verifyLogin":
-    $lgtxtpassword = isset($_POST["lgtxtpassword"]) ? $_POST["lgtxtpassword"] : "";
-    $lgtxtEmail = isset($_POST["lgtxtEmail"]) ? $_POST["lgtxtEmail"] : "";
+    $lgtxtpassword = $_POST["lgtxtpassword"] ?? "";
+    $lgtxtEmail    = $_POST["lgtxtEmail"] ?? "";
 
-    // Debug: Log what's being received
     error_log("Login attempt - Email: $lgtxtEmail, Password: $lgtxtpassword");
 
-    $getUA = execsqlSRS(
-        "SELECT top 1 ua.UserID, ua.EmpID, ua.EmailAddress, ua.Password, ua.RID, 
-                ua.Office_id, ua.Name, ua.AllOfficeAcess, ua.ChangePass
-         FROM Sys_UserAccount ua
-         WHERE ua.EmailAddress = :EmailAddress 
-               AND ua.Password = :Password 
-               AND ua.IsActive = '0'",
-        "Select",
-        array(
-            ":EmailAddress" => $lgtxtEmail,
-            ":Password" => $lgtxtpassword
-        )
-    );
+    try {
+        $getUA = execsqlSRS(
+            "SELECT TOP 1 ua.UserID, ua.EmpID, ua.EmailAddress, ua.Password, ua.RID, 
+                    ua.Office_id, ua.Name, ua.AllOfficeAcess, ua.ChangePass
+             FROM Sys_UserAccount ua
+             WHERE ua.EmailAddress = :EmailAddress 
+                   AND ua.Password = :Password 
+                   AND ua.IsActive = '0'
+                   AND (ua.IsDeleted IS NULL OR ua.IsDeleted = 0)",
+            "Select",
+            [":EmailAddress" => $lgtxtEmail, ":Password" => $lgtxtpassword]
+        );
 
-    // Debug: Log query results
-    error_log("Query result count: " . count($getUA));
-    if (isset($getUA[0])) {
-        error_log("User found: " . json_encode($getUA[0]));
-    } else {
-        error_log("No user found or not active");
-    }
+        error_log("Query executed. Result type: " . gettype($getUA));
 
-    if (isset($getUA[0])) {
-        echo json_encode(array(
-            "status" => "Registered",
-            "EmpID" => $getUA[0]["EmpID"],
-            "UserID" => $getUA[0]["UserID"],
-            "RID" => $getUA[0]["RID"],
-            "EmailAddress" => $getUA[0]["EmailAddress"],
-            "Office_id" => $getUA[0]["Office_id"],
-            "Name" => $getUA[0]["Name"],
-            "Password" => $getUA[0]["Password"],
-            "ChangePass" => $getUA[0]["ChangePass"],
-            "AllOfficeAccess" => $getUA[0]["AllOfficeAcess"],
-        ));
-    } else {
-        echo json_encode(array("status" => "unrecognized"));
+        if (is_array($getUA) && isset($getUA[0])) {
+            error_log("User found: " . json_encode($getUA[0]));
+            echo json_encode([
+                "status"        => "Registered",
+                "EmpID"         => $getUA[0]["EmpID"],
+                "UserID"        => $getUA[0]["UserID"],
+                "RID"           => $getUA[0]["RID"],
+                "EmailAddress"  => $getUA[0]["EmailAddress"],
+                "Office_id"     => $getUA[0]["Office_id"],
+                "Name"          => $getUA[0]["Name"],
+                "Password"      => $getUA[0]["Password"],
+                "ChangePass"    => $getUA[0]["ChangePass"],
+                "AllOfficeAccess" => $getUA[0]["AllOfficeAcess"], // note JSON key vs column name
+            ]);
+        } elseif ($getUA === "No DB") {
+            error_log("Database connection failed");
+            echo json_encode(["status" => "error", "message" => "Database connection failed"]);
+        } else {
+            error_log("No user found or query returned empty");
+            echo json_encode(["status" => "unrecognized"]);
+        }
+    } catch (Exception $e) {
+        error_log("Exception in login: " . $e->getMessage());
+        echo json_encode(["status" => "error", "message" => $e->getMessage()]);
     }
     break;
 

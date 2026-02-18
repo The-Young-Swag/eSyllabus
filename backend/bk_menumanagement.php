@@ -321,16 +321,7 @@ function getSidebarMenu() {
     foreach ($UserMenus as $menuItem) {
         $icon = !empty($menuItem["MenIcon"]) ? htmlspecialchars($menuItem["MenIcon"]) : 'fas fa-circle';
         
-        $html .= "<li class='nav-item' data-read='{$menuItem["MenID"]}'>
-                <a href='#' class='nav-link' id='clckdropdown' data-IDsubmenu='{$menuItem["MenID"]}'>
-                    <i class='{$icon}'></i>
-                    <p>
-                        {$menuItem["Menu"]}
-                        <i class='right fas fa-angle-left'></i>
-                    </p>
-                </a>
-                <ul class='nav nav-treeview' id='{$menuItem["MenID"]}'>";
-
+        // Check if this menu has children
         $childMenus = execsqlSRS("SELECT m.* 
                 FROM Sys_Menu m 
                 INNER JOIN Sys_RoleMenu rm ON rm.MenID = m.MenID 
@@ -343,20 +334,40 @@ function getSidebarMenu() {
                 AND MotherMenID = ?
                 ORDER BY m.Arrangement ASC
             ", "Select", [$RID, $menuItem["MenID"]]);
-    
-        foreach ($childMenus as $childMenu) {
-            $childIcon = !empty($childMenu["MenIcon"]) ? htmlspecialchars($childMenu["MenIcon"]) : 'fas fa-circle';
-            $logoutClass = htmlspecialchars($childMenu["Menucode"]) == "u_Logout" ? "bg-danger rounded" : "";
-            
-            $html .= "<li class='nav-item {$logoutClass}'>
-                    <a href='#' class='nav-link' id='callpages' data-pagename='{$childMenu["MenuLink"]}'>
-                        <i class='{$childIcon}'></i>
-                        <p>{$childMenu["Menu"]}</p>
-                    </a>
-                  </li>";
+        
+        $hasChildren = !empty($childMenus);
+        
+        // Add has-treeview class and data-widget for parent if has children
+        $liClass = $hasChildren ? 'nav-item has-treeview' : 'nav-item';
+        $dataWidget = $hasChildren ? ' data-widget="treeview"' : '';
+        
+        $html .= "<li class='{$liClass}' data-read='{$menuItem["MenID"]}'{$dataWidget}>
+                <a href='#' class='nav-link' id='clckdropdown' data-IDsubmenu='{$menuItem["MenID"]}'>
+                    <i class='{$icon}'></i>
+                    <p>
+                        {$menuItem["Menu"]}
+                        " . ($hasChildren ? "<i class='right fas fa-angle-left'></i>" : "") . "
+                    </p>
+                </a>";
+        
+        if ($hasChildren) {
+            $html .= "<ul class='nav nav-treeview' id='{$menuItem["MenID"]}'>";
+        
+            foreach ($childMenus as $childMenu) {
+                $childIcon = !empty($childMenu["MenIcon"]) ? htmlspecialchars($childMenu["MenIcon"]) : 'fas fa-circle';
+                $logoutClass = htmlspecialchars($childMenu["Menucode"]) == "u_Logout" ? "bg-danger rounded" : "";
+                
+                $html .= "<li class='nav-item {$logoutClass}'>
+                        <a href='#' class='nav-link' id='callpages' data-pagename='{$childMenu["MenuLink"]}'>
+                            <i class='{$childIcon}'></i>
+                            <p>{$childMenu["Menu"]}</p>
+                        </a>
+                      </li>";
+            }
+            $html .= "</ul>";
         }
-
-        $html .= "</ul></li>";
+        
+        $html .= "</li>";
     }
     
     return $html;

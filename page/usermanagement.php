@@ -186,7 +186,7 @@ $(document).off('click.user', '#btnSaveUser').on('click.user', '#btnSaveUser', f
     const btn = $(this);
     const originalText = btn.html();
     
-    // Get form data - include libAccess and changePass
+    // Get form data and changePass
     const formData = {
         request: "addUser",
         empID: $('#u_empID').val(),
@@ -228,21 +228,20 @@ $(document).off('click.user', '#btnUpdateUser').on('click.user', '#btnUpdateUser
     const originalText = btn.html();
     
     // Get form data - include libAccess
-    const formData = {
-        request: "updateUser",
-        userID: $('#edit_userID').val(),
-        empID: $('#edit_empID').val(),
-        email: $('#edit_email').val(),
-        name: $('#edit_name').val(),
-        roleID: $('#edit_role').val(),
-        officeID: $('#edit_office').val(),
-        positionID: $('#edit_position').val(),
-        isActive: $('#edit_status').val(),
-        allOfficeAccess: $('#edit_alloffice').val(),
-        changePass: $('#edit_changepass').val(),
-        libAccess: $('#edit_libAccess').val()  // Add this line
-
-    };
+const formData = {
+    request: "updateUser",
+    userID: $('#edit_userID').val(),
+    empID: $('#edit_empID').val(),
+    email: $('#edit_email').val(),
+    name: $('#edit_name').val(),
+    roleID: $('#edit_role').val(),
+    officeID: $('#edit_office').val(),
+    positionID: $('#edit_position').val(),
+    isActive: $('#edit_status').val(),
+    allOfficeAccess: $('#edit_alloffice').val(),
+    newPassword: $('#edit_newPassword').val(),  // add this
+   
+};
     
     // Validation
     if (!formData.empID || !formData.name || !formData.roleID) {
