@@ -7,6 +7,7 @@ $requestedTab = $_POST['tab'] ?? 'users';
 $startDate    = $_POST['startDate'] ?? null;
 $endDate      = $_POST['endDate'] ?? null;
 $classification = $_POST['classification'] ?? 'All';
+$libraryFilter = $_POST['library'] ?? 'All';   // new library filter
 
 // ------------------- VALIDATION -------------------
 $validTabs = ['users','colleges','courses','demographics'];
@@ -15,20 +16,33 @@ if(!in_array($requestedTab, $validTabs)){
     exit;
 }
 
-// ------------------- DATE FILTER ONLY (classification removed) -------------------
+// ------------------- BUILD FILTERS -------------------
 $dateFilter = '';
 $params = [];
+
+// Date range (inclusive full day)
 if($startDate){
-    $dateFilter .= " AND checkin_time >= :startDate";
+    $dateFilter .= " AND CAST(checkin_time AS DATE) >= :startDate";
     $params[':startDate'] = $startDate;
 }
 if($endDate){
-    $dateFilter .= " AND checkin_time <= :endDate";
+    $dateFilter .= " AND CAST(checkin_time AS DATE) <= :endDate";
     $params[':endDate'] = $endDate;
 }
-// No classification in SQL anymore – it will be applied in PHP
 
-// ------------------- FETCH ALL LOGS (UNFILTERED BY CLASSIFICATION) -------------------
+// Classification filter
+if($classification !== 'All'){
+    $dateFilter .= " AND classification = :classification";
+    $params[':classification'] = $classification;
+}
+
+// Library filter (SectionID)
+if($libraryFilter !== 'All'){
+    $dateFilter .= " AND l.library = :library";
+    $params[':library'] = $libraryFilter;
+}
+
+// ------------------- FETCH LOGS -------------------
 $sqlLogs = "
     SELECT 
         l.id, l.id_number, l.name, l.college, l.course, l.library,
@@ -41,27 +55,18 @@ $sqlLogs = "
     ORDER BY l.checkin_time DESC
 ";
 
-$allLogs = execsqlSRS($sqlLogs, 'Select', $params);   // Renamed to $allLogs
+// IMPORTANT: Pass the $params array as the third argument
+$libraryLogs = execsqlSRS($sqlLogs, 'Select', $params);
 
-// ------------------- GLOBAL KPI METRICS (from unfiltered logs) -------------------
-$totalVisits = count($allLogs);
+// ------------------- GLOBAL KPI METRICS -------------------
+$totalVisits = count($libraryLogs);
 $totalDuration = array_sum(array_map(function($log){
     return calculateDuration($log['checkin_time'], $log['checkout_time']);
-}, $allLogs));
-$uniqueUsers = count(array_unique(array_column($allLogs,'id_number')));
+}, $libraryLogs));
+$uniqueUsers = count(array_unique(array_column($libraryLogs,'id_number')));
 $avgDuration = $totalVisits ? round($totalDuration / $totalVisits, 1) : 0;
-$activeColleges = count(array_unique(array_filter(array_column($allLogs, 'college'))));
-$uniqueCourses  = count(array_unique(array_filter(array_column($allLogs, 'course'))));
-
-// ------------------- APPLY CLASSIFICATION FILTER FOR TAB CONTENT -------------------
-if ($classification !== 'All') {
-    $filteredLogs = array_filter($allLogs, fn($log) => strtolower($log['classification']) === strtolower($classification));
-} else {
-    $filteredLogs = $allLogs;
-}
-
-// Overwrite $libraryLogs for the rest of the code (tabs use filtered data)
-$libraryLogs = $filteredLogs;
+$activeColleges = count(array_unique(array_filter(array_column($libraryLogs, 'college'))));
+$uniqueCourses  = count(array_unique(array_filter(array_column($libraryLogs, 'course'))));
 
 // ------------------- HELPER FUNCTIONS -------------------
 function calculateDuration($checkin, $checkout){
@@ -89,7 +94,7 @@ foreach($classifications as $class){
     $checkinCounts = [];
     $durationCounts = [];
     foreach($logsByClass as $log){
-        $key = $log['id_number'].'|'.$log['name'];
+        $key = $log['id_number'].'|'.$log['name'].'|'.$log['libraryName']; // include library for display
         $checkinCounts[$key] = ($checkinCounts[$key] ?? 0) + 1;
         $durationCounts[$key] = ($durationCounts[$key] ?? 0) + calculateDuration($log['checkin_time'], $log['checkout_time']);
     }
@@ -154,7 +159,7 @@ foreach($libraryLogs as $log){
     $sexDistribution[$sex] = ($sexDistribution[$sex] ?? 0) + 1;
 }
 
-// ------------------- HTML GENERATION (unchanged) -------------------
+// ------------------- HTML GENERATION -------------------
 ob_start();
 
 switch($requestedTab){
@@ -170,15 +175,7 @@ switch($requestedTab){
                     <i class="fas fa-users me-1 text-muted"></i> <?= count($libraryLogs) ?> Active Users
                 </div>
             </div>
-            <div class="d-flex align-items-center gap-2 mb-3">
-                <label class="small fw-semibold me-1">Classification:</label>
-                <select class="form-select form-select-sm" id="userClassificationFilter" style="width: auto;">
-                    <option value="All" <?= $classification == 'All' ? 'selected' : '' ?>>All</option>
-                    <option value="Student" <?= $classification == 'Student' ? 'selected' : '' ?>>Student</option>
-                    <option value="Employee" <?= $classification == 'Employee' ? 'selected' : '' ?>>Employee</option>
-                    <option value="Guest" <?= $classification == 'Guest' ? 'selected' : '' ?>>Guest</option>
-                </select>
-            </div>
+
             <div class="row g-4 mb-4">
                 <?php foreach($classifications as $class): 
                     $count = count(filterLogsByClassification($libraryLogs, $class));
@@ -215,17 +212,21 @@ switch($requestedTab){
                                         <tr>
                                             <th>User</th>
                                             <th>Type</th>
+                                            <th>Library</th>
                                             <th class="text-end">Check-ins</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         <?php foreach($topCheckins as $class => $users):
                                             foreach($users as $key => $count):
-                                                [$idNumber,$name] = explode('|',$key);
+                                                $parts = explode('|', $key);
+                                                $name = $parts[1] ?? 'Unknown';
+                                                $library = $parts[2] ?? 'Unknown';
                                         ?>
                                         <tr>
                                             <td class="fw-semibold"><?= htmlspecialchars($name) ?></td>
                                             <td><span class="badge bg-light text-dark"><?= $class ?></span></td>
+                                            <td><?= htmlspecialchars($library) ?></td>
                                             <td class="text-end"><?= $count ?></td>
                                         </tr>
                                         <?php endforeach; endforeach; ?>
@@ -251,17 +252,21 @@ switch($requestedTab){
                                         <tr>
                                             <th>User</th>
                                             <th>Type</th>
+                                            <th>Library</th>
                                             <th class="text-end">Duration (min)</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         <?php foreach($topDuration as $class => $users):
                                             foreach($users as $key => $minutes):
-                                                [$idNumber,$name] = explode('|',$key);
+                                                $parts = explode('|', $key);
+                                                $name = $parts[1] ?? 'Unknown';
+                                                $library = $parts[2] ?? 'Unknown';
                                         ?>
                                         <tr>
                                             <td class="fw-semibold"><?= htmlspecialchars($name) ?></td>
                                             <td><span class="badge bg-light text-dark"><?= $class ?></span></td>
+                                            <td><?= htmlspecialchars($library) ?></td>
                                             <td class="text-end"><?= round($minutes) ?></td>
                                         </tr>
                                         <?php endforeach; endforeach; ?>

@@ -1,3 +1,13 @@
+<?php
+// Fetch library sections for the dropdown
+include "../../db/dbconnection.php";
+$librarySections = execsqlSRS(
+    "SELECT SectionID, SectionName FROM LibrarySection WHERE IsActive = 1 ORDER BY SectionName",
+    'Select',
+    []  // Empty array for parameters
+);
+?>
+
 <div class="container-fluid py-4">
     <!-- HEADER SECTION with improved visual hierarchy -->
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
@@ -26,37 +36,58 @@
     </div>
 
     <!-- ENHANCED FILTER SECTION with better layout -->
-    <div class="card border-0 shadow-sm mb-4">
-        <div class="card-body">
+   <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <!-- Symmetrical 4‑column filter row -->
+        <div class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small fw-semibold">Start Date</label>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-light border-end-0">
+                        <i class="fas fa-calendar text-muted"></i>
+                    </span>
+                    <input type="date" class="form-control border-start-0 ps-0" id="startDate">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-semibold">End Date</label>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-light border-end-0">
+                        <i class="fas fa-calendar-check text-muted"></i>
+                    </span>
+                    <input type="date" class="form-control border-start-0 ps-0" id="endDate">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-semibold">User Classification</label>
+                <select class="form-select form-select-sm" id="globalClassification">
+                    <option value="All" selected>All</option>
+                    <option value="Student">Student</option>
+                    <option value="Employee">Employee</option>
+                    <option value="Guest">Guest</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-semibold">Library</label>
+                <select class="form-select form-select-sm" id="libraryFilter">
+                    <option value="All" selected>All Libraries</option>
+                    <?php foreach ($librarySections as $lib): ?>
+                        <option value="<?= $lib['SectionID'] ?>"><?= htmlspecialchars($lib['SectionName']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+        </div>
 
-<div class="row g-3">
-    <div class="col-md-3">
-        <label class="form-label small fw-semibold">Start Date</label>
-        <div class="input-group input-group-sm">
-            <span class="input-group-text bg-light border-end-0">
-                <i class="fas fa-calendar text-muted"></i>
-            </span>
-            <input type="date" class="form-control border-start-0 ps-0" id="startDate">
+        <!-- Generate button row (full width on mobile, inline on larger screens) -->
+        <div class="row mt-3">
+            <div class="col-12 col-md-4 offset-md-8">
+                <button class="btn btn-primary w-100" id="generateBtn">
+                    <i class="fas fa-chart-bar me-1"></i> Generate Analytics
+                </button>
+            </div>
         </div>
-    </div>
-    <div class="col-md-3">
-        <label class="form-label small fw-semibold">End Date</label>
-        <div class="input-group input-group-sm">
-            <span class="input-group-text bg-light border-end-0">
-                <i class="fas fa-calendar-check text-muted"></i>
-            </span>
-            <input type="date" class="form-control border-start-0 ps-0" id="endDate">
-        </div>
-    </div>
-    <div class="col-md-3 d-flex align-items-end">
-        <button class="btn btn-primary flex-grow-1" id="generateBtn">
-            <i class="fas fa-chart-bar me-1"></i> Generate Analytics
-        </button>
     </div>
 </div>
-</div>
-        </div>
-    </div>
 
     <!-- KEY METRICS OVERVIEW (New section for better analytics) -->
 <!-- KEY METRICS OVERVIEW with IDs -->
@@ -184,6 +215,8 @@ $(function () {
         tabs: $("#analyticsTabs .nav-link"),
         startDate: $('#startDate'),
         endDate: $('#endDate'),
+        globalClassification: $('#globalClassification'),
+        libraryFilter: $('#libraryFilter'),          // new
         generateBtn: $('#generateBtn')
     };
 
@@ -218,17 +251,14 @@ $(function () {
         `);
     }
 
-    function loadTab(tab) {
+function loadTab(tab) {
         activeTab = tab;
         if (currentRequest) currentRequest.abort();
         showLoading();
 
-        // Determine classification: only for Users tab, otherwise 'All'
-        let classification = 'All';
-        if (tab === 'users') {
-            // If the dropdown exists, use its value; otherwise fallback to stored
-            classification = $('#userClassificationFilter').val() || currentClassification;
-        }
+        // Gather all filter values
+        let classification = UI.globalClassification.val() || 'All';
+        let library = UI.libraryFilter.val() || 'All';
 
         currentRequest = $.ajax({
             url: "backend/bk_LibraryMenu/bk_libReports.php",
@@ -238,7 +268,8 @@ $(function () {
                 tab: tab,
                 startDate: UI.startDate.val(),
                 endDate: UI.endDate.val(),
-                classification: classification
+                classification: classification,
+                library: library                 // send library
             }
         })
         .done(function(response) {
@@ -246,11 +277,10 @@ $(function () {
                 UI.tabContent.html(`<div class="text-danger p-4">${response.message}</div>`);
                 return;
             }
-
-            // Insert the HTML for the tab
             UI.tabContent.html(response.html);
+            initializeCharts(response, tab);
 
-            // Update global metric cards (always from unfiltered data)
+            // Update global metric cards
             $('#totalCheckinsValue').text(response.totalVisits.toLocaleString());
             $('#avgDurationValue').text(response.avgDuration + ' hrs');
             $('#activeCollegesValue').text(response.activeColleges);
@@ -260,26 +290,9 @@ $(function () {
             const now = new Date();
             const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true });
             $('.text-muted:contains("Last updated")').html(`<i class="fas fa-sync-alt me-1"></i> Last updated: Today at ${timeStr}`);
-
-            // Initialize charts for this tab
-            initializeCharts(response, tab);
-
-            // If Users tab, handle classification dropdown
-            if (tab === 'users') {
-                // Set the dropdown to the current value
-                const $filter = $('#userClassificationFilter');
-                $filter.val(currentClassification);
-
-                // Bind change event
-                $filter.off('change').on('change', function() {
-                    currentClassification = $(this).val();
-                    loadTab('users');
-                });
-            }
         })
-        .fail(function(jqXHR, textStatus, errorThrown) {
-            console.error("AJAX error:", textStatus, errorThrown);
-            UI.tabContent.html(`<div class="text-danger p-4">Failed to load analytics. Check console.</div>`);
+        .fail(function() {
+            UI.tabContent.html(`<div class="text-danger p-4">Failed to load analytics.</div>`);
         });
     }
 
@@ -340,7 +353,7 @@ $(function () {
     }
 
     // Event handlers
-    UI.tabs.on('click', function (e) {
+       UI.tabs.on('click', function (e) {
         e.preventDefault();
         UI.tabs.removeClass('active');
         $(this).addClass('active');
@@ -355,13 +368,14 @@ $(function () {
         loadTab(activeTab);
     });
 
-    UI.startDate.add(UI.endDate).on('change', function () {
+    // Reload when any filter changes (dates, classification, library)
+    UI.startDate.add(UI.endDate).add(UI.globalClassification).add(UI.libraryFilter).on('change', function () {
         if (UI.startDate.val() && UI.endDate.val()) {
             loadTab(activeTab);
         }
     });
 
-    // Initial load (default dates if empty: last 7 days)
+    // Set default dates if empty (last 7 days)
     if (!UI.startDate.val()) {
         let today = new Date();
         let lastWeek = new Date(today);
@@ -369,6 +383,8 @@ $(function () {
         UI.startDate.val(lastWeek.toISOString().split('T')[0]);
         UI.endDate.val(today.toISOString().split('T')[0]);
     }
+
+    // Initial load
     loadTab('users');
 });
 </script>
