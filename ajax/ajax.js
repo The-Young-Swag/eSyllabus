@@ -871,43 +871,43 @@ function updateMenuRow(data) {
  * @param {number} RID - Role ID (optional, uses current user's RID if not provided)
  */
 function updateSidebarMenu(RID = null) {
+
     const currentRID = RID || UserInfo?.RID || 0;
+    if (!currentRID) return;
 
-    if (!currentRID) {
-        console.log("No RID available for sidebar update");
-        return;
-    }
+    $.post("backend/bk_menumanagement.php", {
+        request: "getSidebarMenu",
+        RID: currentRID
+    }, function (html) {
 
-    $.ajax({
-        url: "backend/bk_menumanagement.php",
-        method: "POST",
-        data: {
-            request: "getSidebarMenu",
-            RID: currentRID
-        },
-        success: function (html) {
+        const $sidebar = $("#sidebarMenuContainer");
 
-            // Replace sidebar menu HTML
-            $("#sidebarMenuContainer").html(html);
+        // 1️⃣ Remove previous treeview event handlers
+        $sidebar.find("li > a").off();
 
-            // Reinitialize AdminLTE Treeview (THIS IS WHAT YOU WERE MISSING)
-            $('[data-widget="treeview"]').Treeview('init');
+        // 2️⃣ Clear plugin data (important)
+        $sidebar.removeData('lte.treeview');
 
-            // Re-run highlight
-            if (typeof setupMenuHighlighting === "function") {
-                setupMenuHighlighting();
-            }
+        // 3️⃣ Replace sidebar content
+        $sidebar.html(html);
 
-            // Optional toast
-            if (typeof showToast === "function") {
-                showToast("Sidebar updated");
-            }
-        },
-        error: function () {
-            console.log("Sidebar update failed");
+        // 4️⃣ Force reinitialize AdminLTE Treeview properly
+        $sidebar.Treeview({
+            accordion: false,
+            animationSpeed: 200,
+            trigger: '.nav-link'
+        });
+
+        // 5️⃣ Reapply highlighting
+        if (typeof setupMenuHighlighting === "function") {
+            setupMenuHighlighting();
         }
+
+    }).fail(function () {
+        console.log("Sidebar update failed");
     });
 }
+
 
 
 /**
