@@ -875,38 +875,51 @@ function updateSidebarMenu(RID = null) {
     const currentRID = RID || UserInfo?.RID || 0;
     if (!currentRID) return;
 
-    $.post("backend/bk_menumanagement.php", {
-        request: "getSidebarMenu",
-        RID: currentRID
-    }, function (html) {
+    const $spinner = $("#loadingSpinner");
 
-        const $sidebar = $("#sidebarMenuContainer");
+    $.ajax({
+        url: "backend/bk_menumanagement.php",
+        method: "POST",
+        data: {
+            request: "getSidebarMenu",
+            RID: currentRID
+        },
 
-        // 1️⃣ Remove previous treeview event handlers
-        $sidebar.find("li > a").off();
+        beforeSend: function () {
+            // 🔥 Show spinner smoothly
+            $spinner.css("display", "flex").hide().fadeIn(200);
+        },
 
-        // 2️⃣ Clear plugin data (important)
-        $sidebar.removeData('lte.treeview');
+        success: function (html) {
 
-        // 3️⃣ Replace sidebar content
-        $sidebar.html(html);
+            const $sidebar = $("#sidebarMenuContainer");
 
-        // 4️⃣ Force reinitialize AdminLTE Treeview properly
-        $sidebar.Treeview({
-            accordion: false,
-            animationSpeed: 200,
-            trigger: '.nav-link'
-        });
+            // Reset and replace sidebar content
+            $sidebar.empty().html(html);
 
-        // 5️⃣ Reapply highlighting
-        if (typeof setupMenuHighlighting === "function") {
-            setupMenuHighlighting();
+            // Small delay ensures DOM is ready
+            setTimeout(function () {
+                $sidebar.Treeview({
+                    accordion: false
+                });
+
+                if (typeof setupMenuHighlighting === "function") {
+                    setupMenuHighlighting();
+                }
+            }, 30);
+        },
+
+        complete: function () {
+            // 🔥 Always hide spinner (success or error)
+            $spinner.fadeOut(200);
+        },
+
+        error: function () {
+            console.log("Sidebar update failed");
         }
-
-    }).fail(function () {
-        console.log("Sidebar update failed");
     });
 }
+
 
 
 
