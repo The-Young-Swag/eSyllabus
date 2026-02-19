@@ -132,6 +132,16 @@ $librarySections = execsqlSRS(
             </div>
         </div>
     </div>
+	
+	<div class="col-md-3">
+    <div class="card border-0 shadow-sm bg-secondary bg-gradient text-white rounded-4">
+        <div class="card-body">
+            <div class="small text-white-50" id="endDateCheckinsLabel">Check‑ins on —</div>
+            <h3 class="fw-bold mt-1 mb-0" id="endDateCheckinsValue">—</h3>
+        </div>
+    </div>
+</div>
+
 </div>
 
     <!-- SECTION TABS for better organization -->
@@ -175,6 +185,8 @@ $librarySections = execsqlSRS(
         </div>
     </div>
 </div>
+<?php include '../modalContainer.php'; ?>
+<?php include 'LibModals.php'; ?>
 
 <script>
 $(function () {
@@ -191,7 +203,152 @@ $(function () {
     let currentRequest = null;
     let activeTab = 'users';
     let currentClassification = 'All'; // store the selected classification
+	
+// ========== View All Modal ==========
+let currentViewAllTab = 'users';
+let currentViewAllPage = 1;
+let totalViewAllPages = 1;
 
+$(document).on('click', '.view-all-btn', function() {
+    currentViewAllTab = $(this).data('tab');
+    currentViewAllPage = 1;
+    loadViewAll(currentViewAllTab, currentViewAllPage);
+    $('#dynamicModal').modal('show');
+});
+
+function loadViewAll(tab, page) {
+    $('#viewAllModalBody').html('<div class="text-center"><div class="spinner-border"></div></div>');
+    $('#viewAllModalFooter').empty();
+
+    $.ajax({
+        // ... ajax settings ...
+        success: function(res) {
+            if (res.status !== 'success') {
+                $('#viewAllModalBody').html('<div class="alert alert-danger">Failed to load data.</div>');
+                return;
+            }
+            const data = res.data;
+            totalViewAllPages = Math.ceil(data.total / 10);
+            renderViewAllTable(tab, data.rows);
+            renderPagination(totalViewAllPages, currentViewAllPage, tab);
+            $('#viewAllModalTitle').text(getModalTitle(tab));
+            $('#viewAllModalSubtitle').text(`Showing page ${currentViewAllPage} of ${totalViewAllPages} (Total: ${data.total} records)`);
+        }
+    });
+}
+
+function getModalTitle(tab) {
+    const titles = {
+        users: 'All Users',
+        colleges: 'All Colleges',
+        courses: 'All Courses',
+        demographics: 'All Check‑in Logs'
+    };
+    return titles[tab] || 'All Records';
+}
+
+function renderViewAllTable(tab, rows) {
+    let html = '<div class="table-responsive"><table class="table table-sm table-striped">';
+    if (tab === 'users') {
+        html += '<thead><tr><th>Name</th><th>Type</th><th>Library</th><th class="text-end">Check-ins</th><th class="text-end">Duration (min)</th><th>Last Check-in</th></tr></thead><tbody>';
+        rows.forEach(r => {
+            html += `<tr>
+                <td>${escapeHtml(r.name)}</td>
+                <td>${escapeHtml(r.type)}</td>
+                <td>${escapeHtml(r.library)}</td>
+                <td class="text-end">${r.checkins}</td>
+                <td class="text-end">${Math.round(r.duration)}</td>
+                <td>${new Date(r.last_checkin).toLocaleString()}</td>
+            </tr>`;
+        });
+    } else if (tab === 'colleges') {
+        html += '<thead><tr><th>College</th><th class="text-end">Unique Users</th><th class="text-end">Total Duration (min)</th><th>Last Check-in</th></tr></thead><tbody>';
+        rows.forEach(r => {
+            html += `<tr>
+                <td>${escapeHtml(r.name)}</td>
+                <td class="text-end">${r.checkins}</td>
+                <td class="text-end">${Math.round(r.duration)}</td>
+                <td>${new Date(r.last_checkin).toLocaleString()}</td>
+            </tr>`;
+        });
+    } else if (tab === 'courses') {
+        html += '<thead><tr><th>College</th><th>Course</th><th class="text-end">Unique Users</th><th class="text-end">Total Duration (min)</th><th>Last Check-in</th></tr></thead><tbody>';
+        rows.forEach(r => {
+            html += `<tr>
+                <td>${escapeHtml(r.college)}</td>
+                <td>${escapeHtml(r.course)}</td>
+                <td class="text-end">${r.checkins}</td>
+                <td class="text-end">${Math.round(r.duration)}</td>
+                <td>${new Date(r.last_checkin).toLocaleString()}</td>
+            </tr>`;
+        });
+    } else if (tab === 'demographics') {
+        html += '<thead><tr><th>Name</th><th>Sex</th><th>Check-in</th><th>Check-out</th><th class="text-end">Duration (min)</th></tr></thead><tbody>';
+        rows.forEach(r => {
+            html += `<tr>
+                <td>${escapeHtml(r.name)}</td>
+                <td>${escapeHtml(r.sex)}</td>
+                <td>${new Date(r.checkin).toLocaleString()}</td>
+                <td>${r.checkout ? new Date(r.checkout).toLocaleString() : '—'}</td>
+                <td class="text-end">${Math.round(r.duration)}</td>
+            </tr>`;
+        });
+    }
+    html += '</tbody></table></div>';
+    $('#dynamicModalBody').html(html);
+}
+
+function renderPagination(totalPages, currentPage, tab) {
+    let pagHtml = '';
+    for (let i = 1; i <= totalPages; i++) {
+        pagHtml += `<li class="page-item ${i === currentPage ? 'active' : ''}"><a class="page-link" href="#" data-page="${i}">${i}</a></li>`;
+    }
+    $('#dynamicModalFooter').html('<nav><ul class="pagination">' + pagHtml + '</ul></nav>');
+    $('#dynamicModalFooter .page-link').click(function(e) {
+        e.preventDefault();
+        currentViewAllPage = $(this).data('page');
+        loadViewAll(tab, currentViewAllPage);
+    });
+}
+
+// Helper escape function
+function escapeHtml(unsafe) {
+    if (!unsafe) return '';
+    return unsafe.toString().replace(/[&<>"']/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        if (m === '"') return '&quot;';
+        if (m === "'") return '&#039;';
+    });
+}
+
+// ========== PDF Export ==========
+$('#exportPDF').click(function() {
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('l', 'mm', 'a4');
+    const tabContent = document.getElementById('tabContent');
+
+    html2canvas(tabContent, { scale: 2, logging: false, allowTaint: false, useCORS: true }).then(canvas => {
+        const imgData = canvas.toDataURL('image/png');
+        const imgWidth = 280; // A4 landscape width in mm
+        const pageHeight = 210;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        let heightLeft = imgHeight;
+        let position = 0;
+
+        pdf.addImage(imgData, 'PNG', 5, position + 5, imgWidth - 10, imgHeight, undefined, 'FAST');
+        heightLeft -= pageHeight;
+
+        while (heightLeft >= 0) {
+            position = heightLeft - imgHeight;
+            pdf.addPage();
+            pdf.addImage(imgData, 'PNG', 5, position + 5, imgWidth - 10, imgHeight, undefined, 'FAST');
+            heightLeft -= pageHeight;
+        }
+        pdf.save('Library_Report.pdf');
+    });
+});
     /* ===========================
        Chart Manager
     ============================ */
@@ -253,7 +410,8 @@ function loadTab(tab) {
             $('#avgDurationValue').text(response.avgDuration + ' hrs');
             $('#activeCollegesValue').text(response.activeColleges);
             $('#uniqueCoursesValue').text(response.uniqueCourses);
-
+			$('#endDateCheckinsLabel').text(`Check‑ins on ${new Date(UI.endDate.val()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`);
+			$('#endDateCheckinsValue').text(response.endDateCheckins.toLocaleString());
             // Update footer timestamp
             const now = new Date();
             const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true });
@@ -265,28 +423,50 @@ function loadTab(tab) {
     }
 
     // Chart initialization functions (unchanged)
-    function initializeCharts(data, tab) {
-        if (tab === 'users') {
-            renderBar('chartUsersCheckin', extractLabels(data.topCheckins), extractValues(data.topCheckins), 'Check-ins');
-            renderBar('chartUsersDuration', extractLabels(data.topDuration), extractValues(data.topDuration), 'Duration (min)');
-        }
-        if (tab === 'colleges') {
-            renderBar('chartCollegeCheckin', Object.keys(data.top3CollegesCheckin), Object.values(data.top3CollegesCheckin), 'Check-ins');
-            renderBar('chartCollegeDuration', Object.keys(data.top3CollegesDuration), Object.values(data.top3CollegesDuration), 'Duration (min)');
-        }
-        if (tab === 'courses') {
-            Object.keys(data.topCoursesCheckin).forEach(college => {
-                const cleanId = college.replace(/[^a-zA-Z0-9]/g, '');
-                renderBar('chartCourseCheckin_' + cleanId, Object.keys(data.topCoursesCheckin[college]), Object.values(data.topCoursesCheckin[college]), 'Check-ins');
-                if (data.topCoursesDuration[college]) {
-                    renderBar('chartCourseDuration_' + cleanId, Object.keys(data.topCoursesDuration[college]), Object.values(data.topCoursesDuration[college]), 'Duration (min)');
-                }
-            });
-        }
-        if (tab === 'demographics') {
-            renderPie('chartSexCheckin', Object.keys(data.sexDistribution), Object.values(data.sexDistribution));
-        }
+function initializeCharts(data, tab) {
+    if (tab === 'users') {
+        renderBar('chartUsersCheckin', 
+            extractLabels(data.topCheckins), 
+            extractValues(data.topCheckins, 'count'), 
+            'Check-ins');
+        renderBar('chartUsersDuration', 
+            extractLabels(data.topDuration), 
+            extractValues(data.topDuration, 'minutes'), 
+            'Duration (min)');
     }
+    if (tab === 'colleges') {
+        renderBar('chartCollegeCheckin', 
+            Object.keys(data.top3CollegesCheckin), 
+            Object.values(data.top3CollegesCheckin).map(v => v.count), 
+            'Check-ins');
+        renderBar('chartCollegeDuration', 
+            Object.keys(data.top3CollegesDuration), 
+            Object.values(data.top3CollegesDuration).map(v => v.minutes), 
+            'Duration (min)');
+    }
+    if (tab === 'courses') {
+        Object.keys(data.topCoursesCheckin).forEach(college => {
+            const cleanId = college.replace(/[^a-zA-Z0-9]/g, '');
+            const courses = data.topCoursesCheckin[college];
+            renderBar('chartCourseCheckin_' + cleanId, 
+                Object.keys(courses), 
+                Object.values(courses).map(v => v.count), 
+                'Check-ins');
+            if (data.topCoursesDuration[college]) {
+                const durCourses = data.topCoursesDuration[college];
+                renderBar('chartCourseDuration_' + cleanId, 
+                    Object.keys(durCourses), 
+                    Object.values(durCourses).map(v => v.minutes), 
+                    'Duration (min)');
+            }
+        });
+    }
+    if (tab === 'demographics') {
+        renderPie('chartSexCheckin', 
+            Object.keys(data.sexDistribution), 
+            Object.values(data.sexDistribution));
+    }
+}
 
     function renderBar(id, labels, data, label) {
         ChartManager.create(id, {
@@ -304,21 +484,25 @@ function loadTab(tab) {
         });
     }
 
-    function extractLabels(groupedData) {
-        const labels = [];
-        Object.values(groupedData).forEach(group => {
-            Object.entries(group).forEach(([key]) => labels.push(key.split('|')[1]));
+function extractLabels(groupedData) {
+    const labels = [];
+    Object.values(groupedData).forEach(group => {
+        Object.values(group).forEach(item => {
+            labels.push(item.name);
         });
-        return labels;
-    }
+    });
+    return labels;
+}
 
-    function extractValues(groupedData) {
-        const values = [];
-        Object.values(groupedData).forEach(group => {
-            Object.values(group).forEach(val => values.push(val));
+function extractValues(groupedData, valueKey) {
+    const values = [];
+    Object.values(groupedData).forEach(group => {
+        Object.values(group).forEach(item => {
+            values.push(item[valueKey]);
         });
-        return values;
-    }
+    });
+    return values;
+}
 
     // Event handlers
        UI.tabs.on('click', function (e) {
