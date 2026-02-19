@@ -3,7 +3,7 @@
   "type": "EMPLOYEE",
   "data": [
     {
-      "employee_number": "EMP0001000",
+      "employee_number": "TAU0001000",
       "name": "Satoru Gojo",
       "sex": "Male",
       "department": "CET",
@@ -11,7 +11,7 @@
       "employment_status": "ACTIVE"
     },
     {
-      "employee_number": "EMP0002000",
+      "employee_number": "TAU0002000",
       "name": "Shoko Ieiri",
       "sex": "Female",
       "department": "CAS",

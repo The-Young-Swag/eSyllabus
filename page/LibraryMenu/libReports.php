@@ -92,75 +92,43 @@ $librarySections = execsqlSRS(
     <!-- KEY METRICS OVERVIEW (New section for better analytics) -->
 <!-- KEY METRICS OVERVIEW with IDs -->
 <div class="row g-3 mb-4">
+    <!-- Total Check-ins -->
     <div class="col-md-3">
-        <div class="card border-0 shadow-sm bg-primary bg-opacity-10">
+        <div class="card border-0 shadow-sm bg-primary bg-gradient text-white rounded-4">
             <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <span class="small text-muted">Total Check-ins</span>
-                        <h3 class="fw-bold mt-1 mb-0" id="totalCheckinsValue">—</h3>
-                        <span class="badge bg-success bg-opacity-25 text-success mt-2">
-                            <i class="fas fa-arrow-up me-1"></i> +12.3%
-                        </span>
-                    </div>
-                    <div class="bg-primary bg-opacity-25 p-3 rounded-3">
-                        <i class="fas fa-user-check text-primary fs-3"></i>
-                    </div>
-                </div>
+                <div class="small text-white-50">Total Check-ins</div>
+                <h3 class="fw-bold mt-1 mb-0" id="totalCheckinsValue">—</h3>
+                <span class="badge bg-white text-primary mt-2">+12.3%</span>
             </div>
         </div>
     </div>
+    <!-- Avg. Duration -->
     <div class="col-md-3">
-        <div class="card border-0 shadow-sm bg-info bg-opacity-10">
+        <div class="card border-0 shadow-sm bg-info bg-gradient text-white rounded-4">
             <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <span class="small text-muted">Avg. Duration</span>
-                        <h3 class="fw-bold mt-1 mb-0" id="avgDurationValue">—</h3>
-                        <span class="badge bg-success bg-opacity-25 text-success mt-2">
-                            <i class="fas fa-arrow-up me-1"></i> +5.2%
-                        </span>
-                    </div>
-                    <div class="bg-info bg-opacity-25 p-3 rounded-3">
-                        <i class="fas fa-clock text-info fs-3"></i>
-                    </div>
-                </div>
+                <div class="small text-white-50">Avg. Duration</div>
+                <h3 class="fw-bold mt-1 mb-0" id="avgDurationValue">—</h3>
+                <span class="badge bg-white text-info mt-2">+5.2%</span>
             </div>
         </div>
     </div>
+    <!-- Active Colleges -->
     <div class="col-md-3">
-        <div class="card border-0 shadow-sm bg-warning bg-opacity-10">
+        <div class="card border-0 shadow-sm bg-warning bg-gradient text-dark rounded-4">
             <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <span class="small text-muted">Active Colleges</span>
-                        <h3 class="fw-bold mt-1 mb-0" id="activeCollegesValue">—</h3>
-                        <span class="badge bg-success bg-opacity-25 text-success mt-2">
-                            <i class="fas fa-arrow-up me-1"></i> +3
-                        </span>
-                    </div>
-                    <div class="bg-warning bg-opacity-25 p-3 rounded-3">
-                        <i class="fas fa-university text-warning fs-3"></i>
-                    </div>
-                </div>
+                <div class="small text-muted">Active Colleges</div>
+                <h3 class="fw-bold mt-1 mb-0" id="activeCollegesValue">—</h3>
+                <span class="badge bg-dark text-white mt-2">+3</span>
             </div>
         </div>
     </div>
+    <!-- Unique Courses -->
     <div class="col-md-3">
-        <div class="card border-0 shadow-sm bg-success bg-opacity-10">
+        <div class="card border-0 shadow-sm bg-success bg-gradient text-white rounded-4">
             <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <span class="small text-muted">Unique Courses</span>
-                        <h3 class="fw-bold mt-1 mb-0" id="uniqueCoursesValue">—</h3>
-                        <span class="badge bg-success bg-opacity-25 text-success mt-2">
-                            <i class="fas fa-arrow-up me-1"></i> +8.1%
-                        </span>
-                    </div>
-                    <div class="bg-success bg-opacity-25 p-3 rounded-3">
-                        <i class="fas fa-book text-success fs-3"></i>
-                    </div>
-                </div>
+                <div class="small text-white-50">Unique Courses</div>
+                <h3 class="fw-bold mt-1 mb-0" id="uniqueCoursesValue">—</h3>
+                <span class="badge bg-white text-success mt-2">+8.1%</span>
             </div>
         </div>
     </div>
