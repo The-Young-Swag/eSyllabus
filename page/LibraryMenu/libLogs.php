@@ -1,7 +1,7 @@
 <div class="container-fluid py-4">
 
     <!-- HEADER -->
-    <div class="card shadow-sm mb-4 border-0">
+    <div class="card shadow-sm mb-4 border-0 rounded-4">
         <div class="card-body d-flex flex-column flex-md-row justify-content-between align-items-md-center">
             <div>
                 <h4 class="fw-bold mb-1">Library Attendance Dashboard</h4>
@@ -14,73 +14,155 @@
         </div>
     </div>
 
+    <!-- LOG ATTENDANCE -->
+    <div class="card border-0 shadow-lg overflow-hidden rounded-4 mb-4">
+
+        <!-- Emerald Background Wrapper -->
+        <div class="card-body py-4 px-4 px-lg-5"
+             style="background: linear-gradient(145deg, #064e3b, #065f46);">
+
+            <!-- Elevated Form Container -->
+            <div class="bg-white rounded-4 shadow-sm p-4 p-lg-5 mx-auto"
+                 style="max-width: 1000px;">
+
+                <!-- HEADER ROW -->
+                <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4 flex-wrap">
+
+                    <!-- Title -->
+                    <div>
+                        <h5 class="fw-bold text-dark mb-1">
+                            Library Access
+                        </h5>
+                        <small class="text-muted">
+                            Secure identification verification
+                        </small>
+                    </div>
+
+                    <!-- Library Section -->
+                    <div class="mt-3 mt-md-0" style="min-width: 320px;">
+                        <small class="text-muted fw-semibold d-block mb-1">
+                            Library Section
+                        </small>
+                        <div class="form-control form-control-lg border-0 shadow-sm fw-semibold text-white fs-6 py-2"
+                             style="background: linear-gradient(90deg, #047857, #10b981); border-radius:0.5rem;">
+                            <span id="currentLibraryDisplay">Main Library</span>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- INPUT AREA -->
+                <form id="logForm" class="row g-3 align-items-end">
+
+                    <!-- Identification Number -->
+                    <div class="col-12">
+                        <label class="form-label fw-semibold text-dark mb-2">
+                            Identification Number
+                        </label>
+
+                        <div class="input-group input-group-lg shadow-sm">
+                            <input type="password"
+                                   class="form-control border-0 py-3"
+                                   id="inputStudentNumber"
+                                   placeholder="Enter or scan identification number"
+                                   autocomplete="off"
+                                   style="font-size:1.1rem;
+                                          background: linear-gradient(90deg, #e6f4ea, #ffffff);
+                                          border-radius: 0.5rem;
+                                          transition: all 0.2s ease-in-out;">
+
+                            <button type="button"
+                                    class="btn btn-light border-0 px-4"
+                                    id="toggleIdVisibility"
+                                    style="border-radius: 0.5rem;">
+                                <i class="fas fa-eye text-secondary" id="toggleIcon"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Special Key -->
+                    <div class="col-md-6" id="specialKeyContainer" style="display:none;">
+                        <label class="form-label fw-semibold text-dark mb-2">
+                            Special Key
+                        </label>
+
+                        <input type="password"
+                               class="form-control border-0 shadow-sm py-2"
+                               id="inputSpecialKey"
+                               maxlength="6"
+                               placeholder="MMDDYY"
+                               autocomplete="off"
+                               style="background: linear-gradient(90deg, #f3f9f7, #ffffff);
+                                      border-radius:0.5rem;">
+                    </div>
+
+                    <!-- Divider -->
+                    <div class="col-12">
+                        <hr class="my-3">
+                    </div>
+
+                    <!-- Submit Button -->
+                    <div class="col-12">
+                        <div class="d-grid">
+                            <button type="submit"
+                                    class="btn fw-semibold text-white py-3 shadow-sm"
+                                    style="background: linear-gradient(90deg, #047857, #10b981);
+                                           border:none;
+                                           font-size:1rem;
+                                           border-radius:0.5rem;">
+                                Confirm Access
+                            </button>
+                        </div>
+                    </div>
+
+                </form>
+
+            </div>
+        </div>
+    </div>
+
     <!-- KPI SECTION -->
     <div class="row g-3 mb-4">
         <?php 
         $kpiCards = [
-            ['id'=>'kpiTotalCheckins','label'=>'Total Check-Ins Today','color'=>'success','border'=>'success'],
-            ['id'=>'kpiActiveStudents','label'=>'Currently In Attendance','color'=>'primary','border'=>'primary'],
-            ['id'=>'topColleges','label'=>'Top 3 Colleges Today','color'=>'warning','type'=>'list'],
-            ['id'=>'topCourses','label'=>'Top 3 Courses Today','color'=>'info','type'=>'list']
+            ['id'=>'kpiTotalCheckins','label'=>'Total Check-Ins Today','color'=>'#10b981','border'=>'#047857'],   // Emerald
+            ['id'=>'kpiActiveStudents','label'=>'Currently In Attendance','color'=>'#3b82f6','border'=>'#1d4ed8'], // Blue
+            ['id'=>'topColleges','label'=>'Top 3 Colleges Today','color'=>'#facc15','border'=>'#ca8a04','type'=>'list'], // Yellow
+            ['id'=>'topCourses','label'=>'Top 3 Courses Today','color'=>'#06b6d4','border'=>'#0e7490','type'=>'list']   // Cyan
         ];
         foreach($kpiCards as $card): ?>
             <div class="col-12 col-sm-6 col-lg-3">
-                <div class="card shadow-sm <?=isset($card['border'])?'border-start border-4 border-'.$card['border']:''?> h-100">
-                    <div class="card-body">
-                        <small class="text-muted fw-semibold mb-1"><?= $card['label'] ?></small>
+                <div class="card shadow-sm rounded-4 h-100"
+                     style="border-left: 6px solid <?= $card['border'] ?>;
+                            background: linear-gradient(135deg, #ffffff, #f3f4f6);">
+                    <div class="card-body d-flex flex-column justify-content-between">
+
+                        <!-- Label -->
+                        <small class="fw-semibold text-muted mb-2"><?= $card['label'] ?></small>
+
+                        <!-- KPI Value / Dynamic Data -->
                         <?php if(!isset($card['type'])): ?>
-                            <div class="display-5 fw-bold text-<?= $card['color'] ?>" id="<?= $card['id'] ?>">0</div>
+                            <div class="display-5 fw-bold"
+                                 style="color: <?= $card['color'] ?>; font-size:2rem;"
+                                 id="<?= $card['id'] ?>">
+                                <?= $card['id'] ?>
+                            </div>
                         <?php else: ?>
                             <div id="<?= $card['id'] ?>" class="small">
-                                <div class="mb-1"><span class="fw-bold">1.</span> <span class="text-<?= $card['color'] ?>">Loading...</span></div>
-                                <div class="mb-1"><span class="fw-bold">2.</span> <span class="text-<?= $card['color'] ?>">Loading...</span></div>
-                                <div class="mb-1"><span class="fw-bold">3.</span> <span class="text-<?= $card['color'] ?>">Loading...</span></div>
+                                <?php for($i=1;$i<=3;$i++): ?>
+                                    <div class="mb-1">
+                                        <span class="fw-bold"><?= $i ?>.</span> 
+                                        <span style="color: <?= $card['color'] ?>;">Loading...</span>
+                                    </div>
+                                <?php endfor; ?>
                             </div>
                         <?php endif; ?>
+
                     </div>
                 </div>
             </div>
         <?php endforeach; ?>
     </div>
-
-<!-- LOG ATTENDANCE -->
-<div class="card shadow-sm border-0 mb-4">
-    <div class="card-header bg-primary text-white d-flex flex-column flex-md-row justify-content-between align-items-md-center">
-        <div class="fw-semibold fs-6">
-            Log Attendance - <span id="currentLibrarySection"></span>
-        </div>
-        <!-- Library dropdown removed -->
-    </div>
-    <div class="card-body">
-        <form id="logForm" class="row g-3 align-items-end">
-            <div class="col-lg-5">
-                <label class="form-label fw-semibold">Identification Number</label>
-                <small class="text-muted d-block mb-2">(Student Number or Employee Number)</small>
-                <div class="input-group">
-                    <input type="password" class="form-control form-control-lg" id="inputStudentNumber" placeholder="Enter identification number" autocomplete="off">
-                    <button type="button" class="btn btn-outline-secondary" id="toggleIdVisibility">
-                        <i class="fas fa-eye" id="toggleIcon"></i>
-                    </button>
-                </div>
-            </div>
-
-            <div class="col-lg-4" id="specialKeyContainer" style="display:none;">
-                <label class="form-label fw-semibold">Special Key (Birthday: MMDDYY)</label>
-                <input type="password" class="form-control form-control-lg" id="inputSpecialKey" maxlength="6" placeholder="Enter 6-digit key" autocomplete="off">
-            </div>
-
-            <div class="col-lg-3">
-                <label class="form-label fw-semibold">Library Section</label>
-                <div class="form-control form-control-lg bg-light" id="currentLibraryDisplay"></div>
-            </div>
-
-            <div class="col-lg-12 d-grid mt-3">
-                <button type="submit" class="btn btn-success btn-lg fw-semibold" id="submitButton">Submit</button>
-            </div>
-        </form>
-    </div>
-</div>
-
 </div>
 
 <?php include '../modalContainer.php'; ?>
@@ -301,8 +383,7 @@ function loadLibraries() {
         const body = `
             <div class="text-center mb-3">
                 <div class="badge bg-warning fs-6 p-2"><i class="fas fa-user-shield me-2"></i>Duplicate ID Found</div>
-                <p class="text-muted mt-2">Enter your secret key to verify identity</p>
-            </div>
+                <p class="text-muted mt-2">Enter your Birth Date To Confirm (e.g. mm/dd/yy)
             <div class="card bg-light p-3 border-0">
                 <div class="input-group mb-2">
                     <input type="password" id="modalSecretKey" class="form-control text-center fw-bold fs-4" maxlength="6" placeholder="••••••">

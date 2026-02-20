@@ -9,173 +9,197 @@ $librarySections = execsqlSRS(
 ?>
 
 <div class="container-fluid py-4">
-    <!-- HEADER SECTION with improved visual hierarchy -->
+
+    <!-- HEADER SECTION -->
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
         <div class="d-flex align-items-center gap-3">
 
             <div>
                 <h4 class="fw-bold mb-1">Library Analytics Dashboard</h4>
-                <div class="d-flex align-items-center gap-2">
-                    <span class="badge bg-light text-dark px-3 py-2">
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <span class="badge px-3 py-2 rounded-4" style="background: linear-gradient(90deg,#f3f4f6,#ffffff); color:#374151;">
                         <i class="fas fa-calendar-alt me-1 text-muted"></i> Last 30 Days
                     </span>
-                    <span class="badge bg-light text-dark px-3 py-2">
+                    <span class="badge px-3 py-2 rounded-4" style="background: linear-gradient(90deg,#f3f4f6,#ffffff); color:#374151;">
                         <i class="fas fa-users me-1 text-muted"></i> 1,234 Visitors
                     </span>
                 </div>
             </div>
         </div>
-        <div class="d-flex gap-2">
-            <button class="btn btn-outline-secondary btn-sm" id="refreshBtn">
+
+        <div class="d-flex gap-2 flex-wrap">
+            <button class="btn btn-outline-secondary btn-sm rounded-4 shadow-sm" id="refreshBtn">
                 <i class="fas fa-sync-alt me-1"></i> Refresh
             </button>
-            <button class="btn btn-danger btn-sm" id="exportPDF">
+            <button class="btn btn-danger btn-sm rounded-4 shadow-sm" id="exportPDF">
                 <i class="fas fa-file-pdf me-1"></i> Export Report
             </button>
         </div>
     </div>
 
-    <!-- ENHANCED FILTER SECTION with better layout -->
-   <div class="card border-0 shadow-sm mb-4">
+    <!-- FILTER SECTION -->
+<div class="card border-0 shadow-sm mb-4 rounded-4">
     <div class="card-body">
-        <!-- Symmetrical 4‑column filter row -->
+
+        <!-- FILTER ROW -->
         <div class="row g-3 align-items-end">
+
+            <!-- Start Date -->
             <div class="col-md-3">
-                <label class="form-label small fw-semibold">Start Date</label>
-                <div class="input-group input-group-sm">
+                <label class="form-label small fw-semibold mb-1">Start Date</label>
+                <div class="input-group input-group-sm shadow-sm rounded-4 overflow-hidden" style="background: linear-gradient(90deg, #e6f4ea, #ffffff);">
                     <span class="input-group-text bg-light border-end-0">
                         <i class="fas fa-calendar text-muted"></i>
                     </span>
-                    <input type="date" class="form-control border-start-0 ps-0" id="startDate">
+                    <input type="date" class="form-control border-start-0 ps-0" id="startDate" style="border-radius:0; background:transparent;">
                 </div>
             </div>
+
+            <!-- End Date -->
             <div class="col-md-3">
-                <label class="form-label small fw-semibold">End Date</label>
-                <div class="input-group input-group-sm">
+                <label class="form-label small fw-semibold mb-1">End Date</label>
+                <div class="input-group input-group-sm shadow-sm rounded-4 overflow-hidden" style="background: linear-gradient(90deg, #e6f4ea, #ffffff);">
                     <span class="input-group-text bg-light border-end-0">
                         <i class="fas fa-calendar-check text-muted"></i>
                     </span>
-                    <input type="date" class="form-control border-start-0 ps-0" id="endDate">
+                    <input type="date" class="form-control border-start-0 ps-0" id="endDate" style="border-radius:0; background:transparent;">
                 </div>
             </div>
+
+            <!-- User Classification -->
             <div class="col-md-3">
-                <label class="form-label small fw-semibold">User Classification</label>
-                <select class="form-select form-select-sm" id="globalClassification">
+                <label class="form-label small fw-semibold mb-1">User Classification</label>
+                <select class="form-select form-select-sm shadow-sm rounded-4" id="globalClassification"
+                        style="background: linear-gradient(90deg, #f3f9f7, #ffffff); border:none;">
                     <option value="All" selected>All</option>
                     <option value="Student">Student</option>
                     <option value="Employee">Employee</option>
                     <option value="Guest">Guest</option>
                 </select>
             </div>
+
+            <!-- Library Filter -->
             <div class="col-md-3">
-                <label class="form-label small fw-semibold">Library</label>
-                <select class="form-select form-select-sm" id="libraryFilter">
+                <label class="form-label small fw-semibold mb-1">Library</label>
+                <select class="form-select form-select-sm shadow-sm rounded-4" id="libraryFilter"
+                        style="background: linear-gradient(90deg, #f3f9f7, #ffffff); border:none;">
                     <option value="All" selected>All Libraries</option>
                     <?php foreach ($librarySections as $lib): ?>
                         <option value="<?= $lib['SectionID'] ?>"><?= htmlspecialchars($lib['SectionName']) ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
+
         </div>
 
-        <!-- Generate button row (full width on mobile, inline on larger screens) -->
-        <div class="row mt-3">
+        <!-- GENERATE BUTTON ROW -->
+        <div class="row mt-4">
             <div class="col-12 col-md-4 offset-md-8">
-                <button class="btn btn-primary w-100" id="generateBtn">
+                <button class="btn w-100 fw-semibold shadow-sm"
+                        style="background: linear-gradient(90deg, #047857, #10b981); color:white; border-radius:0.5rem; font-size:1rem;"
+                        id="generateBtn">
                     <i class="fas fa-chart-bar me-1"></i> Generate Analytics
                 </button>
             </div>
         </div>
+
     </div>
 </div>
 
-    <!-- KEY METRICS OVERVIEW (New section for better analytics) -->
-<!-- KEY METRICS OVERVIEW with IDs -->
-<div class="row g-3 mb-4">
-    <!-- Total Check-ins -->
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm bg-primary bg-gradient text-white rounded-4">
-            <div class="card-body">
-                <div class="small text-white-50">Total Check-ins</div>
-                <h3 class="fw-bold mt-1 mb-0" id="totalCheckinsValue">—</h3>
-                <span class="badge bg-white text-primary mt-2">+12.3%</span>
+    <!-- KPI CARDS -->
+    <div class="row g-3 mb-4">
+        <!-- Total Check-ins -->
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 h-100" style="background: linear-gradient(135deg, #10b981, #047857);">
+                <div class="card-body text-white">
+                    <small class="fw-semibold text-white-50">Total Check-ins</small>
+                    <h3 class="fw-bold mt-1 mb-0" id="totalCheckinsValue">—</h3>
+                </div>
             </div>
         </div>
-    </div>
-    <!-- Avg. Duration -->
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm bg-info bg-gradient text-white rounded-4">
-            <div class="card-body">
-                <div class="small text-white-50">Avg. Duration</div>
-                <h3 class="fw-bold mt-1 mb-0" id="avgDurationValue">—</h3>
-                <span class="badge bg-white text-info mt-2">+5.2%</span>
-            </div>
-        </div>
-    </div>
-    <!-- Active Colleges -->
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm bg-warning bg-gradient text-dark rounded-4">
-            <div class="card-body">
-                <div class="small text-muted">Active Colleges</div>
-                <h3 class="fw-bold mt-1 mb-0" id="activeCollegesValue">—</h3>
-                <span class="badge bg-dark text-white mt-2">+3</span>
-            </div>
-        </div>
-    </div>
-    <!-- Unique Courses -->
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm bg-success bg-gradient text-white rounded-4">
-            <div class="card-body">
-                <div class="small text-white-50">Unique Courses</div>
-                <h3 class="fw-bold mt-1 mb-0" id="uniqueCoursesValue">—</h3>
-                <span class="badge bg-white text-success mt-2">+8.1%</span>
-            </div>
-        </div>
-    </div>
-	
-	<div class="col-md-3">
-    <div class="card border-0 shadow-sm bg-secondary bg-gradient text-white rounded-4">
-        <div class="card-body">
-            <div class="small text-white-50" id="endDateCheckinsLabel">Check‑ins on —</div>
-            <h3 class="fw-bold mt-1 mb-0" id="endDateCheckinsValue">—</h3>
-        </div>
-    </div>
-</div>
 
-</div>
+        <!-- Avg Duration -->
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 h-100" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8);">
+                <div class="card-body text-white">
+                    <small class="fw-semibold text-white-50">Avg. Duration</small>
+                    <h3 class="fw-bold mt-1 mb-0" id="avgDurationValue">—</h3>
+                </div>
+            </div>
+        </div>
 
-    <!-- SECTION TABS for better organization -->
-<!-- TAB NAVIGATION -->
+        <!-- Active Colleges -->
+
+        <!-- Unique Courses -->
+
+
+        <!-- End Date Check-ins -->
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 h-100" style="background: linear-gradient(135deg, #6b7280, #374151);">
+                <div class="card-body text-white">
+                    <small class="fw-semibold text-white-50" id="endDateCheckinsLabel">Check ins on —</small>
+                    <h3 class="fw-bold mt-1 mb-0" id="endDateCheckinsValue">—</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB SECTION -->
+<!-- TAB SECTION -->
 <div class="mb-4">
-    <ul class="nav nav-tabs" id="analyticsTabs" role="tablist">
-        <li class="nav-item">
-            <button class="nav-link active" data-tab="users">Users</button>
+    <ul class="nav nav-tabs border-0 rounded-3 overflow-hidden shadow-sm d-flex flex-nowrap p-2" 
+        id="analyticsTabs" role="tablist" 
+        style="background:#f0f4fa; border:1px solid #d6dff0 !important; gap:6px;">
+        
+        <!-- Users Tab -->
+        <li class="nav-item flex-fill" role="presentation">
+            <button class="nav-link active w-100 d-flex align-items-center justify-content-center gap-2 rounded-2 border-0 fw-medium px-3 py-2" 
+                    data-tab="users" role="tab" aria-selected="true"
+                    style="background:linear-gradient(135deg,#3a6cf4,#6a3de8); color:#fff; box-shadow:0 3px 12px rgba(58,108,244,0.28); font-size:0.875rem;">
+                <i class="bi bi-people-fill"></i> Users
+            </button>
         </li>
-        <li class="nav-item">
-            <button class="nav-link" data-tab="colleges">Colleges</button>
+
+        <!-- Colleges Tab -->
+        <li class="nav-item flex-fill" role="presentation">
+            <button class="nav-link w-100 d-flex align-items-center justify-content-center gap-2 rounded-2 border-0 fw-medium px-3 py-2" 
+                    data-tab="colleges" role="tab" aria-selected="false"
+                    style="background:transparent; color:#5a6a8a; font-size:0.875rem;">
+                <i class="bi bi-building-fill"></i> Colleges
+            </button>
         </li>
-        <li class="nav-item">
-            <button class="nav-link" data-tab="courses">Courses</button>
+
+        <!-- Courses Tab -->
+        <li class="nav-item flex-fill" role="presentation">
+            <button class="nav-link w-100 d-flex align-items-center justify-content-center gap-2 rounded-2 border-0 fw-medium px-3 py-2" 
+                    data-tab="courses" role="tab" aria-selected="false"
+                    style="background:transparent; color:#5a6a8a; font-size:0.875rem;">
+                <i class="bi bi-journal-bookmark-fill"></i> Courses
+            </button>
         </li>
-        <li class="nav-item">
-            <button class="nav-link" data-tab="demographics">Demographics</button>
+
+        <!-- Demographics Tab -->
+        <li class="nav-item flex-fill" role="presentation">
+            <button class="nav-link w-100 d-flex align-items-center justify-content-center gap-2 rounded-2 border-0 fw-medium px-3 py-2" 
+                    data-tab="demographics" role="tab" aria-selected="false"
+                    style="background:transparent; color:#5a6a8a; font-size:0.875rem;">
+                <i class="bi bi-bar-chart-fill"></i> Demographics
+            </button>
         </li>
+
     </ul>
 </div>
 
-<!-- TAB CONTENT -->
-<div id="tabContent" class="tab-content">
-    <div class="text-center p-4">Select a tab to view content...</div>
-</div>
+    <div id="tabContent" class="tab-content">
+        <div class="text-center p-4">Select a tab to view content...</div>
+    </div>
 
-
-
-    <!-- FOOTER with last update info -->
+    <!-- FOOTER -->
     <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
         <small class="text-muted">
             <i class="fas fa-sync-alt me-1"></i> Last updated: Today at 10:30 AM
         </small>
-        <div class="d-flex gap-3">
+        <div class="d-flex gap-3 flex-wrap">
             <small class="text-muted">
                 <i class="fas fa-database me-1"></i> Source: Library System
             </small>
@@ -217,22 +241,33 @@ $(document).on('click', '.view-all-btn', function() {
 });
 
 function loadViewAll(tab, page) {
-    $('#viewAllModalBody').html('<div class="text-center"><div class="spinner-border"></div></div>');
-    $('#viewAllModalFooter').empty();
+    $('#dynamicModalBody').html('<div class="text-center"><div class="spinner-border"></div></div>');
+    $('#dynamicModalFooter').empty();
 
     $.ajax({
-        // ... ajax settings ...
+        url: "backend/bk_LibraryMenu/bk_libReports.php",
+        type: "POST",
+        data: {
+            action: 'viewAll',
+            tab: tab,
+            page: page,
+            startDate: UI.startDate.val(),
+            endDate: UI.endDate.val(),
+            classification: UI.globalClassification.val(),
+            library: UI.libraryFilter.val()
+        },
+        dataType: "json",
         success: function(res) {
             if (res.status !== 'success') {
-                $('#viewAllModalBody').html('<div class="alert alert-danger">Failed to load data.</div>');
+                $('#dynamicModalBody').html('<div class="alert alert-danger">Failed to load data.</div>');
                 return;
             }
             const data = res.data;
             totalViewAllPages = Math.ceil(data.total / 10);
             renderViewAllTable(tab, data.rows);
             renderPagination(totalViewAllPages, currentViewAllPage, tab);
-            $('#viewAllModalTitle').text(getModalTitle(tab));
-            $('#viewAllModalSubtitle').text(`Showing page ${currentViewAllPage} of ${totalViewAllPages} (Total: ${data.total} records)`);
+            $('#dynamicModalTitle').text(getModalTitle(tab));
+            $('#dynamicModalSubtitle').text(`Showing page ${currentViewAllPage} of ${totalViewAllPages} (Total: ${data.total} records)`);
         }
     });
 }
@@ -408,9 +443,8 @@ function loadTab(tab) {
             // Update global metric cards
             $('#totalCheckinsValue').text(response.totalVisits.toLocaleString());
             $('#avgDurationValue').text(response.avgDuration + ' hrs');
-            $('#activeCollegesValue').text(response.activeColleges);
-            $('#uniqueCoursesValue').text(response.uniqueCourses);
-			$('#endDateCheckinsLabel').text(`Check‑ins on ${new Date(UI.endDate.val()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`);
+
+			$('#endDateCheckinsLabel').text(`Check ins on ${new Date(UI.endDate.val()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`);
 			$('#endDateCheckinsValue').text(response.endDateCheckins.toLocaleString());
             // Update footer timestamp
             const now = new Date();
@@ -425,15 +459,39 @@ function loadTab(tab) {
     // Chart initialization functions (unchanged)
 function initializeCharts(data, tab) {
     if (tab === 'users') {
-        renderBar('chartUsersCheckin', 
-            extractLabels(data.topCheckins), 
-            extractValues(data.topCheckins, 'count'), 
-            'Check-ins');
+        // ----- Top Users by Check ins (chartUsersCheckin) – force y axis to start at 0 -----
+        ChartManager.create('chartUsersCheckin', {
+            type: 'bar',
+            data: {
+                labels: extractLabels(data.topCheckins),
+                datasets: [{
+                    label: 'Check‑ins',
+                    data: extractValues(data.topCheckins, 'count'),
+                    backgroundColor: 'rgba(54,162,235,0.7)',
+                    borderRadius: 8,
+                    maxBarThickness: 40
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        min: 0
+                    }
+                }
+            }
+        });
+
+        // ----- Top Users by Duration (chartUsersDuration) – use standard renderBar -----
         renderBar('chartUsersDuration', 
             extractLabels(data.topDuration), 
             extractValues(data.topDuration, 'minutes'), 
             'Duration (min)');
     }
+
     if (tab === 'colleges') {
         renderBar('chartCollegeCheckin', 
             Object.keys(data.top3CollegesCheckin), 
@@ -444,6 +502,7 @@ function initializeCharts(data, tab) {
             Object.values(data.top3CollegesDuration).map(v => v.minutes), 
             'Duration (min)');
     }
+
     if (tab === 'courses') {
         Object.keys(data.topCoursesCheckin).forEach(college => {
             const cleanId = college.replace(/[^a-zA-Z0-9]/g, '');
@@ -461,6 +520,7 @@ function initializeCharts(data, tab) {
             }
         });
     }
+
     if (tab === 'demographics') {
         renderPie('chartSexCheckin', 
             Object.keys(data.sexDistribution), 
@@ -505,12 +565,32 @@ function extractValues(groupedData, valueKey) {
 }
 
     // Event handlers
-       UI.tabs.on('click', function (e) {
-        e.preventDefault();
-        UI.tabs.removeClass('active');
-        $(this).addClass('active');
-        loadTab($(this).data('tab'));
+// Tab click event with active highlight management
+UI.tabs.on('click', function (e) {
+    e.preventDefault();
+    
+    // Remove active class and reset styles for all tabs
+    UI.tabs.each(function() {
+        $(this).removeClass('active')
+               .css({
+                   background: 'transparent',
+                   color: '#5a6a8a',
+                   boxShadow: 'none'
+               });
     });
+
+    // Add active class and apply highlight styles to clicked tab
+    $(this).addClass('active')
+           .css({
+               background: 'linear-gradient(135deg,#3a6cf4,#6a3de8)',
+               color: '#fff',
+               boxShadow: '0 3px 12px rgba(58,108,244,0.28)'
+           });
+
+    // Load the selected tab content
+    activeTab = $(this).data('tab');
+    loadTab(activeTab);
+});
 
     UI.generateBtn.on('click', function () {
         if (!UI.startDate.val() || !UI.endDate.val()) {
