@@ -34,7 +34,7 @@ function autocall(page = "", id = "", request = "") {
     });
 }
 
-// Auto Log-out =================================================================================================
+// Auto Log-out 
 
   var inactivityTime = 60 * 60 * 1000; // minutes
   var timeout;
