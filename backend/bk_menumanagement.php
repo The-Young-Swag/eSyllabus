@@ -7,11 +7,21 @@ function showMenus($isDeleted, $MotherMenID, $tab) {
     $sql = "SELECT MenID, Menu, MotherMenID, Description, Menucode, 
                    MenuLink, Arrangement, MenIcon, UnActive
             FROM Sys_Menu
+WHERE (IsDeleted = 0 OR IsDeleted IS NULL)
+AND (
+    MotherMenID = ?
+    OR (
+        ? = 0
+        AND MotherMenID != 0
+        AND MotherMenID NOT IN (
+            SELECT MenID FROM Sys_Menu
             WHERE (IsDeleted = 0 OR IsDeleted IS NULL)
-            AND MotherMenID = ?
+        )
+    )
+)
             ORDER BY Arrangement, MenID";
     
-    $menus = execsqlSRS($sql, "Search", [$MotherMenID]);
+$menus = execsqlSRS($sql, "Search", [$MotherMenID, $MotherMenID]);
     
     if (empty($menus)) {
         if ($MotherMenID == "0") {
@@ -23,12 +33,36 @@ function showMenus($isDeleted, $MotherMenID, $tab) {
     $html = "";
     foreach ($menus as $menu) {
         $isParent = $menu["MotherMenID"] == 0;
-        $rowClass = $isParent ? "table-primary font-weight-bold" : "";
+		// Check if parent exists
+$parentExists = true;
+
+if ($menu["MotherMenID"] != 0) {
+    $checkParent = execsqlSRS(
+        "SELECT COUNT(*) as cnt FROM Sys_Menu 
+         WHERE MenID = ? AND (IsDeleted = 0 OR IsDeleted IS NULL)",
+        "Search",
+        [$menu["MotherMenID"]]
+    );
+
+    $parentExists = $checkParent[0]['cnt'] > 0;
+}
+
+$isOrphan = !$isParent && !$parentExists;
+$rowClass = "";
+
+if ($isParent) {
+    $rowClass = "table-primary font-weight-bold";
+} elseif ($isOrphan) {
+    $rowClass = "border-left border-warning";
+}
         $indent = $MotherMenID != "0" ? $tab . "<i class='fa fa-arrow-right text-muted mr-1'></i>" : "";
         
-        $html .= "<tr class='$rowClass'>
+        $html .= "<tr class='$rowClass' data-id='{$menu["MenID"]}'>
             <td>" . htmlspecialchars($menu["MenID"]) . "</td>
-            <td>$indent" . htmlspecialchars($menu["Menu"]) . "</td>
+            <td>
+    $indent" . htmlspecialchars($menu["Menu"]) . "
+    " . ($isOrphan ? "<span class='badge badge-warning ml-2'>No Parent</span>" : "") . "
+</td>
             <td>" . htmlspecialchars($menu["MotherMenID"]) . "</td>
             <td>" . htmlspecialchars($menu["Description"]) . "</td>
             <td>" . htmlspecialchars($menu["Menucode"]) . "</td>
@@ -245,6 +279,19 @@ function handleUpdateMenu() {
     ]);
 }
 
+function showSingleMenuRow($menID) {
+
+    $menu = execsqlSRS("
+        SELECT * FROM Sys_Menu 
+        WHERE MenID = ? 
+        AND (IsDeleted = 0 OR IsDeleted IS NULL)
+    ", "Search", [$menID]);
+
+    if (empty($menu)) return "";
+
+    return showMenus(false, $menu[0]['MotherMenID'], "");
+}
+
 function handleToggleStatus() {
     $menID = $_POST['menID'] ?? 0;
     $status = $_POST['status'] ?? 0;
@@ -401,6 +448,11 @@ switch ($request) {
     case "updateMenu":
         handleUpdateMenu();
         exit;
+		
+		case "getSingleMenuRow":
+    $menID = $_POST['menID'] ?? 0;
+    echo showSingleMenuRow($menID);
+    exit;
         
     case "toggleMenuStatus":
         handleToggleStatus();

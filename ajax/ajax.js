@@ -1070,6 +1070,23 @@ function setupMenuEvents() {
                 alert("Network error");
             });
     });
+	
+	function fetchSingleMenuRow(menuID) {
+
+    $.post("backend/bk_menumanagement.php", {
+        request: "getSingleMenuRow",
+        menID: menuID
+    }, function(html) {
+
+        if ($("#tableAllMenus tr[data-id='" + menuID + "']").length) {
+            $("#tableAllMenus tr[data-id='" + menuID + "']").replaceWith(html);
+        } else {
+            $("#tableAllMenus").append(html);
+        }
+
+        updateSidebarMenu();
+    });
+}
 
     // Add Menu AJAX
     $(document).off('click.menu', '#btnaddmenu').on('click.menu', '#btnaddmenu', function(e) {
