@@ -49,6 +49,95 @@ try {
             }
         break;
 
+
+							//API READY CODE
+											/* case "validateUser":
+
+												$idNumber = trim($_POST["idNumber"] ?? '');
+
+												$apiUrl = "https://api.yourschool.edu/validate-user";
+
+												$payload = json_encode([
+													"id_number" => $idNumber
+												]);
+
+												$ch = curl_init($apiUrl);
+												curl_setopt_array($ch, [
+													CURLOPT_RETURNTRANSFER => true,
+													CURLOPT_POST => true,
+													CURLOPT_HTTPHEADER => [
+														"Content-Type: application/json",
+														"Authorization: Bearer YOUR_API_TOKEN"
+													],
+													CURLOPT_POSTFIELDS => $payload
+												]);
+
+												$response = curl_exec($ch);
+
+												if(curl_errno($ch)){
+													send(["error" => "API connection failed"]);
+												}
+
+												curl_close($ch);
+
+												$apiData = json_decode($response, true);
+
+												if(!$apiData){
+													send(["error" => "Invalid API response"]);
+												}
+
+												send($apiData);
+
+											break; */
+
+								//API READY CODE V2
+													/* case "validateUser":
+
+														$idNumber = trim($_POST["idNumber"] ?? '');
+
+														$student = callAPI("https://school.edu/api/students/".$idNumber);
+
+														if($student && !empty($student["data"])){
+
+															send([
+																"success" => true,
+																"data" => [
+																	"id_number" => $student["data"]["id_number"],
+																	"name" => $student["data"]["name"],
+																	"sex" => $student["data"]["sex"],
+																	"college" => $student["data"]["college"],
+																	"course" => $student["data"]["course"],
+																	"classification" => "STUDENT",
+																	"secretKey" => $student["data"]["secret_key"]
+																]
+															]);
+
+														} else {
+
+															$employee = callAPI("https://school.edu/api/employees/".$idNumber);
+
+															if($employee && !empty($employee["data"])){
+
+																send([
+																	"success" => true,
+																	"data" => [
+																		"id_number" => $employee["data"]["employee_number"],
+																		"name" => $employee["data"]["name"],
+																		"sex" => $employee["data"]["sex"],
+																		"college" => $employee["data"]["department"],
+																		"course" => $employee["data"]["position"],
+																		"classification" => "EMPLOYEE",
+																		"secretKey" => null
+																	]
+																]);
+
+															} else {
+																send(["error" => "User not found"]);
+															}
+														}
+
+													break; */
+
         case "saveAttendance":
             $idNumber=trim($_POST["idNumber"]??''); $sectionID=intval($_POST["sectionID"]??0);
             $action=trim($_POST["action"]??''); $classification=$_POST["classification"]??'';
