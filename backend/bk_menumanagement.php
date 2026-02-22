@@ -313,7 +313,12 @@ function getSidebarMenu() {
         AND rm.Unactive = 0 
         AND r.Unactive = 0 
         AND (m.IsDeleted = 0 OR m.IsDeleted IS NULL)
-        AND MotherMenID = 0
+AND (
+    MotherMenID = 0
+    OR MotherMenID NOT IN (
+        SELECT MenID FROM Sys_Menu WHERE IsDeleted = 0 OR IsDeleted IS NULL
+    )
+)
         ORDER BY m.Arrangement ASC
     ", "Select", [$RID]);
 
@@ -341,14 +346,17 @@ function getSidebarMenu() {
         $liClass = $hasChildren ? 'nav-item has-treeview' : 'nav-item';
         $dataWidget = $hasChildren ? ' data-widget="treeview"' : '';
         
-        $html .= "<li class='{$liClass}' data-read='{$menuItem["MenID"]}'{$dataWidget}>
-                <a href='#' class='nav-link' id='clckdropdown' data-IDsubmenu='{$menuItem["MenID"]}'>
-                    <i class='{$icon}'></i>
-                    <p>
-                        {$menuItem["Menu"]}
-                        " . ($hasChildren ? "<i class='right fas fa-angle-left'></i>" : "") . "
-                    </p>
-                </a>";
+$link = !empty($menuItem["MenuLink"]) ? "#" : "#";
+
+$html .= "<li class='{$liClass}' data-read='{$menuItem["MenID"]}'{$dataWidget}>
+        <a href='{$link}' class='nav-link'
+           " . (!empty($menuItem["MenuLink"]) ? "id='callpages' data-pagename='{$menuItem["MenuLink"]}'" : "id='clckdropdown' data-IDsubmenu='{$menuItem["MenID"]}'") . ">
+            <i class='{$icon}'></i>
+            <p>
+                {$menuItem["Menu"]}
+                " . ($hasChildren ? "<i class='right fas fa-angle-left'></i>" : "") . "
+            </p>
+        </a>";
         
         if ($hasChildren) {
             $html .= "<ul class='nav nav-treeview' id='{$menuItem["MenID"]}'>";
