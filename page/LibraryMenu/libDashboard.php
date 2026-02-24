@@ -1,211 +1,292 @@
-<div class="container-fluid mt-4">
+<div class="container-fluid px-4 py-4">
 
     <!-- Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap">
-        <h4 class="fw-bold text-dark d-flex align-items-center gap-2">
-            <i class="fas fa-tachometer-alt text-primary"></i> Dashboard
-        </h4>
-
-        <small class="text-muted">Overview of library activities and trends</small>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h5 class="fw-bold mb-0 text-dark">Library Dashboard</h5>
+            <small class="text-muted">Overview of library activities and trends</small>
+        </div>
+        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2 rounded-pill fw-semibold">
+            <i class="fas fa-circle me-1 text-success" style="font-size:.55rem;vertical-align:middle;"></i>Live
+        </span>
     </div>
 
-    <!-- KPI Cards Row -->
-    <div class="row g-3 mb-4">
+    <!-- KPI Cards -->
+    <div id="kpiContainer" class="row g-3 mb-4">
 
-        <div class="col-md-3">
-            <div class="card shadow-sm border-start border-4 border-success">
-                <div class="card-body text-center">
-                    <h6 class="card-title text-muted">Total Students Today</h6>
-                    <h3 class="fw-bold text-success">153</h3>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body p-3">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <span class="text-muted fw-semibold text-uppercase" style="letter-spacing:.05em;font-size:.7rem;">Filipiniana 1F</span>
+
+                    </div>
+                    <h3 id="Lib1" class="fw-bold text-success mb-0 kpi-count"><?php ?></h3>
+                    <small class="text-muted">active visits</small>
                 </div>
+                <div class="bg-success rounded-bottom" style="height:3px;"></div>
             </div>
         </div>
 
-        <div class="col-md-3">
-            <div class="card shadow-sm border-start border-4 border-primary">
-                <div class="card-body text-center">
-                    <h6 class="card-title text-muted">Active Students Now</h6>
-                    <h3 class="fw-bold text-primary">42</h3>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body p-3">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <span class="text-muted fw-semibold text-uppercase" style="letter-spacing:.05em;font-size:.7rem;">Filipiniana 2F</span>
+
+                    </div>
+                    <h3 id="Lib2" class="fw-bold text-primary mb-0 kpi-count"><?php ?></h3>
+                    <small class="text-muted">active visits</small>
                 </div>
+                <div class="bg-primary rounded-bottom" style="height:3px;"></div>
             </div>
         </div>
 
-        <div class="col-md-3">
-            <div class="card shadow-sm border-start border-4 border-warning">
-                <div class="card-body text-center">
-                    <h6 class="card-title text-muted">Top College</h6>
-                    <h3 class="fw-bold text-warning">Science</h3>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body p-3">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <span class="text-muted fw-semibold text-uppercase" style="letter-spacing:.05em;font-size:.7rem;">Manuscript</span>
+
+                    </div>
+                    <h3 id="Lib3" class="fw-bold text-warning mb-0 kpi-count"><?php ?></h3>
+                    <small class="text-muted">active visits</small>
                 </div>
+                <div class="bg-warning rounded-bottom" style="height:3px;"></div>
             </div>
         </div>
 
-        <div class="col-md-3">
-            <div class="card shadow-sm border-start border-4 border-danger">
-                <div class="card-body text-center">
-                    <h6 class="card-title text-muted">Top Course</h6>
-                    <h3 class="fw-bold text-danger">Biology</h3>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body p-3">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <span class="text-muted fw-semibold text-uppercase" style="letter-spacing:.05em;font-size:.7rem;">Recreational</span>
+
+                    </div>
+                    <h3 id="Lib4" class="fw-bold text-danger mb-0 kpi-count"><?php ?></h3>
+                    <small class="text-muted">active visits</small>
                 </div>
+                <div class="bg-danger rounded-bottom" style="height:3px;"></div>
             </div>
         </div>
 
     </div>
 
-    <!-- Placeholder Charts Row -->
-    <div class="row g-4 mb-4">
+    <!-- Daily Logs Table -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center py-3 px-4">
+            <div>
+                <h6 class="mb-0 fw-bold text-dark">Daily Logs</h6>
+                <small class="text-muted">Real-time check-in / check-out records</small>
+            </div>
+            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-3" style="font-size:.72rem;">Today</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" style="font-size:.875rem;">
+                    <thead class="table-light border-bottom">
+                        <tr>
+                            <th class="px-4 py-3 fw-semibold text-muted text-uppercase" style="font-size:.7rem;letter-spacing:.06em;">Student No.</th>
+                            <th class="py-3 fw-semibold text-muted text-uppercase" style="font-size:.7rem;letter-spacing:.06em;">College</th>
+                            <th class="py-3 fw-semibold text-muted text-uppercase" style="font-size:.7rem;letter-spacing:.06em;">Course</th>
+                            <th class="py-3 fw-semibold text-muted text-uppercase" style="font-size:.7rem;letter-spacing:.06em;">Library</th>
+                            <th class="py-3 fw-semibold text-muted text-uppercase" style="font-size:.7rem;letter-spacing:.06em;">Check-In</th>
+                            <th class="py-3 fw-semibold text-muted text-uppercase" style="font-size:.7rem;letter-spacing:.06em;">Check-Out</th>
+                            <th class="py-3 fw-semibold text-muted text-uppercase" style="font-size:.7rem;letter-spacing:.06em;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dailyLogs">
+                        <tr>
+                            <td class="px-4 fw-semibold text-dark">2022100114</td>
+                            <td class="text-muted">—</td>
+                            <td class="text-muted">—</td>
+                            <td><span class="badge bg-light text-secondary border">—</span></td>
+                            <td class="text-muted">—</td>
+                            <td class="text-muted">—</td>
+                            <td><span class="badge bg-success-subtle text-success rounded-pill px-3">Active</span></td>
+                        </tr>
+                        <tr>
+                            <td class="px-4 fw-semibold text-dark">2022100114</td>
+                            <td class="text-muted">—</td>
+                            <td class="text-muted">—</td>
+                            <td><span class="badge bg-light text-secondary border">—</span></td>
+                            <td class="text-muted">—</td>
+                            <td class="text-muted">—</td>
+                            <td><span class="badge bg-success-subtle text-success rounded-pill px-3">Active</span></td>
+                        </tr>
+                        <tr>
+                            <td class="px-4 fw-semibold text-dark">2022100114</td>
+                            <td class="text-muted">—</td>
+                            <td class="text-muted">—</td>
+                            <td><span class="badge bg-light text-secondary border">—</span></td>
+                            <td class="text-muted">—</td>
+                            <td class="text-muted">—</td>
+                            <td><span class="badge bg-success-subtle text-success rounded-pill px-3">Active</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card-footer bg-white border-top py-2 px-4">
+            <nav>
+                <ul class="pagination pagination-sm justify-content-center mb-0"></ul>
+            </nav>
+        </div>
+    </div>
 
+    <!-- Charts Row -->
+    <div class="row g-3">
+
+        <!-- Usage Trend -->
+        <!-- Should be an interactive calandar with visual display of data similar to github calendar but more intuitive
+	-->
         <div class="col-lg-6">
-            <div class="card shadow-sm">
-                <div class="card-header bg-success text-white d-flex align-items-center gap-2">
-                    <i class="fas fa-chart-line"></i> Usage Trend (Monthly)
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-bottom px-4 py-3">
+                    <h6 class="mb-0 fw-bold text-dark"><i class="fas fa-chart-bar me-2 text-success"></i>Usage Trend</h6>
+                    <small class="text-muted">Monthly student logins — last 6 months</small>
                 </div>
-                <div class="card-body">
-                    <!-- STATIC CHART 1 -->
-                    <div style="position: relative; height: 250px; background: #f8f9fa; border-radius: 8px; padding: 15px;">
-                        <!-- Y-axis -->
-                        <div style="position: absolute; left: 40px; top: 0; bottom: 30px; width: 30px; border-right: 2px solid #dee2e6;">
-                            <div style="position: absolute; top: 0; right: 5px; color: #6c757d; font-size: 12px;">200</div>
-                            <div style="position: absolute; top: 25%; right: 5px; color: #6c757d; font-size: 12px;">150</div>
-                            <div style="position: absolute; top: 50%; right: 5px; color: #6c757d; font-size: 12px;">100</div>
-                            <div style="position: absolute; top: 75%; right: 5px; color: #6c757d; font-size: 12px;">50</div>
-                            <div style="position: absolute; bottom: 0; right: 5px; color: #6c757d; font-size: 12px;">0</div>
+                <div id="userChart" class="card-body px-4 pb-4 pt-3">
+                    <div class="d-flex align-items-end gap-2 justify-content-between" style="height:180px;">
+                        <div class="d-flex flex-column align-items-center flex-fill gap-1">
+                            <small class="text-muted fw-semibold" style="font-size:.7rem;">85</small>
+                            <div class="w-100 rounded-top bg-success bg-opacity-50" style="height:42.5%;min-height:4px;"></div>
+                            <small class="text-muted" style="font-size:.72rem;">Sep</small>
                         </div>
-                        
-                        <!-- Chart area -->
-                        <div style="position: absolute; left: 70px; right: 20px; bottom: 30px; top: 0;">
-                            <!-- Grid lines -->
-                            <div style="position: absolute; top: 0; left: 0; right: 0; height: 1px; background: #e9ecef;"></div>
-                            <div style="position: absolute; top: 25%; left: 0; right: 0; height: 1px; background: #e9ecef;"></div>
-                            <div style="position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: #e9ecef;"></div>
-                            <div style="position: absolute; top: 75%; left: 0; right: 0; height: 1px; background: #e9ecef;"></div>
-                            
-                            <!-- Data points -->
-                            <div style="position: absolute; bottom: 0; width: 100%;">
-                                <!-- Sep (85) - 42.5% -->
-                                <div style="position: absolute; left: 10%; bottom: 0; width: 6%;">
-                                    <div style="height: 42.5%; background: rgba(16, 185, 129, 0.5); border-radius: 4px 4px 0 0;"></div>
-                                    <div style="position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); color: #6c757d; font-size: 12px;">Sep</div>
-                                </div>
-                                
-                                <!-- Oct (120) - 60% -->
-                                <div style="position: absolute; left: 26%; bottom: 0; width: 6%;">
-                                    <div style="height: 60%; background: rgba(16, 185, 129, 0.5); border-radius: 4px 4px 0 0;"></div>
-                                    <div style="position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); color: #6c757d; font-size: 12px;">Oct</div>
-                                </div>
-                                
-                                <!-- Nov (98) - 49% -->
-                                <div style="position: absolute; left: 42%; bottom: 0; width: 6%;">
-                                    <div style="height: 49%; background: rgba(16, 185, 129, 0.5); border-radius: 4px 4px 0 0;"></div>
-                                    <div style="position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); color: #6c757d; font-size: 12px;">Nov</div>
-                                </div>
-                                
-                                <!-- Dec (65) - 32.5% -->
-                                <div style="position: absolute; left: 58%; bottom: 0; width: 6%;">
-                                    <div style="height: 32.5%; background: rgba(16, 185, 129, 0.5); border-radius: 4px 4px 0 0;"></div>
-                                    <div style="position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); color: #6c757d; font-size: 12px;">Dec</div>
-                                </div>
-                                
-                                <!-- Jan (140) - 70% -->
-                                <div style="position: absolute; left: 74%; bottom: 0; width: 6%;">
-                                    <div style="height: 70%; background: rgba(16, 185, 129, 0.5); border-radius: 4px 4px 0 0;"></div>
-                                    <div style="position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); color: #6c757d; font-size: 12px;">Jan</div>
-                                </div>
-                                
-                                <!-- Feb (153) - 76.5% -->
-                                <div style="position: absolute; left: 90%; bottom: 0; width: 6%;">
-                                    <div style="height: 76.5%; background: rgba(16, 185, 129, 0.5); border-radius: 4px 4px 0 0;"></div>
-                                    <div style="position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); color: #6c757d; font-size: 12px;">Feb</div>
-                                </div>
-                            </div>
-                            
-                            <!-- Connecting line -->
-                            <div style="position: absolute; top: 58%; left: 13%; right: 13%; height: 2px; background: #10b981; opacity: 0.3;"></div>
+                        <div class="d-flex flex-column align-items-center flex-fill gap-1">
+                            <small class="text-muted fw-semibold" style="font-size:.7rem;">120</small>
+                            <div class="w-100 rounded-top bg-success bg-opacity-50" style="height:60%;min-height:4px;"></div>
+                            <small class="text-muted" style="font-size:.72rem;">Oct</small>
                         </div>
-                        
-                        <!-- Chart title -->
-                        <div style="position: absolute; top: 10px; left: 50%; transform: translateX(-50%); color: #495057; font-weight: bold; font-size: 14px;">
-                            Monthly Student Logins
+                        <div class="d-flex flex-column align-items-center flex-fill gap-1">
+                            <small class="text-muted fw-semibold" style="font-size:.7rem;">98</small>
+                            <div class="w-100 rounded-top bg-success bg-opacity-50" style="height:49%;min-height:4px;"></div>
+                            <small class="text-muted" style="font-size:.72rem;">Nov</small>
+                        </div>
+                        <div class="d-flex flex-column align-items-center flex-fill gap-1">
+                            <small class="text-muted fw-semibold" style="font-size:.7rem;">65</small>
+                            <div class="w-100 rounded-top bg-success bg-opacity-50" style="height:32.5%;min-height:4px;"></div>
+                            <small class="text-muted" style="font-size:.72rem;">Dec</small>
+                        </div>
+                        <div class="d-flex flex-column align-items-center flex-fill gap-1">
+                            <small class="text-muted fw-semibold" style="font-size:.7rem;">140</small>
+                            <div class="w-100 rounded-top bg-success bg-opacity-75" style="height:70%;min-height:4px;"></div>
+                            <small class="text-muted" style="font-size:.72rem;">Jan</small>
+                        </div>
+                        <div class="d-flex flex-column align-items-center flex-fill gap-1">
+                            <small class="text-success fw-bold" style="font-size:.7rem;">153</small>
+                            <div class="w-100 rounded-top bg-success" style="height:76.5%;min-height:4px;"></div>
+                            <small class="text-success fw-semibold" style="font-size:.72rem;">Feb</small>
                         </div>
                     </div>
-                    <p class="text-muted small mt-2">Student logins over the last 6 months</p>
                 </div>
             </div>
         </div>
 
+        <!-- College Activity -->
+        <!-- Should be an interactive chart with accurate visual display of data and more intuitive
+	-->
         <div class="col-lg-6">
-            <div class="card shadow-sm">
-                <div class="card-header bg-primary text-white d-flex align-items-center gap-2">
-                    <i class="fas fa-users"></i> College Activity Overview
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-bottom px-4 py-3">
+                    <h6 class="mb-0 fw-bold text-dark"><i class="fas fa-users me-2 text-primary"></i>College Activity</h6>
+                    <small class="text-muted">Student distribution by college — today</small>
                 </div>
-                <div class="card-body">
-                    <!-- STATIC CHART 2 -->
-                    <div style="position: relative; height: 250px; background: #f8f9fa; border-radius: 8px; padding: 15px;">
-                        <!-- Y-axis -->
-                        <div style="position: absolute; left: 40px; top: 0; bottom: 30px; width: 30px; border-right: 2px solid #dee2e6;">
-                            <div style="position: absolute; top: 0; right: 5px; color: #6c757d; font-size: 12px;">80</div>
-                            <div style="position: absolute; top: 25%; right: 5px; color: #6c757d; font-size: 12px;">60</div>
-                            <div style="position: absolute; top: 50%; right: 5px; color: #6c757d; font-size: 12px;">40</div>
-                            <div style="position: absolute; top: 75%; right: 5px; color: #6c757d; font-size: 12px;">20</div>
-                            <div style="position: absolute; bottom: 0; right: 5px; color: #6c757d; font-size: 12px;">0</div>
-                        </div>
-                        
-                        <!-- Chart area -->
-                        <div style="position: absolute; left: 70px; right: 20px; bottom: 30px; top: 0;">
-                            <!-- Grid lines -->
-                            <div style="position: absolute; top: 0; left: 0; right: 0; height: 1px; background: #e9ecef;"></div>
-                            <div style="position: absolute; top: 25%; left: 0; right: 0; height: 1px; background: #e9ecef;"></div>
-                            <div style="position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: #e9ecef;"></div>
-                            <div style="position: absolute; top: 75%; left: 0; right: 0; height: 1px; background: #e9ecef;"></div>
-                            
-                            <!-- Data bars -->
-                            <div style="position: absolute; bottom: 0; width: 100%;">
-                                <!-- Science (72) - 90% -->
-                                <div style="position: absolute; left: 15%; bottom: 0; width: 15%;">
-                                    <div style="height: 90%; background: rgba(59, 130, 246, 0.7); border-radius: 4px 4px 0 0;"></div>
-                                    <div style="position: absolute; top: -25px; left: 50%; transform: translateX(-50%); background: #3b82f6; color: white; padding: 2px 6px; border-radius: 4px; font-size: 12px;">
-                                        72
-                                    </div>
-                                    <div style="position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); color: #6c757d; font-size: 12px;">Science</div>
-                                </div>
-                                
-                                <!-- Engineering (58) - 72.5% -->
-                                <div style="position: absolute; left: 40%; bottom: 0; width: 15%;">
-                                    <div style="height: 72.5%; background: rgba(59, 130, 246, 0.7); border-radius: 4px 4px 0 0;"></div>
-                                    <div style="position: absolute; top: -25px; left: 50%; transform: translateX(-50%); background: #3b82f6; color: white; padding: 2px 6px; border-radius: 4px; font-size: 12px;">
-                                        58
-                                    </div>
-                                    <div style="position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); color: #6c757d; font-size: 12px;">Engineering</div>
-                                </div>
-                                
-                                <!-- Arts (42) - 52.5% -->
-                                <div style="position: absolute; left: 65%; bottom: 0; width: 15%;">
-                                    <div style="height: 52.5%; background: rgba(59, 130, 246, 0.7); border-radius: 4px 4px 0 0;"></div>
-                                    <div style="position: absolute; top: -25px; left: 50%; transform: translateX(-50%); background: #3b82f6; color: white; padding: 2px 6px; border-radius: 4px; font-size: 12px;">
-                                        42
-                                    </div>
-                                    <div style="position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); color: #6c757d; font-size: 12px;">Arts</div>
-                                </div>
+                <div id="departmentChart" class="card-body px-4 py-4">
+                    <div class="d-flex flex-column gap-4">
+
+                        <div>
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <small class="fw-semibold text-dark">Science</small>
+                                <small class="text-muted">72 students</small>
+                            </div>
+                            <div class="progress" style="height:8px;border-radius:8px;">
+                                <div class="progress-bar bg-primary" role="progressbar" style="width:90%;border-radius:8px;"></div>
                             </div>
                         </div>
-                        
-                        <!-- Chart title -->
-                        <div style="position: absolute; top: 10px; left: 50%; transform: translateX(-50%); color: #495057; font-weight: bold; font-size: 14px;">
-                            Students by College (Today)
+
+                        <div>
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <small class="fw-semibold text-dark">Engineering</small>
+                                <small class="text-muted">58 students</small>
+                            </div>
+                            <div class="progress" style="height:8px;border-radius:8px;">
+                                <div class="progress-bar bg-primary bg-opacity-75" role="progressbar" style="width:72.5%;border-radius:8px;"></div>
+                            </div>
                         </div>
+
+                        <div>
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <small class="fw-semibold text-dark">Arts</small>
+                                <small class="text-muted">42 students</small>
+                            </div>
+                            <div class="progress" style="height:8px;border-radius:8px;">
+                                <div class="progress-bar bg-primary bg-opacity-50" role="progressbar" style="width:52.5%;border-radius:8px;"></div>
+                            </div>
+                        </div>
+
                     </div>
-                    <p class="text-muted small mt-2">Current student distribution across colleges</p>
                 </div>
             </div>
         </div>
 
     </div>
-
-    <!-- Quick Links / Actions -->
-    
 
 </div>
 
-<!-- NO Chart.js needed -->
+
 <script>
-    // No JavaScript needed - everything is static
-    console.log("Dashboard loaded with static data");
+    $(document).ready(function() {
+
+        loadKPI();
+        loadLogs();
+        loadMonthlyTrend();
+        loadDepartmentOverview();
+
+    });
+
+    function loadKPI() {
+        $.ajax({
+            type: "POST",
+            url: "backend/bk_LibraryMenu/bk_libDashboard.php",
+            data: {
+                request: "kpiData"
+            },
+            dataType: "json",
+            success: function(sections) {
+
+                // Reset all counts to 0 first
+                $(".kpi-count").text("0");
+
+                sections.forEach(section => {
+                    let code = section.SectionCode?.trim();
+                    let total = section.total ?? 0;
+
+                    // Find the element with matching data-section-code
+                    $(`.kpi-count[data-section-code="${code}"]`).text(total);
+                });
+            },
+            error: function(xhr, status, error) {
+                console.error("Failed to load KPI data:", error);
+            }
+        });
+    }
+
+    function loadLogs(page = 1) {
+
+        $.post(
+            "backend/bk_LibraryMenu/bk_libDashboard.php", {
+                request: "dailyLogs",
+                page: page
+            },
+            function(response) {
+
+                let res = JSON.parse(response);
+
+                $("#dailyLogs").html(res.rows);
+
+                renderPagination(res.totalPages, res.currentPage);
+            }
+        );
+    }
 </script>

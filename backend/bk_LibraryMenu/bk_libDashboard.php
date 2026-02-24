@@ -1,211 +1,173 @@
-<div class="container-fluid mt-4">
+<?php
+date_default_timezone_set('Asia/Manila');
+include "../../db/dbconnection.php";
 
-    <!-- Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap">
-        <h4 class="fw-bold text-dark d-flex align-items-center gap-2">
-            <i class="fas fa-tachometer-alt text-primary"></i> Dashboard
-        </h4>
+$request = $_POST["request"] ?? "";
 
-        <small class="text-muted">Overview of library activities and trends</small>
-    </div>
+switch ($request) {
 
-    <!-- KPI Cards Row -->
-    <div class="row g-3 mb-4">
+    case "kpiData":
+        loadKPI();
+        break;
 
-        <div class="col-md-3">
-            <div class="card shadow-sm border-start border-4 border-success">
-                <div class="card-body text-center">
-                    <h6 class="card-title text-muted">Total Students Today</h6>
-                    <h3 class="fw-bold text-success">153</h3>
-                </div>
-            </div>
-        </div>
+    case "dailyLogs":
+        loadDailyLogs();
+        break;
 
-        <div class="col-md-3">
-            <div class="card shadow-sm border-start border-4 border-primary">
-                <div class="card-body text-center">
-                    <h6 class="card-title text-muted">Active Students Now</h6>
-                    <h3 class="fw-bold text-primary">42</h3>
-                </div>
-            </div>
-        </div>
+    case "monthlyTrend":
+        loadMonthlyTrend();
+        break;
 
-        <div class="col-md-3">
-            <div class="card shadow-sm border-start border-4 border-warning">
-                <div class="card-body text-center">
-                    <h6 class="card-title text-muted">Top College</h6>
-                    <h3 class="fw-bold text-warning">Science</h3>
-                </div>
-            </div>
-        </div>
+    case "departmentOverview":
+        loadDepartmentOverview();
+        break;
 
-        <div class="col-md-3">
-            <div class="card shadow-sm border-start border-4 border-danger">
-                <div class="card-body text-center">
-                    <h6 class="card-title text-muted">Top Course</h6>
-                    <h3 class="fw-bold text-danger">Biology</h3>
-                </div>
-            </div>
-        </div>
+    default:
+        echo "Invalid Request";
+}
 
-    </div>
 
-    <!-- Placeholder Charts Row -->
-    <div class="row g-4 mb-4">
+function loadKPI() {
+    // Fetch active library sections and today’s visit counts
+    $query = execsqlSRS("
+        SELECT 
+            s.SectionID,
+            s.SectionCode,
+            s.SectionName,
+            COUNT(l.id) AS total
+        FROM LibrarySection s
+        LEFT JOIN Library_logs l
+            ON l.library = s.SectionID
+            AND CAST(SWITCHOFFSET(CONVERT(datetimeoffset, l.checkin_time), '+08:00') AS DATE) = CAST(GETDATE() AS DATE)
+        WHERE s.IsActive = 1
+        GROUP BY s.SectionID, s.SectionCode, s.SectionName
+    ", "Search", []);
 
-        <div class="col-lg-6">
-            <div class="card shadow-sm">
-                <div class="card-header bg-success text-white d-flex align-items-center gap-2">
-                    <i class="fas fa-chart-line"></i> Usage Trend (Monthly)
-                </div>
-                <div class="card-body">
-                    <!-- STATIC CHART 1 -->
-                    <div style="position: relative; height: 250px; background: #f8f9fa; border-radius: 8px; padding: 15px;">
-                        <!-- Y-axis -->
-                        <div style="position: absolute; left: 40px; top: 0; bottom: 30px; width: 30px; border-right: 2px solid #dee2e6;">
-                            <div style="position: absolute; top: 0; right: 5px; color: #6c757d; font-size: 12px;">200</div>
-                            <div style="position: absolute; top: 25%; right: 5px; color: #6c757d; font-size: 12px;">150</div>
-                            <div style="position: absolute; top: 50%; right: 5px; color: #6c757d; font-size: 12px;">100</div>
-                            <div style="position: absolute; top: 75%; right: 5px; color: #6c757d; font-size: 12px;">50</div>
-                            <div style="position: absolute; bottom: 0; right: 5px; color: #6c757d; font-size: 12px;">0</div>
-                        </div>
-                        
-                        <!-- Chart area -->
-                        <div style="position: absolute; left: 70px; right: 20px; bottom: 30px; top: 0;">
-                            <!-- Grid lines -->
-                            <div style="position: absolute; top: 0; left: 0; right: 0; height: 1px; background: #e9ecef;"></div>
-                            <div style="position: absolute; top: 25%; left: 0; right: 0; height: 1px; background: #e9ecef;"></div>
-                            <div style="position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: #e9ecef;"></div>
-                            <div style="position: absolute; top: 75%; left: 0; right: 0; height: 1px; background: #e9ecef;"></div>
-                            
-                            <!-- Data points -->
-                            <div style="position: absolute; bottom: 0; width: 100%;">
-                                <!-- Sep (85) - 42.5% -->
-                                <div style="position: absolute; left: 10%; bottom: 0; width: 6%;">
-                                    <div style="height: 42.5%; background: rgba(16, 185, 129, 0.5); border-radius: 4px 4px 0 0;"></div>
-                                    <div style="position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); color: #6c757d; font-size: 12px;">Sep</div>
-                                </div>
-                                
-                                <!-- Oct (120) - 60% -->
-                                <div style="position: absolute; left: 26%; bottom: 0; width: 6%;">
-                                    <div style="height: 60%; background: rgba(16, 185, 129, 0.5); border-radius: 4px 4px 0 0;"></div>
-                                    <div style="position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); color: #6c757d; font-size: 12px;">Oct</div>
-                                </div>
-                                
-                                <!-- Nov (98) - 49% -->
-                                <div style="position: absolute; left: 42%; bottom: 0; width: 6%;">
-                                    <div style="height: 49%; background: rgba(16, 185, 129, 0.5); border-radius: 4px 4px 0 0;"></div>
-                                    <div style="position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); color: #6c757d; font-size: 12px;">Nov</div>
-                                </div>
-                                
-                                <!-- Dec (65) - 32.5% -->
-                                <div style="position: absolute; left: 58%; bottom: 0; width: 6%;">
-                                    <div style="height: 32.5%; background: rgba(16, 185, 129, 0.5); border-radius: 4px 4px 0 0;"></div>
-                                    <div style="position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); color: #6c757d; font-size: 12px;">Dec</div>
-                                </div>
-                                
-                                <!-- Jan (140) - 70% -->
-                                <div style="position: absolute; left: 74%; bottom: 0; width: 6%;">
-                                    <div style="height: 70%; background: rgba(16, 185, 129, 0.5); border-radius: 4px 4px 0 0;"></div>
-                                    <div style="position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); color: #6c757d; font-size: 12px;">Jan</div>
-                                </div>
-                                
-                                <!-- Feb (153) - 76.5% -->
-                                <div style="position: absolute; left: 90%; bottom: 0; width: 6%;">
-                                    <div style="height: 76.5%; background: rgba(16, 185, 129, 0.5); border-radius: 4px 4px 0 0;"></div>
-                                    <div style="position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); color: #6c757d; font-size: 12px;">Feb</div>
-                                </div>
-                            </div>
-                            
-                            <!-- Connecting line -->
-                            <div style="position: absolute; top: 58%; left: 13%; right: 13%; height: 2px; background: #10b981; opacity: 0.3;"></div>
-                        </div>
-                        
-                        <!-- Chart title -->
-                        <div style="position: absolute; top: 10px; left: 50%; transform: translateX(-50%); color: #495057; font-weight: bold; font-size: 14px;">
-                            Monthly Student Logins
-                        </div>
-                    </div>
-                    <p class="text-muted small mt-2">Student logins over the last 6 months</p>
-                </div>
-            </div>
-        </div>
+    foreach($query as &$row){
+        $row['SectionCode'] = trim($row['SectionCode']); // remove whitespace
+        $row['total'] = (int)$row['total'];              // ensure number
+    }
 
-        <div class="col-lg-6">
-            <div class="card shadow-sm">
-                <div class="card-header bg-primary text-white d-flex align-items-center gap-2">
-                    <i class="fas fa-users"></i> College Activity Overview
-                </div>
-                <div class="card-body">
-                    <!-- STATIC CHART 2 -->
-                    <div style="position: relative; height: 250px; background: #f8f9fa; border-radius: 8px; padding: 15px;">
-                        <!-- Y-axis -->
-                        <div style="position: absolute; left: 40px; top: 0; bottom: 30px; width: 30px; border-right: 2px solid #dee2e6;">
-                            <div style="position: absolute; top: 0; right: 5px; color: #6c757d; font-size: 12px;">80</div>
-                            <div style="position: absolute; top: 25%; right: 5px; color: #6c757d; font-size: 12px;">60</div>
-                            <div style="position: absolute; top: 50%; right: 5px; color: #6c757d; font-size: 12px;">40</div>
-                            <div style="position: absolute; top: 75%; right: 5px; color: #6c757d; font-size: 12px;">20</div>
-                            <div style="position: absolute; bottom: 0; right: 5px; color: #6c757d; font-size: 12px;">0</div>
-                        </div>
-                        
-                        <!-- Chart area -->
-                        <div style="position: absolute; left: 70px; right: 20px; bottom: 30px; top: 0;">
-                            <!-- Grid lines -->
-                            <div style="position: absolute; top: 0; left: 0; right: 0; height: 1px; background: #e9ecef;"></div>
-                            <div style="position: absolute; top: 25%; left: 0; right: 0; height: 1px; background: #e9ecef;"></div>
-                            <div style="position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: #e9ecef;"></div>
-                            <div style="position: absolute; top: 75%; left: 0; right: 0; height: 1px; background: #e9ecef;"></div>
-                            
-                            <!-- Data bars -->
-                            <div style="position: absolute; bottom: 0; width: 100%;">
-                                <!-- Science (72) - 90% -->
-                                <div style="position: absolute; left: 15%; bottom: 0; width: 15%;">
-                                    <div style="height: 90%; background: rgba(59, 130, 246, 0.7); border-radius: 4px 4px 0 0;"></div>
-                                    <div style="position: absolute; top: -25px; left: 50%; transform: translateX(-50%); background: #3b82f6; color: white; padding: 2px 6px; border-radius: 4px; font-size: 12px;">
-                                        72
-                                    </div>
-                                    <div style="position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); color: #6c757d; font-size: 12px;">Science</div>
-                                </div>
-                                
-                                <!-- Engineering (58) - 72.5% -->
-                                <div style="position: absolute; left: 40%; bottom: 0; width: 15%;">
-                                    <div style="height: 72.5%; background: rgba(59, 130, 246, 0.7); border-radius: 4px 4px 0 0;"></div>
-                                    <div style="position: absolute; top: -25px; left: 50%; transform: translateX(-50%); background: #3b82f6; color: white; padding: 2px 6px; border-radius: 4px; font-size: 12px;">
-                                        58
-                                    </div>
-                                    <div style="position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); color: #6c757d; font-size: 12px;">Engineering</div>
-                                </div>
-                                
-                                <!-- Arts (42) - 52.5% -->
-                                <div style="position: absolute; left: 65%; bottom: 0; width: 15%;">
-                                    <div style="height: 52.5%; background: rgba(59, 130, 246, 0.7); border-radius: 4px 4px 0 0;"></div>
-                                    <div style="position: absolute; top: -25px; left: 50%; transform: translateX(-50%); background: #3b82f6; color: white; padding: 2px 6px; border-radius: 4px; font-size: 12px;">
-                                        42
-                                    </div>
-                                    <div style="position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); color: #6c757d; font-size: 12px;">Arts</div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Chart title -->
-                        <div style="position: absolute; top: 10px; left: 50%; transform: translateX(-50%); color: #495057; font-weight: bold; font-size: 14px;">
-                            Students by College (Today)
-                        </div>
-                    </div>
-                    <p class="text-muted small mt-2">Current student distribution across colleges</p>
-                </div>
-            </div>
-        </div>
+    echo json_encode($query);
+}
 
-    </div>
 
-    <!-- Quick Links / Actions -->
-    
+function getSingleSectionKPI() {
 
-</div>
+    $sectionID = $_POST["sectionID"];
 
-<!-- NO Chart.js needed -->
-<script>
-    // No JavaScript needed - everything is static
-    console.log("Dashboard loaded with static data");
-</script>
+    $query = execsqlSRS("
+        SELECT 
+            s.SectionID,
+            s.SectionName,
+            COUNT(l.id) as total
+        FROM LibrarySection s
+        LEFT JOIN Library_logs l
+            ON l.library = s.SectionID
+            AND CAST(l.checkin_time AS DATE) = CAST(GETDATE() AS DATE)
+        WHERE s.SectionID = ?
+        GROUP BY s.SectionID, s.SectionName
+    ", "Search", [$sectionID]);
+
+    echo json_encode($query[0]);
+}
+
+function loadDailyLogs() {
+
+    $page  = isset($_POST["page"]) ? (int)$_POST["page"] : 1;
+    $limit = 5;
+
+    if ($page < 1) $page = 1;
+
+    $offset = ($page - 1) * $limit;
+
+    // Count TODAY rows only
+    $totalQuery = execsqlSRS("
+        SELECT COUNT(*) as total
+        FROM Library_logs
+        WHERE CAST(checkin_time AS DATE) = CAST(GETDATE() AS DATE)
+    ", "Search", []);
+
+    $totalRows  = $totalQuery[0]["total"];
+    $totalPages = ceil($totalRows / $limit);
+
+    // Fetch TODAY logs only
+    $sql = "
+        SELECT 
+            l.id_number,
+            l.college,
+            l.course,
+            s.SectionName,
+            l.checkin_time,
+            l.checkout_time
+        FROM Library_logs l
+        LEFT JOIN LibrarySection s
+            ON l.library = s.SectionID
+        WHERE CAST(l.checkin_time AS DATE) = CAST(GETDATE() AS DATE)
+        ORDER BY l.checkin_time DESC
+        OFFSET $offset ROWS
+        FETCH NEXT $limit ROWS ONLY
+    ";
+
+    $logs = execsqlSRS($sql, "Search", []);
+
+    ob_start();
+
+    foreach ($logs as $row) {
+
+        $status = empty($row["checkout_time"])
+            ? "<span class='badge bg-success-subtle text-success rounded-pill px-3'>Active</span>"
+            : "<span class='badge bg-secondary-subtle text-secondary rounded-pill px-3'>Completed</span>";
+
+        echo "<tr>";
+        echo "<td class='px-4 fw-semibold'>" . htmlspecialchars($row["id_number"]) . "</td>";
+        echo "<td>" . htmlspecialchars($row["college"]) . "</td>";
+        echo "<td>" . htmlspecialchars($row["course"]) . "</td>";
+        echo "<td><span class='badge bg-light text-dark border'>" 
+                . htmlspecialchars($row["SectionName"] ?? '-') . 
+             "</span></td>";
+        echo "<td>" . date('M j, Y g:i A', strtotime($row["checkin_time"])) . "</td>";
+        echo "<td>" . ($row["checkout_time"] 
+                ? date('M j, Y g:i A', strtotime($row["checkout_time"])) 
+                : '-') . "</td>";
+        echo "<td class='text-center'>$status</td>";
+        echo "</tr>";
+    }
+
+    $rowsHTML = ob_get_clean();
+
+    echo json_encode([
+        "rows" => $rowsHTML,
+        "totalPages" => $totalPages,
+        "currentPage" => $page
+    ]);
+}
+
+function loadMonthlyTrend() {
+
+    $query = execsqlSRS("
+        SELECT 
+            FORMAT(checkin_time, 'MMM') as month,
+            COUNT(*) as total
+        FROM Library_logs
+        WHERE checkin_time >= DATEADD(MONTH, -6, GETDATE())
+        GROUP BY FORMAT(checkin_time, 'MMM'), MONTH(checkin_time)
+        ORDER BY MONTH(checkin_time)
+    ", "Search", []);
+
+    echo json_encode($query);
+}
+
+function loadDepartmentOverview() {
+
+    $query = execsqlSRS("
+        SELECT college, COUNT(*) as total
+        FROM Library_logs
+        WHERE CAST(checkin_time AS DATE) = CAST(GETDATE() AS DATE)
+        GROUP BY college
+        ORDER BY total DESC
+    ", "Search", []);
+
+    echo json_encode($query);
+}
+
