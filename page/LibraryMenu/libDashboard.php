@@ -19,9 +19,8 @@
                 <div class="card-body p-3">
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <span class="text-muted fw-semibold text-uppercase" style="letter-spacing:.05em;font-size:.7rem;">Filipiniana 1F</span>
-
                     </div>
-                    <h3 id="Lib1" class="fw-bold text-success mb-0 kpi-count"><?php ?></h3>
+                    <h3 class="fw-bold text-success mb-0 kpi-count" data-section-code="FIL1F">0</h3>
                     <small class="text-muted">active visits</small>
                 </div>
                 <div class="bg-success rounded-bottom" style="height:3px;"></div>
@@ -33,9 +32,8 @@
                 <div class="card-body p-3">
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <span class="text-muted fw-semibold text-uppercase" style="letter-spacing:.05em;font-size:.7rem;">Filipiniana 2F</span>
-
                     </div>
-                    <h3 id="Lib2" class="fw-bold text-primary mb-0 kpi-count"><?php ?></h3>
+                    <h3 class="fw-bold text-primary mb-0 kpi-count" data-section-code="FIL2F">0</h3>
                     <small class="text-muted">active visits</small>
                 </div>
                 <div class="bg-primary rounded-bottom" style="height:3px;"></div>
@@ -47,9 +45,8 @@
                 <div class="card-body p-3">
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <span class="text-muted fw-semibold text-uppercase" style="letter-spacing:.05em;font-size:.7rem;">Manuscript</span>
-
                     </div>
-                    <h3 id="Lib3" class="fw-bold text-warning mb-0 kpi-count"><?php ?></h3>
+                    <h3 class="fw-bold text-warning mb-0 kpi-count" data-section-code="MAN">0</h3>
                     <small class="text-muted">active visits</small>
                 </div>
                 <div class="bg-warning rounded-bottom" style="height:3px;"></div>
@@ -61,9 +58,8 @@
                 <div class="card-body p-3">
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <span class="text-muted fw-semibold text-uppercase" style="letter-spacing:.05em;font-size:.7rem;">Recreational</span>
-
                     </div>
-                    <h3 id="Lib4" class="fw-bold text-danger mb-0 kpi-count"><?php ?></h3>
+                    <h3 class="fw-bold text-danger mb-0 kpi-count" data-section-code="REC">0</h3>
                     <small class="text-muted">active visits</small>
                 </div>
                 <div class="bg-danger rounded-bottom" style="height:3px;"></div>
@@ -97,31 +93,7 @@
                     </thead>
                     <tbody id="dailyLogs">
                         <tr>
-                            <td class="px-4 fw-semibold text-dark">2022100114</td>
-                            <td class="text-muted">—</td>
-                            <td class="text-muted">—</td>
-                            <td><span class="badge bg-light text-secondary border">—</span></td>
-                            <td class="text-muted">—</td>
-                            <td class="text-muted">—</td>
-                            <td><span class="badge bg-success-subtle text-success rounded-pill px-3">Active</span></td>
-                        </tr>
-                        <tr>
-                            <td class="px-4 fw-semibold text-dark">2022100114</td>
-                            <td class="text-muted">—</td>
-                            <td class="text-muted">—</td>
-                            <td><span class="badge bg-light text-secondary border">—</span></td>
-                            <td class="text-muted">—</td>
-                            <td class="text-muted">—</td>
-                            <td><span class="badge bg-success-subtle text-success rounded-pill px-3">Active</span></td>
-                        </tr>
-                        <tr>
-                            <td class="px-4 fw-semibold text-dark">2022100114</td>
-                            <td class="text-muted">—</td>
-                            <td class="text-muted">—</td>
-                            <td><span class="badge bg-light text-secondary border">—</span></td>
-                            <td class="text-muted">—</td>
-                            <td class="text-muted">—</td>
-                            <td><span class="badge bg-success-subtle text-success rounded-pill px-3">Active</span></td>
+                            <td colspan="7" class="text-center text-muted py-4">Loading...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -129,17 +101,15 @@
         </div>
         <div class="card-footer bg-white border-top py-2 px-4">
             <nav>
-                <ul class="pagination pagination-sm justify-content-center mb-0"></ul>
+                <ul class="pagination pagination-sm justify-content-center mb-0" id="logsPagination"></ul>
             </nav>
         </div>
     </div>
 
     <!-- Charts Row -->
-    <div class="row g-3">
+    <div class="row g-3 mb-3">
 
         <!-- Usage Trend -->
-        <!-- Should be an interactive calandar with visual display of data similar to github calendar but more intuitive
-	-->
         <div class="col-lg-6">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-header bg-white border-bottom px-4 py-3">
@@ -147,45 +117,14 @@
                     <small class="text-muted">Monthly student logins — last 6 months</small>
                 </div>
                 <div id="userChart" class="card-body px-4 pb-4 pt-3">
-                    <div class="d-flex align-items-end gap-2 justify-content-between" style="height:180px;">
-                        <div class="d-flex flex-column align-items-center flex-fill gap-1">
-                            <small class="text-muted fw-semibold" style="font-size:.7rem;">85</small>
-                            <div class="w-100 rounded-top bg-success bg-opacity-50" style="height:42.5%;min-height:4px;"></div>
-                            <small class="text-muted" style="font-size:.72rem;">Sep</small>
-                        </div>
-                        <div class="d-flex flex-column align-items-center flex-fill gap-1">
-                            <small class="text-muted fw-semibold" style="font-size:.7rem;">120</small>
-                            <div class="w-100 rounded-top bg-success bg-opacity-50" style="height:60%;min-height:4px;"></div>
-                            <small class="text-muted" style="font-size:.72rem;">Oct</small>
-                        </div>
-                        <div class="d-flex flex-column align-items-center flex-fill gap-1">
-                            <small class="text-muted fw-semibold" style="font-size:.7rem;">98</small>
-                            <div class="w-100 rounded-top bg-success bg-opacity-50" style="height:49%;min-height:4px;"></div>
-                            <small class="text-muted" style="font-size:.72rem;">Nov</small>
-                        </div>
-                        <div class="d-flex flex-column align-items-center flex-fill gap-1">
-                            <small class="text-muted fw-semibold" style="font-size:.7rem;">65</small>
-                            <div class="w-100 rounded-top bg-success bg-opacity-50" style="height:32.5%;min-height:4px;"></div>
-                            <small class="text-muted" style="font-size:.72rem;">Dec</small>
-                        </div>
-                        <div class="d-flex flex-column align-items-center flex-fill gap-1">
-                            <small class="text-muted fw-semibold" style="font-size:.7rem;">140</small>
-                            <div class="w-100 rounded-top bg-success bg-opacity-75" style="height:70%;min-height:4px;"></div>
-                            <small class="text-muted" style="font-size:.72rem;">Jan</small>
-                        </div>
-                        <div class="d-flex flex-column align-items-center flex-fill gap-1">
-                            <small class="text-success fw-bold" style="font-size:.7rem;">153</small>
-                            <div class="w-100 rounded-top bg-success" style="height:76.5%;min-height:4px;"></div>
-                            <small class="text-success fw-semibold" style="font-size:.72rem;">Feb</small>
-                        </div>
+                    <div id="trendBars" class="d-flex align-items-end gap-2 justify-content-between" style="height:180px;">
+                        <div class="text-center text-muted w-100 py-4" style="font-size:.8rem;">Loading...</div>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- College Activity -->
-        <!-- Should be an interactive chart with accurate visual display of data and more intuitive
-	-->
         <div class="col-lg-6">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-header bg-white border-bottom px-4 py-3">
@@ -193,38 +132,8 @@
                     <small class="text-muted">Student distribution by college — today</small>
                 </div>
                 <div id="departmentChart" class="card-body px-4 py-4">
-                    <div class="d-flex flex-column gap-4">
-
-                        <div>
-                            <div class="d-flex justify-content-between align-items-center mb-1">
-                                <small class="fw-semibold text-dark">Science</small>
-                                <small class="text-muted">72 students</small>
-                            </div>
-                            <div class="progress" style="height:8px;border-radius:8px;">
-                                <div class="progress-bar bg-primary" role="progressbar" style="width:90%;border-radius:8px;"></div>
-                            </div>
-                        </div>
-
-                        <div>
-                            <div class="d-flex justify-content-between align-items-center mb-1">
-                                <small class="fw-semibold text-dark">Engineering</small>
-                                <small class="text-muted">58 students</small>
-                            </div>
-                            <div class="progress" style="height:8px;border-radius:8px;">
-                                <div class="progress-bar bg-primary bg-opacity-75" role="progressbar" style="width:72.5%;border-radius:8px;"></div>
-                            </div>
-                        </div>
-
-                        <div>
-                            <div class="d-flex justify-content-between align-items-center mb-1">
-                                <small class="fw-semibold text-dark">Arts</small>
-                                <small class="text-muted">42 students</small>
-                            </div>
-                            <div class="progress" style="height:8px;border-radius:8px;">
-                                <div class="progress-bar bg-primary bg-opacity-50" role="progressbar" style="width:52.5%;border-radius:8px;"></div>
-                            </div>
-                        </div>
-
+                    <div id="collegeActivityBars" class="d-flex flex-column gap-4">
+                        <div class="text-center text-muted py-4" style="font-size:.8rem;">Loading...</div>
                     </div>
                 </div>
             </div>
@@ -232,61 +141,279 @@
 
     </div>
 
+    <!-- College & Course Activity -->
+    <div class="row g-3">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom px-4 py-3 d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-0 fw-bold text-dark"><i class="fas fa-layer-group me-2 text-info"></i>College &amp; Course Activity</h6>
+                        <small class="text-muted">Visits grouped by college and course — today</small>
+                    </div>
+                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-3" style="font-size:.72rem;">Today</span>
+                </div>
+                <div class="card-body px-4 py-3">
+                    <div id="collegeCourseActivity">
+                        <div class="text-center text-muted py-4" style="font-size:.8rem;">Loading...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 
 <script>
-    $(document).ready(function() {
+$(document).ready(function () {
 
-        loadKPI();
-        loadLogs();
-        loadMonthlyTrend();
-        loadDepartmentOverview();
+    // =========================================================
+    //  CONFIG
+    // =========================================================
 
-    });
+    const BACKEND_URL = "backend/bk_LibraryMenu/bk_libDashboard.php";
+
+
+    // =========================================================
+    //  INIT
+    // =========================================================
+
+    loadKPI();
+    loadLogs();
+    loadMonthlyTrend();
+    loadDepartmentOverview();
+    loadCollegeCourseActivity();
+
+
+    // =========================================================
+    //  KPI
+    // =========================================================
 
     function loadKPI() {
         $.ajax({
-            type: "POST",
-            url: "backend/bk_LibraryMenu/bk_libDashboard.php",
-            data: {
-                request: "kpiData"
-            },
+            type:     "POST",
+            url:      BACKEND_URL,
+            data:     { request: "kpiData" },
             dataType: "json",
-            success: function(sections) {
-
-                // Reset all counts to 0 first
+            success: function (sections) {
                 $(".kpi-count").text("0");
-
-                sections.forEach(section => {
-                    let code = section.SectionCode?.trim();
-                    let total = section.total ?? 0;
-
-                    // Find the element with matching data-section-code
+                sections.forEach(function (section) {
+                    const code  = (section.SectionCode ?? "").trim();
+                    const total = section.total ?? 0;
                     $(`.kpi-count[data-section-code="${code}"]`).text(total);
                 });
             },
-            error: function(xhr, status, error) {
-                console.error("Failed to load KPI data:", error);
+            error: function () {
+                console.error("KPI load failed.");
             }
         });
     }
 
+
+    // =========================================================
+    //  DAILY LOGS
+    // =========================================================
+
     function loadLogs(page = 1) {
-
-        $.post(
-            "backend/bk_LibraryMenu/bk_libDashboard.php", {
-                request: "dailyLogs",
-                page: page
-            },
-            function(response) {
-
-                let res = JSON.parse(response);
-
+        $.ajax({
+            type: "POST",
+            url:  BACKEND_URL,
+            data: { request: "dailyLogs", page },
+            success: function (raw) {
+                const res = JSON.parse(raw);
                 $("#dailyLogs").html(res.rows);
-
                 renderPagination(res.totalPages, res.currentPage);
             }
-        );
+        });
     }
+
+    function renderPagination(totalPages, currentPage) {
+        const $pag = $("#logsPagination").empty();
+        if (totalPages <= 1) return;
+
+        for (let p = 1; p <= totalPages; p++) {
+            const active = p === currentPage ? "active" : "";
+            $pag.append(`
+                <li class="page-item ${active}">
+                    <a class="page-link" href="#" data-page="${p}">${p}</a>
+                </li>
+            `);
+        }
+
+        $pag.find(".page-link").on("click", function (e) {
+            e.preventDefault();
+            loadLogs(parseInt($(this).data("page")));
+        });
+    }
+
+
+    // =========================================================
+    //  USAGE TREND
+    // =========================================================
+
+    function loadMonthlyTrend() {
+        $.ajax({
+            type:     "POST",
+            url:      BACKEND_URL,
+            data:     { request: "monthlyTrend" },
+            dataType: "json",
+            success:  renderMonthlyTrend,
+            error: function () {
+                $("#trendBars").html('<div class="text-center text-muted w-100">No data available.</div>');
+            }
+        });
+    }
+
+    function renderMonthlyTrend(rows) {
+        if (!rows || !rows.length) {
+            $("#trendBars").html('<div class="text-center text-muted w-100">No data available.</div>');
+            return;
+        }
+
+        const maxVal = Math.max(...rows.map(r => parseInt(r.total)));
+        const bars   = rows.map(function (r) {
+            const pct      = maxVal > 0 ? (parseInt(r.total) / maxVal * 100).toFixed(1) : 0;
+            const isCurrent = rows.indexOf(r) === rows.length - 1;
+            const barColor = isCurrent ? "bg-success" : "bg-success bg-opacity-50";
+            const labelClass = isCurrent ? "text-success fw-bold" : "text-muted fw-semibold";
+            return `
+                <div class="d-flex flex-column align-items-center flex-fill gap-1">
+                    <small class="${labelClass}" style="font-size:.7rem;">${r.total}</small>
+                    <div class="w-100 rounded-top ${barColor}" style="height:${pct}%;min-height:4px;"></div>
+                    <small class="${isCurrent ? 'text-success fw-semibold' : 'text-muted'}" style="font-size:.72rem;">${r.month}</small>
+                </div>
+            `;
+        }).join('');
+
+        $("#trendBars").html(bars);
+    }
+
+
+    // =========================================================
+    //  COLLEGE ACTIVITY
+    // =========================================================
+
+    function loadDepartmentOverview() {
+        $.ajax({
+            type:     "POST",
+            url:      BACKEND_URL,
+            data:     { request: "departmentOverview" },
+            dataType: "json",
+            success:  renderCollegeActivity,
+            error: function () {
+                $("#collegeActivityBars").html('<div class="text-center text-muted">No data available.</div>');
+            }
+        });
+    }
+
+    function renderCollegeActivity(rows) {
+        if (!rows || !rows.length) {
+            $("#collegeActivityBars").html('<div class="text-center text-muted py-4" style="font-size:.8rem;">No activity today.</div>');
+            return;
+        }
+
+        const maxVal  = Math.max(...rows.map(r => parseInt(r.total)));
+        const palette = ["bg-primary", "bg-primary bg-opacity-75", "bg-primary bg-opacity-50", "bg-info", "bg-info bg-opacity-75"];
+
+        const html = rows.map(function (r, idx) {
+            const pct   = maxVal > 0 ? (parseInt(r.total) / maxVal * 100).toFixed(1) : 0;
+            const color = palette[idx % palette.length];
+            return `
+                <div>
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <small class="fw-semibold text-dark">${escHtml(r.college || '—')}</small>
+                        <small class="text-muted">${r.total} students</small>
+                    </div>
+                    <div class="progress" style="height:8px;border-radius:8px;">
+                        <div class="progress-bar ${color}" role="progressbar"
+                             style="width:${pct}%;border-radius:8px;"></div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        $("#collegeActivityBars").html(html);
+    }
+
+
+    // =========================================================
+    //  COLLEGE & COURSE ACTIVITY
+    // =========================================================
+
+    function loadCollegeCourseActivity() {
+        $.ajax({
+            type:     "POST",
+            url:      BACKEND_URL,
+            data:     { request: "collegeCourseActivity" },
+            dataType: "json",
+            success:  renderCollegeCourseActivity,
+            error: function () {
+                $("#collegeCourseActivity").html('<div class="text-center text-muted py-4">No data available.</div>');
+            }
+        });
+    }
+
+    function renderCollegeCourseActivity(colleges) {
+        if (!colleges || !colleges.length) {
+            $("#collegeCourseActivity").html('<div class="text-center text-muted py-4" style="font-size:.8rem;">No activity today.</div>');
+            return;
+        }
+
+        // colleges = [ { college, total, courses: [ { course, total }, ... ] }, ... ]
+        const maxCollegeTotal = Math.max(...colleges.map(c => parseInt(c.total)));
+        const palette = ["#3a6cf4", "#06B6D4", "#8b5cf6", "#f59e0b", "#ef4444", "#10b981"];
+
+        const html = colleges.map(function (col, colIdx) {
+            const color        = palette[colIdx % palette.length];
+            const colPct       = maxCollegeTotal > 0 ? (parseInt(col.total) / maxCollegeTotal * 100).toFixed(1) : 0;
+            const maxCourse    = Math.max(...col.courses.map(c => parseInt(c.total)));
+
+            const courseRows = col.courses.map(function (course) {
+                const coursePct = maxCourse > 0 ? (parseInt(course.total) / maxCourse * 100).toFixed(1) : 0;
+                return `
+                    <div class="d-flex align-items-center gap-3">
+                        <small class="text-muted text-end" style="min-width:130px;font-size:.78rem;">${escHtml(course.course || '—')}</small>
+                        <div class="flex-fill" style="position:relative;">
+                            <div class="rounded" style="height:6px;background:#f1f3f5;">
+                                <div class="rounded" style="height:6px;width:${coursePct}%;background:${color};opacity:.55;transition:width .4s;"></div>
+                            </div>
+                        </div>
+                        <small class="text-muted fw-semibold" style="min-width:24px;font-size:.75rem;">${course.total}</small>
+                    </div>
+                `;
+            }).join('');
+
+            return `
+                <div class="mb-4">
+                    <!-- College header row -->
+                    <div class="d-flex align-items-center gap-3 mb-2">
+                        <small class="fw-bold text-dark" style="min-width:130px;font-size:.82rem;">${escHtml(col.college || '—')}</small>
+                        <div class="flex-fill" style="position:relative;">
+                            <div class="rounded" style="height:8px;background:#f1f3f5;">
+                                <div class="rounded" style="height:8px;width:${colPct}%;background:${color};transition:width .4s;"></div>
+                            </div>
+                        </div>
+                        <small class="fw-semibold" style="min-width:24px;font-size:.78rem;color:${color};">${col.total}</small>
+                    </div>
+                    <!-- Course breakdown -->
+                    <div class="d-flex flex-column gap-2 ps-1">
+                        ${courseRows}
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        $("#collegeCourseActivity").html(html);
+    }
+
+
+    // =========================================================
+    //  UTIL
+    // =========================================================
+
+    function escHtml(str) {
+        return $('<div>').text(str).html();
+    }
+
+});
 </script>

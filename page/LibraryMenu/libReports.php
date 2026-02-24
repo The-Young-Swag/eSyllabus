@@ -1,19 +1,25 @@
 <?php
-// Fetch library sections for the dropdown
+/**
+ * Library Analytics Dashboard - Frontend View
+ * Renders the filter panel, KPI cards, tab navigation, and bootstraps the JS.
+ */
+
 include "../../db/dbconnection.php";
+
 $librarySections = execsqlSRS(
     "SELECT SectionID, SectionName FROM LibrarySection WHERE IsActive = 1 ORDER BY SectionName",
     'Select',
-    []  // Empty array for parameters
+    []
 );
 ?>
 
 <div class="container-fluid py-4">
 
-    <!-- HEADER SECTION -->
+    <!-- =========================================================
+         PAGE HEADER
+    ========================================================== -->
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
         <div class="d-flex align-items-center gap-3">
-
             <div>
                 <h4 class="fw-bold mb-1">Library Analytics Dashboard</h4>
                 <div class="d-flex align-items-center gap-2 flex-wrap">
@@ -37,586 +43,706 @@ $librarySections = execsqlSRS(
         </div>
     </div>
 
-    <!-- FILTER SECTION -->
-<div class="card border-0 shadow-sm mb-4 rounded-4">
-    <div class="card-body">
 
-        <!-- FILTER ROW -->
-        <div class="row g-3 align-items-end">
+    <!-- =========================================================
+         FILTER PANEL
+    ========================================================== -->
+    <div class="card border-0 shadow-sm mb-4 rounded-4">
+        <div class="card-body">
+            <div class="row g-3 align-items-end">
 
-            <!-- Start Date -->
-            <div class="col-md-3">
-                <label class="form-label small fw-semibold mb-1">Start Date</label>
-                <div class="input-group input-group-sm shadow-sm rounded-4 overflow-hidden" style="background: linear-gradient(90deg, #e6f4ea, #ffffff);">
-                    <span class="input-group-text bg-light border-end-0">
-                        <i class="fas fa-calendar text-muted"></i>
-                    </span>
-                    <input type="date" class="form-control border-start-0 ps-0" id="startDate" style="border-radius:0; background:transparent;">
+                <!-- Start Date -->
+                <div class="col-md-3">
+                    <label class="form-label small fw-semibold mb-1">Start Date</label>
+                    <div class="input-group input-group-sm shadow-sm rounded-4 overflow-hidden"
+                         style="background: linear-gradient(90deg, #e6f4ea, #ffffff);">
+                        <span class="input-group-text bg-light border-end-0">
+                            <i class="fas fa-calendar text-muted"></i>
+                        </span>
+                        <input type="date" class="form-control border-start-0 ps-0"
+                               id="startDate" style="border-radius:0; background:transparent;">
+                    </div>
+                </div>
+
+                <!-- End Date -->
+                <div class="col-md-3">
+                    <label class="form-label small fw-semibold mb-1">End Date</label>
+                    <div class="input-group input-group-sm shadow-sm rounded-4 overflow-hidden"
+                         style="background: linear-gradient(90deg, #e6f4ea, #ffffff);">
+                        <span class="input-group-text bg-light border-end-0">
+                            <i class="fas fa-calendar-check text-muted"></i>
+                        </span>
+                        <input type="date" class="form-control border-start-0 ps-0"
+                               id="endDate" style="border-radius:0; background:transparent;">
+                    </div>
+                </div>
+
+                <!-- User Classification -->
+                <div class="col-md-3">
+                    <label class="form-label small fw-semibold mb-1">User Classification</label>
+                    <select class="form-select form-select-sm shadow-sm rounded-4" id="classificationFilter"
+                            style="background: linear-gradient(90deg, #f3f9f7, #ffffff); border:none;">
+                        <option value="All" selected>All</option>
+                        <option value="Student">Student</option>
+                        <option value="Employee">Employee</option>
+                        <option value="Guest">Guest</option>
+                    </select>
+                </div>
+
+                <!-- Library -->
+                <div class="col-md-3">
+                    <label class="form-label small fw-semibold mb-1">Library</label>
+                    <select class="form-select form-select-sm shadow-sm rounded-4" id="libraryFilter"
+                            style="background: linear-gradient(90deg, #f3f9f7, #ffffff); border:none;">
+                        <option value="All" selected>All Libraries</option>
+                        <?php foreach ($librarySections as $section): ?>
+                            <option value="<?= $section['SectionID'] ?>">
+                                <?= htmlspecialchars($section['SectionName']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+            </div>
+
+            <!-- Generate Button -->
+            <div class="row mt-4">
+                <div class="col-12 col-md-4 offset-md-8">
+                    <button class="btn w-100 fw-semibold shadow-sm" id="generateBtn"
+                            style="background: linear-gradient(90deg, #047857, #10b981);
+                                   color:white; border-radius:0.5rem; font-size:1rem;">
+                        <i class="fas fa-chart-bar me-1"></i> Generate Analytics
+                    </button>
                 </div>
             </div>
-
-            <!-- End Date -->
-            <div class="col-md-3">
-                <label class="form-label small fw-semibold mb-1">End Date</label>
-                <div class="input-group input-group-sm shadow-sm rounded-4 overflow-hidden" style="background: linear-gradient(90deg, #e6f4ea, #ffffff);">
-                    <span class="input-group-text bg-light border-end-0">
-                        <i class="fas fa-calendar-check text-muted"></i>
-                    </span>
-                    <input type="date" class="form-control border-start-0 ps-0" id="endDate" style="border-radius:0; background:transparent;">
-                </div>
-            </div>
-
-            <!-- User Classification -->
-            <div class="col-md-3">
-                <label class="form-label small fw-semibold mb-1">User Classification</label>
-                <select class="form-select form-select-sm shadow-sm rounded-4" id="globalClassification"
-                        style="background: linear-gradient(90deg, #f3f9f7, #ffffff); border:none;">
-                    <option value="All" selected>All</option>
-                    <option value="Student">Student</option>
-                    <option value="Employee">Employee</option>
-                    <option value="Guest">Guest</option>
-                </select>
-            </div>
-
-            <!-- Library Filter -->
-            <div class="col-md-3">
-                <label class="form-label small fw-semibold mb-1">Library</label>
-                <select class="form-select form-select-sm shadow-sm rounded-4" id="libraryFilter"
-                        style="background: linear-gradient(90deg, #f3f9f7, #ffffff); border:none;">
-                    <option value="All" selected>All Libraries</option>
-                    <?php foreach ($librarySections as $lib): ?>
-                        <option value="<?= $lib['SectionID'] ?>"><?= htmlspecialchars($lib['SectionName']) ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-
         </div>
-
-        <!-- GENERATE BUTTON ROW -->
-        <div class="row mt-4">
-            <div class="col-12 col-md-4 offset-md-8">
-                <button class="btn w-100 fw-semibold shadow-sm"
-                        style="background: linear-gradient(90deg, #047857, #10b981); color:white; border-radius:0.5rem; font-size:1rem;"
-                        id="generateBtn">
-                    <i class="fas fa-chart-bar me-1"></i> Generate Analytics
-                </button>
-            </div>
-        </div>
-
     </div>
-</div>
 
-    <!-- KPI CARDS -->
+
+    <!-- =========================================================
+         KPI CARDS
+    ========================================================== -->
     <div class="row g-3 mb-4">
-        <!-- Total Check-ins -->
+
         <div class="col-md-3">
-            <div class="card border-0 shadow-sm rounded-4 h-100" style="background: linear-gradient(135deg, #10b981, #047857);">
+            <div class="card border-0 shadow-sm rounded-4 h-100"
+                 style="background: linear-gradient(135deg, #10b981, #047857);">
                 <div class="card-body text-white">
                     <small class="fw-semibold text-white-50">Total Check-ins</small>
-                    <h3 class="fw-bold mt-1 mb-0" id="totalCheckinsValue">—</h3>
+                    <h3 class="fw-bold mt-1 mb-0" id="kpiTotalCheckins">—</h3>
                 </div>
             </div>
         </div>
 
-        <!-- Avg Duration -->
         <div class="col-md-3">
-            <div class="card border-0 shadow-sm rounded-4 h-100" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8);">
+            <div class="card border-0 shadow-sm rounded-4 h-100"
+                 style="background: linear-gradient(135deg, #3b82f6, #1d4ed8);">
                 <div class="card-body text-white">
                     <small class="fw-semibold text-white-50">Avg. Duration</small>
-                    <h3 class="fw-bold mt-1 mb-0" id="avgDurationValue">—</h3>
+                    <h3 class="fw-bold mt-1 mb-0" id="kpiAvgDuration">—</h3>
                 </div>
             </div>
         </div>
 
-        <!-- Active Colleges -->
-
-        <!-- Unique Courses -->
-
-
-        <!-- End Date Check-ins -->
         <div class="col-md-3">
-            <div class="card border-0 shadow-sm rounded-4 h-100" style="background: linear-gradient(135deg, #6b7280, #374151);">
+            <div class="card border-0 shadow-sm rounded-4 h-100"
+                 style="background: linear-gradient(135deg, #6b7280, #374151);">
                 <div class="card-body text-white">
-                    <small class="fw-semibold text-white-50" id="endDateCheckinsLabel">Check ins on —</small>
-                    <h3 class="fw-bold mt-1 mb-0" id="endDateCheckinsValue">—</h3>
+                    <small class="fw-semibold text-white-50" id="kpiEndDateLabel">Check-ins on —</small>
+                    <h3 class="fw-bold mt-1 mb-0" id="kpiEndDateCheckins">—</h3>
                 </div>
             </div>
         </div>
+
     </div>
 
-    <!-- TAB SECTION -->
-<!-- TAB SECTION -->
-<div class="mb-4">
-    <ul class="nav nav-tabs border-0 rounded-3 overflow-hidden shadow-sm d-flex flex-nowrap p-2" 
-        id="analyticsTabs" role="tablist" 
-        style="background:#f0f4fa; border:1px solid #d6dff0 !important; gap:6px;">
-        
-        <!-- Users Tab -->
-        <li class="nav-item flex-fill" role="presentation">
-            <button class="nav-link active w-100 d-flex align-items-center justify-content-center gap-2 rounded-2 border-0 fw-medium px-3 py-2" 
-                    data-tab="users" role="tab" aria-selected="true"
-                    style="background:linear-gradient(135deg,#3a6cf4,#6a3de8); color:#fff; box-shadow:0 3px 12px rgba(58,108,244,0.28); font-size:0.875rem;">
-                <i class="bi bi-people-fill"></i> Users
-            </button>
-        </li>
 
-        <!-- Colleges Tab -->
-        <li class="nav-item flex-fill" role="presentation">
-            <button class="nav-link w-100 d-flex align-items-center justify-content-center gap-2 rounded-2 border-0 fw-medium px-3 py-2" 
-                    data-tab="colleges" role="tab" aria-selected="false"
-                    style="background:transparent; color:#5a6a8a; font-size:0.875rem;">
-                <i class="bi bi-building-fill"></i> Colleges
-            </button>
-        </li>
+    <!-- =========================================================
+         TAB NAVIGATION
+    ========================================================== -->
+    <div class="mb-4">
+        <ul class="nav nav-tabs border-0 rounded-3 overflow-hidden shadow-sm d-flex flex-nowrap p-2"
+            id="analyticsTabs" role="tablist"
+            style="background:#f0f4fa; border:1px solid #d6dff0 !important; gap:6px;">
 
-        <!-- Courses Tab -->
-        <li class="nav-item flex-fill" role="presentation">
-            <button class="nav-link w-100 d-flex align-items-center justify-content-center gap-2 rounded-2 border-0 fw-medium px-3 py-2" 
-                    data-tab="courses" role="tab" aria-selected="false"
-                    style="background:transparent; color:#5a6a8a; font-size:0.875rem;">
-                <i class="bi bi-journal-bookmark-fill"></i> Courses
-            </button>
-        </li>
+            <li class="nav-item flex-fill" role="presentation">
+                <button class="nav-link active w-100 d-flex align-items-center justify-content-center gap-2 rounded-2 border-0 fw-medium px-3 py-2"
+                        data-tab="users" role="tab"
+                        style="background:linear-gradient(135deg,#3a6cf4,#6a3de8); color:#fff;
+                               box-shadow:0 3px 12px rgba(58,108,244,0.28); font-size:0.875rem;">
+                    <i class="bi bi-people-fill"></i> Users
+                </button>
+            </li>
 
-        <!-- Demographics Tab -->
-        <li class="nav-item flex-fill" role="presentation">
-            <button class="nav-link w-100 d-flex align-items-center justify-content-center gap-2 rounded-2 border-0 fw-medium px-3 py-2" 
-                    data-tab="demographics" role="tab" aria-selected="false"
-                    style="background:transparent; color:#5a6a8a; font-size:0.875rem;">
-                <i class="bi bi-bar-chart-fill"></i> Demographics
-            </button>
-        </li>
+            <li class="nav-item flex-fill" role="presentation">
+                <button class="nav-link w-100 d-flex align-items-center justify-content-center gap-2 rounded-2 border-0 fw-medium px-3 py-2"
+                        data-tab="colleges" role="tab"
+                        style="background:transparent; color:#5a6a8a; font-size:0.875rem;">
+                    <i class="bi bi-building-fill"></i> Colleges
+                </button>
+            </li>
 
-    </ul>
-</div>
+            <li class="nav-item flex-fill" role="presentation">
+                <button class="nav-link w-100 d-flex align-items-center justify-content-center gap-2 rounded-2 border-0 fw-medium px-3 py-2"
+                        data-tab="courses" role="tab"
+                        style="background:transparent; color:#5a6a8a; font-size:0.875rem;">
+                    <i class="bi bi-journal-bookmark-fill"></i> Courses
+                </button>
+            </li>
 
+            <li class="nav-item flex-fill" role="presentation">
+                <button class="nav-link w-100 d-flex align-items-center justify-content-center gap-2 rounded-2 border-0 fw-medium px-3 py-2"
+                        data-tab="demographics" role="tab"
+                        style="background:transparent; color:#5a6a8a; font-size:0.875rem;">
+                    <i class="bi bi-bar-chart-fill"></i> Demographics
+                </button>
+            </li>
+
+        </ul>
+    </div>
+
+
+    <!-- =========================================================
+         TAB CONTENT AREA (AJAX-injected)
+    ========================================================== -->
     <div id="tabContent" class="tab-content">
-        <div class="text-center p-4">Select a tab to view content...</div>
+        <div class="text-center p-4 text-muted">Select a tab to view content...</div>
     </div>
 
-    <!-- FOOTER -->
+
+    <!-- =========================================================
+         FOOTER
+    ========================================================== -->
     <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
-        <small class="text-muted">
-            <i class="fas fa-sync-alt me-1"></i> Last updated: Today at 10:30 AM
+        <small class="text-muted" id="lastUpdatedLabel">
+            <i class="fas fa-sync-alt me-1"></i> Last updated: —
         </small>
         <div class="d-flex gap-3 flex-wrap">
             <small class="text-muted">
                 <i class="fas fa-database me-1"></i> Source: Library System
             </small>
-            <small class="text-muted">
-                <i class="fas fa-chart-pie me-1"></i> 8 metrics displayed
-            </small>
         </div>
     </div>
+
 </div>
+
+
 <?php include '../modalContainer.php'; ?>
 <?php include 'LibModals.php'; ?>
 
+
 <script>
 $(function () {
-    const UI = {
-        tabContent: $("#tabContent"),
-        tabs: $("#analyticsTabs .nav-link"),
-        startDate: $('#startDate'),
-        endDate: $('#endDate'),
-        globalClassification: $('#globalClassification'),
-        libraryFilter: $('#libraryFilter'),          // new
-        generateBtn: $('#generateBtn')
+
+    // =========================================================
+    //  CONFIGURATION
+    //  Single place to update URLs, page sizes, or tab metadata.
+    // =========================================================
+
+    const BACKEND_URL    = 'backend/bk_LibraryMenu/bk_libReports.php';
+    const ROWS_PER_PAGE  = 10;
+    const DEFAULT_TAB    = 'users';
+    const DEFAULT_DAYS_BACK = 7;
+
+    const TAB_MODAL_TITLES = {
+        users:        'All Users',
+        colleges:     'All Colleges',
+        courses:      'All Courses',
+        demographics: 'All Check-in Logs',
     };
 
-    let currentRequest = null;
-    let activeTab = 'users';
-    let currentClassification = 'All'; // store the selected classification
-	
-// ========== View All Modal ==========
-let currentViewAllTab = 'users';
-let currentViewAllPage = 1;
-let totalViewAllPages = 1;
-
-$(document).on('click', '.view-all-btn', function() {
-    currentViewAllTab = $(this).data('tab');
-    currentViewAllPage = 1;
-    loadViewAll(currentViewAllTab, currentViewAllPage);
-    $('#dynamicModal').modal('show');
-});
-
-function loadViewAll(tab, page) {
-    $('#dynamicModalBody').html('<div class="text-center"><div class="spinner-border"></div></div>');
-    $('#dynamicModalFooter').empty();
-
-    $.ajax({
-        url: "backend/bk_LibraryMenu/bk_libReports.php",
-        type: "POST",
-        data: {
-            action: 'viewAll',
-            tab: tab,
-            page: page,
-            startDate: UI.startDate.val(),
-            endDate: UI.endDate.val(),
-            classification: UI.globalClassification.val(),
-            library: UI.libraryFilter.val()
-        },
-        dataType: "json",
-        success: function(res) {
-            if (res.status !== 'success') {
-                $('#dynamicModalBody').html('<div class="alert alert-danger">Failed to load data.</div>');
-                return;
-            }
-            const data = res.data;
-            totalViewAllPages = Math.ceil(data.total / 10);
-            renderViewAllTable(tab, data.rows);
-            renderPagination(totalViewAllPages, currentViewAllPage, tab);
-            $('#dynamicModalTitle').text(getModalTitle(tab));
-            $('#dynamicModalSubtitle').text(`Showing page ${currentViewAllPage} of ${totalViewAllPages} (Total: ${data.total} records)`);
-        }
-    });
-}
-
-function getModalTitle(tab) {
-    const titles = {
-        users: 'All Users',
-        colleges: 'All Colleges',
-        courses: 'All Courses',
-        demographics: 'All Check‑in Logs'
+    const TAB_STYLE_ACTIVE = {
+        background: 'linear-gradient(135deg,#3a6cf4,#6a3de8)',
+        color:      '#fff',
+        boxShadow:  '0 3px 12px rgba(58,108,244,0.28)',
     };
-    return titles[tab] || 'All Records';
-}
 
-function renderViewAllTable(tab, rows) {
-    let html = '<div class="table-responsive"><table class="table table-sm table-striped">';
-    if (tab === 'users') {
-        html += '<thead><tr><th>Name</th><th>Type</th><th>Library</th><th class="text-end">Check-ins</th><th class="text-end">Duration (min)</th><th>Last Check-in</th></tr></thead><tbody>';
-        rows.forEach(r => {
-            html += `<tr>
-                <td>${escapeHtml(r.name)}</td>
-                <td>${escapeHtml(r.type)}</td>
-                <td>${escapeHtml(r.library)}</td>
-                <td class="text-end">${r.checkins}</td>
-                <td class="text-end">${Math.round(r.duration)}</td>
-                <td>${new Date(r.last_checkin).toLocaleString()}</td>
-            </tr>`;
-        });
-    } else if (tab === 'colleges') {
-        html += '<thead><tr><th>College</th><th class="text-end">Unique Users</th><th class="text-end">Total Duration (min)</th><th>Last Check-in</th></tr></thead><tbody>';
-        rows.forEach(r => {
-            html += `<tr>
-                <td>${escapeHtml(r.name)}</td>
-                <td class="text-end">${r.checkins}</td>
-                <td class="text-end">${Math.round(r.duration)}</td>
-                <td>${new Date(r.last_checkin).toLocaleString()}</td>
-            </tr>`;
-        });
-    } else if (tab === 'courses') {
-        html += '<thead><tr><th>College</th><th>Course</th><th class="text-end">Unique Users</th><th class="text-end">Total Duration (min)</th><th>Last Check-in</th></tr></thead><tbody>';
-        rows.forEach(r => {
-            html += `<tr>
-                <td>${escapeHtml(r.college)}</td>
-                <td>${escapeHtml(r.course)}</td>
-                <td class="text-end">${r.checkins}</td>
-                <td class="text-end">${Math.round(r.duration)}</td>
-                <td>${new Date(r.last_checkin).toLocaleString()}</td>
-            </tr>`;
-        });
-    } else if (tab === 'demographics') {
-        html += '<thead><tr><th>Name</th><th>Sex</th><th>Check-in</th><th>Check-out</th><th class="text-end">Duration (min)</th></tr></thead><tbody>';
-        rows.forEach(r => {
-            html += `<tr>
-                <td>${escapeHtml(r.name)}</td>
-                <td>${escapeHtml(r.sex)}</td>
-                <td>${new Date(r.checkin).toLocaleString()}</td>
-                <td>${r.checkout ? new Date(r.checkout).toLocaleString() : '—'}</td>
-                <td class="text-end">${Math.round(r.duration)}</td>
-            </tr>`;
-        });
+    const TAB_STYLE_INACTIVE = {
+        background: 'transparent',
+        color:      '#5a6a8a',
+        boxShadow:  'none',
+    };
+
+
+    // =========================================================
+    //  DOM REFERENCES
+    // =========================================================
+
+    const filters = {
+        startDate:      $('#startDate'),
+        endDate:        $('#endDate'),
+        classification: $('#classificationFilter'),
+        library:        $('#libraryFilter'),
+    };
+
+    const kpi = {
+        totalCheckins:   $('#kpiTotalCheckins'),
+        avgDuration:     $('#kpiAvgDuration'),
+        endDateLabel:    $('#kpiEndDateLabel'),
+        endDateCheckins: $('#kpiEndDateCheckins'),
+    };
+
+    const tabContentArea  = $('#tabContent');
+    const tabNavButtons   = $('#analyticsTabs .nav-link');
+    const lastUpdatedLabel = $('#lastUpdatedLabel');
+
+
+    // =========================================================
+    //  APPLICATION STATE
+    // =========================================================
+
+    let activeTab      = DEFAULT_TAB;
+    let pendingRequest = null;   // Tracks the active AJAX call so it can be cancelled on re-load
+
+    let viewAllTab       = DEFAULT_TAB;
+    let viewAllPage      = 1;
+
+
+    // =========================================================
+    //  FILTER HELPERS
+    // =========================================================
+
+    /**
+     * Collects current filter input values into a plain object
+     * ready to spread into any AJAX data payload.
+     */
+    function getActiveFilters() {
+        return {
+            startDate:      filters.startDate.val(),
+            endDate:        filters.endDate.val(),
+            classification: filters.classification.val(),
+            library:        filters.library.val(),
+        };
     }
-    html += '</tbody></table></div>';
-    $('#dynamicModalBody').html(html);
-}
 
-function renderPagination(totalPages, currentPage, tab) {
-    let pagHtml = '';
-    for (let i = 1; i <= totalPages; i++) {
-        pagHtml += `<li class="page-item ${i === currentPage ? 'active' : ''}"><a class="page-link" href="#" data-page="${i}">${i}</a></li>`;
+    /**
+     * Returns true only when both a start and end date have been selected.
+     * Used to guard requests that require a date range.
+     */
+    function hasDateRange() {
+        return filters.startDate.val() && filters.endDate.val();
     }
-    $('#dynamicModalFooter').html('<nav><ul class="pagination">' + pagHtml + '</ul></nav>');
-    $('#dynamicModalFooter .page-link').click(function(e) {
-        e.preventDefault();
-        currentViewAllPage = $(this).data('page');
-        loadViewAll(tab, currentViewAllPage);
-    });
-}
 
-// Helper escape function
-function escapeHtml(unsafe) {
-    if (!unsafe) return '';
-    return unsafe.toString().replace(/[&<>"']/g, function(m) {
-        if (m === '&') return '&amp;';
-        if (m === '<') return '&lt;';
-        if (m === '>') return '&gt;';
-        if (m === '"') return '&quot;';
-        if (m === "'") return '&#039;';
-    });
-}
+    /**
+     * Sets the default date range to the last N days when the page first loads
+     * and no dates have been pre-filled.
+     */
+    function setDefaultDateRange() {
+        if (filters.startDate.val()) return;
 
-// ========== PDF Export ==========
-$('#exportPDF').click(function() {
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF('l', 'mm', 'a4');
-    const tabContent = document.getElementById('tabContent');
+        const today         = new Date();
+        const defaultStart  = new Date(today);
+        defaultStart.setDate(today.getDate() - DEFAULT_DAYS_BACK);
 
-    html2canvas(tabContent, { scale: 2, logging: false, allowTaint: false, useCORS: true }).then(canvas => {
-        const imgData = canvas.toDataURL('image/png');
-        const imgWidth = 280; // A4 landscape width in mm
-        const pageHeight = 210;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        let heightLeft = imgHeight;
-        let position = 0;
+        filters.startDate.val(defaultStart.toISOString().split('T')[0]);
+        filters.endDate.val(today.toISOString().split('T')[0]);
+    }
 
-        pdf.addImage(imgData, 'PNG', 5, position + 5, imgWidth - 10, imgHeight, undefined, 'FAST');
-        heightLeft -= pageHeight;
 
-        while (heightLeft >= 0) {
-            position = heightLeft - imgHeight;
-            pdf.addPage();
-            pdf.addImage(imgData, 'PNG', 5, position + 5, imgWidth - 10, imgHeight, undefined, 'FAST');
-            heightLeft -= pageHeight;
-        }
-        pdf.save('Library_Report.pdf');
-    });
-});
-    /* ===========================
-       Chart Manager
-    ============================ */
+    // =========================================================
+    //  CHART MANAGER
+    //  Centralises Chart.js lifecycle — prevents canvas re-use errors
+    //  by always destroying an existing chart before creating a new one.
+    // =========================================================
+
     const ChartManager = {
         instances: {},
+
         destroy(id) {
             if (this.instances[id]) {
                 this.instances[id].destroy();
                 delete this.instances[id];
             }
         },
+
         create(id, config) {
             const canvas = document.getElementById(id);
             if (!canvas) return;
             this.destroy(id);
             this.instances[id] = new Chart(canvas, config);
-        }
+        },
+
+        renderBar(canvasId, labels, values, datasetLabel) {
+            this.create(canvasId, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label:           datasetLabel,
+                        data:            values,
+                        backgroundColor: 'rgba(54,162,235,0.7)',
+                        borderRadius:    8,
+                        maxBarThickness: 40,
+                    }]
+                },
+                options: {
+                    responsive:          true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales:  { y: { beginAtZero: true, min: 0 } },
+                }
+            });
+        },
+
+        renderDoughnut(canvasId, labels, values) {
+            this.create(canvasId, {
+                type: 'doughnut',
+                data: {
+                    labels,
+                    datasets: [{
+                        data:            values,
+                        backgroundColor: ['#4F46E5', '#06B6D4', '#F59E0B', '#EF4444'],
+                    }]
+                },
+                options: {
+                    responsive:          true,
+                    maintainAspectRatio: false,
+                    cutout:              '65%',
+                }
+            });
+        },
     };
 
-    function showLoading() {
-        UI.tabContent.html(`
-            <div class="d-flex justify-content-center align-items-center" style="height:300px">
+
+    // =========================================================
+    //  CHART INITIALIZERS
+    //  One function per tab — each reads its own slice of the
+    //  backend response and maps it to the correct canvas IDs.
+    // =========================================================
+
+    /**
+     * Extracts the display_label from each user entry across all classification groups.
+     * Matches the backend USER_DISPLAY_FIELD — currently id_number.
+     */
+    function extractUserLabels(groupedData) {
+        const labels = [];
+        Object.values(groupedData).forEach(group =>
+            Object.values(group).forEach(item => labels.push(item.display_label))
+        );
+        return labels;
+    }
+
+    /**
+     * Extracts a numeric value (e.g. count, minutes) from each user entry
+     * across all classification groups.
+     */
+    function extractUserValues(groupedData, valueKey) {
+        const values = [];
+        Object.values(groupedData).forEach(group =>
+            Object.values(group).forEach(item => values.push(item[valueKey]))
+        );
+        return values;
+    }
+
+    function initUsersCharts(backendResponse) {
+        ChartManager.renderBar(
+            'chartUsersCheckin',
+            extractUserLabels(backendResponse.topCheckins),
+            extractUserValues(backendResponse.topCheckins, 'count'),
+            'Check-ins'
+        );
+        ChartManager.renderBar(
+            'chartUsersDuration',
+            extractUserLabels(backendResponse.topDuration),
+            extractUserValues(backendResponse.topDuration, 'minutes'),
+            'Duration (min)'
+        );
+    }
+
+    function initCollegesCharts(backendResponse) {
+        ChartManager.renderBar(
+            'chartCollegeCheckin',
+            Object.keys(backendResponse.top3CollegesCheckin),
+            Object.values(backendResponse.top3CollegesCheckin).map(college => college.count),
+            'Check-ins'
+        );
+        ChartManager.renderBar(
+            'chartCollegeDuration',
+            Object.keys(backendResponse.top3CollegesDuration),
+            Object.values(backendResponse.top3CollegesDuration).map(college => college.minutes),
+            'Duration (min)'
+        );
+    }
+
+    function initCoursesCharts(backendResponse) {
+        Object.keys(backendResponse.topCoursesCheckin).forEach(collegeName => {
+            const safeCollegeId        = collegeName.replace(/[^a-zA-Z0-9]/g, '');
+            const topCoursesByCheckins = backendResponse.topCoursesCheckin[collegeName];
+            const topCoursesByDuration = backendResponse.topCoursesDuration[collegeName];
+
+            ChartManager.renderBar(
+                'chartCourseCheckin_' + safeCollegeId,
+                Object.keys(topCoursesByCheckins),
+                Object.values(topCoursesByCheckins).map(course => course.count),
+                'Check-ins'
+            );
+
+            if (topCoursesByDuration) {
+                ChartManager.renderBar(
+                    'chartCourseDuration_' + safeCollegeId,
+                    Object.keys(topCoursesByDuration),
+                    Object.values(topCoursesByDuration).map(course => course.minutes),
+                    'Duration (min)'
+                );
+            }
+        });
+    }
+
+    function initDemographicsCharts(backendResponse) {
+        ChartManager.renderDoughnut(
+            'chartSexCheckin',
+            Object.keys(backendResponse.sexDistribution),
+            Object.values(backendResponse.sexDistribution)
+        );
+    }
+
+    /**
+     * Routes chart initialisation to the correct tab-specific function.
+     */
+    function initializeCharts(backendResponse, tab) {
+        switch (tab) {
+            case 'users':        initUsersCharts(backendResponse);        break;
+            case 'colleges':     initCollegesCharts(backendResponse);     break;
+            case 'courses':      initCoursesCharts(backendResponse);      break;
+            case 'demographics': initDemographicsCharts(backendResponse); break;
+        }
+    }
+
+
+    // =========================================================
+    //  KPI CARD UPDATERS
+    // =========================================================
+
+    /**
+     * Pushes fresh KPI values from the backend response into the four metric cards.
+     */
+    function updateKpiCards(backendResponse) {
+        kpi.totalCheckins.text(backendResponse.totalVisits.toLocaleString());
+        kpi.avgDuration.text(backendResponse.avgDuration + ' min');
+
+        const selectedEndDate  = filters.endDate.val();
+        const formattedEndDate = selectedEndDate
+            ? new Date(selectedEndDate).toLocaleDateString('en-US', {
+                month: 'short', day: 'numeric', year: 'numeric'
+              })
+            : '—';
+
+        kpi.endDateLabel.text(`Check-ins on ${formattedEndDate}`);
+        kpi.endDateCheckins.text(backendResponse.endDateCheckins.toLocaleString());
+    }
+
+    /**
+     * Stamps the footer label with the current time so users know when data was last fetched.
+     */
+    function updateLastUpdatedTimestamp() {
+        const currentTime = new Date().toLocaleTimeString('en-US', {
+            hour: 'numeric', minute: 'numeric', hour12: true
+        });
+        lastUpdatedLabel.html(`<i class="fas fa-sync-alt me-1"></i> Last updated: Today at ${currentTime}`);
+    }
+
+
+    // =========================================================
+    //  TAB LOADER
+    // =========================================================
+
+    function showLoadingSpinner() {
+        tabContentArea.html(`
+            <div class="d-flex justify-content-center align-items-center" style="height:300px;">
                 <div class="spinner-border text-primary"></div>
             </div>
         `);
     }
 
-function loadTab(tab) {
+    /**
+     * Highlights the clicked tab button and resets all others to inactive styling.
+     */
+    function setActiveTabStyle(clickedTabButton) {
+        tabNavButtons.each(function () {
+            $(this).removeClass('active').css(TAB_STYLE_INACTIVE);
+        });
+        $(clickedTabButton).addClass('active').css(TAB_STYLE_ACTIVE);
+    }
+
+    /**
+     * Fetches tab HTML and chart data from the backend, then renders everything.
+     * Cancels any in-flight request before starting a new one.
+     */
+    function loadTab(tab) {
         activeTab = tab;
-        if (currentRequest) currentRequest.abort();
-        showLoading();
 
-        // Gather all filter values
-        let classification = UI.globalClassification.val() || 'All';
-        let library = UI.libraryFilter.val() || 'All';
+        if (pendingRequest) pendingRequest.abort();
+        showLoadingSpinner();
 
-        currentRequest = $.ajax({
-            url: "backend/bk_LibraryMenu/bk_libReports.php",
-            type: "POST",
-            dataType: "json",
+        pendingRequest = $.ajax({
+            url:      BACKEND_URL,
+            type:     'POST',
+            dataType: 'json',
             data: {
-                tab: tab,
-                startDate: UI.startDate.val(),
-                endDate: UI.endDate.val(),
-                classification: classification,
-                library: library                 // send library
+                action: 'tab',
+                tab,
+                ...getActiveFilters(),
             }
         })
-        .done(function(response) {
-            if (response.status !== 'success') {
-                UI.tabContent.html(`<div class="text-danger p-4">${response.message}</div>`);
+        .done(function (backendResponse) {
+            if (backendResponse.status !== 'success') {
+                tabContentArea.html(`<div class="text-danger p-4">${backendResponse.message}</div>`);
                 return;
             }
-            UI.tabContent.html(response.html);
-            initializeCharts(response, tab);
 
-            // Update global metric cards
-            $('#totalCheckinsValue').text(response.totalVisits.toLocaleString());
-            $('#avgDurationValue').text(response.avgDuration + ' hrs');
-
-			$('#endDateCheckinsLabel').text(`Check ins on ${new Date(UI.endDate.val()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`);
-			$('#endDateCheckinsValue').text(response.endDateCheckins.toLocaleString());
-            // Update footer timestamp
-            const now = new Date();
-            const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true });
-            $('.text-muted:contains("Last updated")').html(`<i class="fas fa-sync-alt me-1"></i> Last updated: Today at ${timeStr}`);
+            tabContentArea.html(backendResponse.html);
+            initializeCharts(backendResponse, tab);
+            updateKpiCards(backendResponse);
+            updateLastUpdatedTimestamp();
         })
-        .fail(function() {
-            UI.tabContent.html(`<div class="text-danger p-4">Failed to load analytics.</div>`);
+        .fail(function () {
+            tabContentArea.html(`<div class="text-danger p-4">Failed to load analytics. Please try again.</div>`);
         });
     }
 
-    // Chart initialization functions (unchanged)
-function initializeCharts(data, tab) {
-    if (tab === 'users') {
-        // ----- Top Users by Check ins (chartUsersCheckin) – force y axis to start at 0 -----
-        ChartManager.create('chartUsersCheckin', {
-            type: 'bar',
+
+    // =========================================================
+    //  VIEW ALL MODAL
+    // =========================================================
+
+    /**
+     * Fetches a paginated table and pagination bar from the backend
+     * and injects them into the dynamic modal.
+     */
+    function loadViewAll(tab, page) {
+        $('#dynamicModalBody').html(
+            '<div class="text-center p-4"><div class="spinner-border"></div></div>'
+        );
+        $('#dynamicModalFooter').empty();
+
+        $.ajax({
+            url:      BACKEND_URL,
+            type:     'POST',
+            dataType: 'json',
             data: {
-                labels: extractLabels(data.topCheckins),
-                datasets: [{
-                    label: 'Check‑ins',
-                    data: extractValues(data.topCheckins, 'count'),
-                    backgroundColor: 'rgba(54,162,235,0.7)',
-                    borderRadius: 8,
-                    maxBarThickness: 40
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        min: 0
-                    }
+                action: 'viewAll',
+                tab,
+                page,
+                ...getActiveFilters(),
+            }
+        })
+        .done(function (backendResponse) {
+            if (backendResponse.status !== 'success') {
+                $('#dynamicModalBody').html('<div class="alert alert-danger">Failed to load data.</div>');
+                return;
+            }
+
+            const { page: currentPage, totalPages, total, tableHtml, pagination } = backendResponse;
+
+            $('#dynamicModalTitle').text(TAB_MODAL_TITLES[tab] ?? 'All Records');
+            $('#dynamicModalSubtitle').text(
+                `Showing page ${currentPage} of ${totalPages} (Total: ${total} records)`
+            );
+            $('#dynamicModalBody').html(tableHtml);
+            $('#dynamicModalFooter').html(pagination);
+
+            // Attach pagination clicks — each click re-loads this modal at the selected page
+            $('#dynamicModalFooter .page-link').on('click', function (e) {
+                e.preventDefault();
+                viewAllPage = parseInt($(this).data('page'));
+                loadViewAll(tab, viewAllPage);
+            });
+        });
+    }
+
+
+    // =========================================================
+    //  PDF EXPORT
+    // =========================================================
+
+    /**
+     * Captures the visible tab content area as a multi-page PDF using
+     * html2canvas + jsPDF, scaled for A4 landscape.
+     */
+    function exportDashboardToPdf() {
+        const { jsPDF }          = window.jspdf;
+        const pdf                = new jsPDF('l', 'mm', 'a4');
+        const tabContentElement  = document.getElementById('tabContent');
+
+        const A4_LANDSCAPE_WIDTH_MM  = 280;
+        const A4_LANDSCAPE_HEIGHT_MM = 210;
+        const MARGIN_MM              = 5;
+
+        html2canvas(tabContentElement, { scale: 2, logging: false, useCORS: true })
+            .then(canvas => {
+                const imageData      = canvas.toDataURL('image/png');
+                const printableWidth = A4_LANDSCAPE_WIDTH_MM - MARGIN_MM * 2;
+                const scaledHeight   = (canvas.height * printableWidth) / canvas.width;
+
+                let remainingHeight  = scaledHeight;
+                let verticalOffset   = 0;
+
+                pdf.addImage(imageData, 'PNG', MARGIN_MM, MARGIN_MM, printableWidth, scaledHeight, undefined, 'FAST');
+                remainingHeight -= A4_LANDSCAPE_HEIGHT_MM;
+
+                while (remainingHeight >= 0) {
+                    verticalOffset = remainingHeight - scaledHeight;
+                    pdf.addPage();
+                    pdf.addImage(imageData, 'PNG', MARGIN_MM, verticalOffset + MARGIN_MM, printableWidth, scaledHeight, undefined, 'FAST');
+                    remainingHeight -= A4_LANDSCAPE_HEIGHT_MM;
                 }
-            }
-        });
 
-        // ----- Top Users by Duration (chartUsersDuration) – use standard renderBar -----
-        renderBar('chartUsersDuration', 
-            extractLabels(data.topDuration), 
-            extractValues(data.topDuration, 'minutes'), 
-            'Duration (min)');
+                pdf.save('Library_Analytics_Report.pdf');
+            });
     }
 
-    if (tab === 'colleges') {
-        renderBar('chartCollegeCheckin', 
-            Object.keys(data.top3CollegesCheckin), 
-            Object.values(data.top3CollegesCheckin).map(v => v.count), 
-            'Check-ins');
-        renderBar('chartCollegeDuration', 
-            Object.keys(data.top3CollegesDuration), 
-            Object.values(data.top3CollegesDuration).map(v => v.minutes), 
-            'Duration (min)');
-    }
 
-    if (tab === 'courses') {
-        Object.keys(data.topCoursesCheckin).forEach(college => {
-            const cleanId = college.replace(/[^a-zA-Z0-9]/g, '');
-            const courses = data.topCoursesCheckin[college];
-            renderBar('chartCourseCheckin_' + cleanId, 
-                Object.keys(courses), 
-                Object.values(courses).map(v => v.count), 
-                'Check-ins');
-            if (data.topCoursesDuration[college]) {
-                const durCourses = data.topCoursesDuration[college];
-                renderBar('chartCourseDuration_' + cleanId, 
-                    Object.keys(durCourses), 
-                    Object.values(durCourses).map(v => v.minutes), 
-                    'Duration (min)');
-            }
-        });
-    }
+    // =========================================================
+    //  EVENT BINDINGS
+    // =========================================================
 
-    if (tab === 'demographics') {
-        renderPie('chartSexCheckin', 
-            Object.keys(data.sexDistribution), 
-            Object.values(data.sexDistribution));
-    }
-}
-
-    function renderBar(id, labels, data, label) {
-        ChartManager.create(id, {
-            type: 'bar',
-            data: { labels, datasets: [{ label, data, backgroundColor: 'rgba(54,162,235,0.7)', borderRadius: 8, maxBarThickness: 40 }] },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
-        });
-    }
-
-    function renderPie(id, labels, data) {
-        ChartManager.create(id, {
-            type: 'doughnut',
-            data: { labels, datasets: [{ data, backgroundColor: ['#4F46E5', '#06B6D4', '#F59E0B', '#EF4444'] }] },
-            options: { responsive: true, maintainAspectRatio: false, cutout: '65%' }
-        });
-    }
-
-function extractLabels(groupedData) {
-    const labels = [];
-    Object.values(groupedData).forEach(group => {
-        Object.values(group).forEach(item => {
-            labels.push(item.name);
-        });
-    });
-    return labels;
-}
-
-function extractValues(groupedData, valueKey) {
-    const values = [];
-    Object.values(groupedData).forEach(group => {
-        Object.values(group).forEach(item => {
-            values.push(item[valueKey]);
-        });
-    });
-    return values;
-}
-
-    // Event handlers
-// Tab click event with active highlight management
-UI.tabs.on('click', function (e) {
-    e.preventDefault();
-    
-    // Remove active class and reset styles for all tabs
-    UI.tabs.each(function() {
-        $(this).removeClass('active')
-               .css({
-                   background: 'transparent',
-                   color: '#5a6a8a',
-                   boxShadow: 'none'
-               });
+    // Tab navigation click
+    tabNavButtons.on('click', function (e) {
+        e.preventDefault();
+        setActiveTabStyle(this);
+        loadTab($(this).data('tab'));
     });
 
-    // Add active class and apply highlight styles to clicked tab
-    $(this).addClass('active')
-           .css({
-               background: 'linear-gradient(135deg,#3a6cf4,#6a3de8)',
-               color: '#fff',
-               boxShadow: '0 3px 12px rgba(58,108,244,0.28)'
-           });
-
-    // Load the selected tab content
-    activeTab = $(this).data('tab');
-    loadTab(activeTab);
-});
-
-    UI.generateBtn.on('click', function () {
-        if (!UI.startDate.val() || !UI.endDate.val()) {
-            alert("Select start and end date.");
+    // Generate Analytics button — requires both dates to be set
+    $('#generateBtn').on('click', function () {
+        if (!hasDateRange()) {
+            alert('Please select both a start and end date.');
             return;
         }
         loadTab(activeTab);
     });
 
-    // Reload when any filter changes (dates, classification, library)
-    UI.startDate.add(UI.endDate).add(UI.globalClassification).add(UI.libraryFilter).on('change', function () {
-        if (UI.startDate.val() && UI.endDate.val()) {
-            loadTab(activeTab);
-        }
+    // Refresh button — silently reloads current tab
+    $('#refreshBtn').on('click', function () {
+        if (hasDateRange()) loadTab(activeTab);
     });
 
-    // Set default dates if empty (last 7 days)
-    if (!UI.startDate.val()) {
-        let today = new Date();
-        let lastWeek = new Date(today);
-        lastWeek.setDate(today.getDate() - 7);
-        UI.startDate.val(lastWeek.toISOString().split('T')[0]);
-        UI.endDate.val(today.toISOString().split('T')[0]);
-    }
+    // Auto-reload whenever any filter input changes (requires date range)
+    filters.startDate
+        .add(filters.endDate)
+        .add(filters.classification)
+        .add(filters.library)
+        .on('change', function () {
+            if (hasDateRange()) loadTab(activeTab);
+        });
 
-    // Initial load
-    loadTab('users');
+    // View All button — opens modal (delegated because button lives in injected HTML)
+    $(document).on('click', '.view-all-btn', function () {
+        viewAllTab  = $(this).data('tab');
+        viewAllPage = 1;
+        loadViewAll(viewAllTab, viewAllPage);
+        $('#dynamicModal').modal('show');
+    });
+
+    // PDF export button
+    $('#exportPDF').on('click', exportDashboardToPdf);
+
+
+    // =========================================================
+    //  INITIALIZATION
+    // =========================================================
+
+    setDefaultDateRange();
+    loadTab(DEFAULT_TAB);
 });
 </script>

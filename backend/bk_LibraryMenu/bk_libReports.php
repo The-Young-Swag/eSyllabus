@@ -1,612 +1,798 @@
 <?php
+/**
+ * Library Analytics - Backend Handler
+ * Handles tab rendering and viewAll paginated data for the Library Reports dashboard.
+ */
+
 include "../../db/dbconnection.php";
 header('Content-Type: application/json');
 
-$action = $_POST['action'] ?? 'tab';          // 'tab' or 'viewAll'
-$page = isset($_POST['page']) ? (int)$_POST['page'] : 1;
-$limit = 10;
-$offset = ($page - 1) * $limit;
+// ============================================================
+//  DISPLAY CONFIGURATION
+//  To switch what identifies a user across all tables and charts,
+//  change USER_DISPLAY_FIELD to any column available in Library_logs.
+//  e.g. 'name', 'id_number', 'email', etc.
+// ============================================================
 
-// ------------------- POST PARAMETERS -------------------
-$requestedTab = $_POST['tab'] ?? 'users';
-$startDate    = $_POST['startDate'] ?? null;
-$endDate      = $_POST['endDate'] ?? null;
-$classification = $_POST['classification'] ?? 'All';
-$libraryFilter = $_POST['library'] ?? 'All';   // new library filter
+define('USER_DISPLAY_FIELD', 'id_number');
 
-// ------------------- VALIDATION -------------------
-$validTabs = ['users','colleges','courses','demographics'];
-if(!in_array($requestedTab, $validTabs)){
-    echo json_encode(['status'=>'error','message'=>'Invalid tab']);
-    exit;
+
+// ============================================================
+//  UTILITY FUNCTIONS
+// ============================================================
+
+/**
+ * Calculates the duration in minutes between a check-in and check-out time.
+ */
+function calcDurationMinutes(string $checkinTime, ?string $checkoutTime): float
+{
+    if (!$checkoutTime) return 0;
+    return (strtotime($checkoutTime) - strtotime($checkinTime)) / 60;
 }
 
-// ------------------- BUILD FILTERS -------------------
-$dateFilter = '';
-$params = [];
-
-// Date range (inclusive full day)
-if($startDate){
-    $dateFilter .= " AND CAST(checkin_time AS DATE) >= :startDate";
-    $params[':startDate'] = $startDate;
-}
-if($endDate){
-    $dateFilter .= " AND CAST(checkin_time AS DATE) <= :endDate";
-    $params[':endDate'] = $endDate;
+/**
+ * Filters logs to only those matching the given classification (case-insensitive).
+ */
+function filterByClassification(array $logs, string $classification): array
+{
+    return array_filter(
+        $logs,
+        fn($log) => strtolower($log['classification']) === strtolower($classification)
+    );
 }
 
-// Classification filter
-if($classification !== 'All'){
-    $dateFilter .= " AND classification = :classification";
-    $params[':classification'] = $classification;
+/**
+ * Filters out guest logs (used for college/course aggregation).
+ */
+function excludeGuests(array $logs): array
+{
+    return array_filter(
+        $logs,
+        fn($log) => strtolower($log['classification']) !== 'guest'
+    );
 }
 
-// Library filter (SectionID)
-if($libraryFilter !== 'All'){
-    $dateFilter .= " AND l.library = :library";
-    $params[':library'] = $libraryFilter;
+/**
+ * Formats a datetime string into a human-readable format: "Jan 1, 2024 1:00 PM"
+ */
+function formatDateTime(string $datetime): string
+{
+    return date('M j, Y g:i A', strtotime($datetime));
 }
 
-// ------------------- FETCH LOGS -------------------
-$sqlLogs = "
-    SELECT 
-        l.id, l.id_number, l.name, l.college, l.course, l.library,
-        s.SectionName AS libraryName,
-        l.checkin_time, l.checkout_time,
-        l.sex, l.classification
-    FROM Library_logs l
-    LEFT JOIN LibrarySection s ON l.library = s.SectionID
-    WHERE 1=1 $dateFilter
-    ORDER BY l.checkin_time DESC
-";
-
-// IMPORTANT: Pass the $params array as the third argument
-$libraryLogs = execsqlSRS($sqlLogs, 'Select', $params);
-$totalVisits = count($libraryLogs);
-
-// ------------------- GLOBAL KPI METRICS -------------------
-$totalVisits = count($libraryLogs);
-$totalDuration = array_sum(array_map(function($log){
-    return calculateDuration($log['checkin_time'], $log['checkout_time']);
-}, $libraryLogs));
-$uniqueUsers = count(array_unique(array_column($libraryLogs,'id_number')));
-$avgDuration = $totalVisits ? round($totalDuration / $totalVisits, 1) : 0;
-
-
-// Check‑ins on the selected end date (or last date in range)
-$endDateCheckins = 0;
-if ($endDate) {
-    $endDateCheckins = count(array_filter($libraryLogs, function($log) use ($endDate) {
-        return substr($log['checkin_time'], 0, 10) === $endDate;
-    }));
-}
-// ------------------- HELPER FUNCTIONS -------------------
-function calculateDuration($checkin, $checkout){
-    if(!$checkout) return 0;
-    return (strtotime($checkout) - strtotime($checkin)) / 60; // minutes
+/**
+ * Safely escapes a value for HTML output.
+ */
+function safe(mixed $value): string
+{
+    return htmlspecialchars((string)($value ?? ''), ENT_QUOTES, 'UTF-8');
 }
 
-function filterLogsByClassification(array $logs, string $classification): array {
-    return array_filter($logs, fn($log) => strtolower($log['classification']) === strtolower($classification));
-}
-
-function topN(array $array, int $n = 3): array {
-    arsort($array);
-    return array_slice($array, 0, $n, true);
+/**
+ * Returns the display label for a log entry based on USER_DISPLAY_FIELD.
+ * Change USER_DISPLAY_FIELD at the top of this file to switch what is shown.
+ */
+function getUserDisplayLabel(array $log): string
+{
+    return $log[USER_DISPLAY_FIELD] ?? $log['id_number'];
 }
 
 
-// ------------------- ACTION DISPATCH -------------------
-if ($action === 'viewAll') {
-    // Return paginated data for the current tab
-    $responseData = [];
-    switch ($requestedTab) {
-        case 'users':
-            $allUsers = [];
-            foreach ($libraryLogs as $log) {
-                $key = $log['id_number'];
-                if (!isset($allUsers[$key])) {
-                    $allUsers[$key] = [
-                        'name'       => $log['name'],
-                        'type'       => $log['classification'],
-                        'library'    => $log['libraryName'],
-                        'checkins'   => 0,
-                        'duration'   => 0,
-                        'last_checkin' => $log['checkin_time']
-                    ];
-                }
-                $allUsers[$key]['checkins']++;
-                $allUsers[$key]['duration'] += calculateDuration($log['checkin_time'], $log['checkout_time']);
-                if ($log['checkin_time'] > $allUsers[$key]['last_checkin']) {
-                    $allUsers[$key]['last_checkin'] = $log['checkin_time'];
-                }
-            }
-            // Sort by checkins desc, then paginate
-            uasort($allUsers, fn($a, $b) => $b['checkins'] <=> $a['checkins']);
-            $total = count($allUsers);
-            $paginated = array_slice($allUsers, $offset, $limit, true);
-            $responseData = ['rows' => array_values($paginated), 'total' => $total];
-            break;
+// ============================================================
+//  QUERY FUNCTIONS
+// ============================================================
 
-        case 'colleges':
-            $colleges = [];
-            foreach ($libraryLogs as $log) {
-                if (strtolower($log['classification']) === 'guest') continue;
-                $college = $log['college'] ?: 'Unknown';
-                if (!isset($colleges[$college])) {
-                    $colleges[$college] = [
-                        'name'         => $college,
-                        'unique_users' => [],
-                        'duration'     => 0,
-                        'last_checkin' => $log['checkin_time']
-                    ];
-                }
-                $colleges[$college]['unique_users'][$log['id_number']] = true;
-                $colleges[$college]['duration'] += calculateDuration($log['checkin_time'], $log['checkout_time']);
-                if ($log['checkin_time'] > $colleges[$college]['last_checkin']) {
-                    $colleges[$college]['last_checkin'] = $log['checkin_time'];
-                }
-            }
-            // Build final array with checkin counts
-            $collegeList = [];
-            foreach ($colleges as $name => $data) {
-                $collegeList[] = [
-                    'name'         => $name,
-                    'checkins'     => count($data['unique_users']),
-                    'duration'     => $data['duration'],
-                    'last_checkin' => $data['last_checkin']
-                ];
-            }
-            usort($collegeList, fn($a, $b) => $b['checkins'] <=> $a['checkins']);
-            $total = count($collegeList);
-            $paginated = array_slice($collegeList, $offset, $limit);
-            $responseData = ['rows' => $paginated, 'total' => $total];
-            break;
+/**
+ * Builds the SQL WHERE clause and named parameter map from the active dashboard filters.
+ */
+function buildWhereClauseFromFilters(array $postData): array
+{
+    $where = '';
+    $boundParams = [];
 
-        case 'courses':
-            $courses = [];
-            foreach ($libraryLogs as $log) {
-                if (strtolower($log['classification']) === 'guest') continue;
-                $college = $log['college'] ?: 'Unknown';
-                $course  = $log['course'] ?: 'Unknown';
-                $key = $college . '|' . $course;
-                if (!isset($courses[$key])) {
-                    $courses[$key] = [
-                        'college'      => $college,
-                        'course'       => $course,
-                        'unique_users' => [],
-                        'duration'     => 0,
-                        'last_checkin' => $log['checkin_time']
-                    ];
-                }
-                $courses[$key]['unique_users'][$log['id_number']] = true;
-                $courses[$key]['duration'] += calculateDuration($log['checkin_time'], $log['checkout_time']);
-                if ($log['checkin_time'] > $courses[$key]['last_checkin']) {
-                    $courses[$key]['last_checkin'] = $log['checkin_time'];
-                }
-            }
-            $courseList = [];
-            foreach ($courses as $data) {
-                $courseList[] = [
-                    'college'     => $data['college'],
-                    'course'      => $data['course'],
-                    'checkins'    => count($data['unique_users']),
-                    'duration'    => $data['duration'],
-                    'last_checkin'=> $data['last_checkin']
-                ];
-            }
-            usort($courseList, fn($a, $b) => $b['checkins'] <=> $a['checkins']);
-            $total = count($courseList);
-            $paginated = array_slice($courseList, $offset, $limit);
-            $responseData = ['rows' => $paginated, 'total' => $total];
-            break;
-
-        case 'demographics':
-            // For demographics we simply list all logs paginated (no aggregation)
-            $allLogs = array_map(function($log) {
-                return [
-                    'name'       => $log['name'],
-                    'sex'        => $log['sex'],
-                    'checkin'    => $log['checkin_time'],
-                    'checkout'   => $log['checkout_time'],
-                    'duration'   => calculateDuration($log['checkin_time'], $log['checkout_time'])
-                ];
-            }, $libraryLogs);
-            $total = count($allLogs);
-            $paginated = array_slice($allLogs, $offset, $limit);
-            $responseData = ['rows' => $paginated, 'total' => $total];
-            break;
+    if (!empty($postData['startDate'])) {
+        $where .= " AND CAST(l.checkin_time AS DATE) >= :startDate";
+        $boundParams[':startDate'] = $postData['startDate'];
     }
-    echo json_encode(['status'=>'success', 'data'=>$responseData]);
-    exit;
+
+    if (!empty($postData['endDate'])) {
+        $where .= " AND CAST(l.checkin_time AS DATE) <= :endDate";
+        $boundParams[':endDate'] = $postData['endDate'];
+    }
+
+    if (!empty($postData['classification']) && $postData['classification'] !== 'All') {
+        $where .= " AND l.classification = :classification";
+        $boundParams[':classification'] = $postData['classification'];
+    }
+
+    if (!empty($postData['library']) && $postData['library'] !== 'All') {
+        $where .= " AND l.library = :libraryId";
+        $boundParams[':libraryId'] = $postData['library'];
+    }
+
+    return [$where, $boundParams];
 }
 
-// ------------------- USERS TAB -------------------
-$classifications = ['Student','Employee','Guest'];
-$topCheckins = []; $topDuration = [];
+/**
+ * Fetches all library visit logs matching the active filters,
+ * joined with their library section names for display.
+ */
+function fetchFilteredVisitLogs(string $where, array $boundParams): array
+{
+    $sql = "
+        SELECT
+            l.id,
+            l.id_number,
+            l.name,
+            l.college,
+            l.course,
+            l.library         AS library_section_id,
+            s.SectionName     AS library_section_name,
+            l.checkin_time,
+            l.checkout_time,
+            l.sex,
+            l.classification
+        FROM  Library_logs   l
+        LEFT JOIN LibrarySection s ON l.library = s.SectionID
+        WHERE 1=1 {$where}
+        ORDER BY l.checkin_time DESC
+    ";
 
-foreach($classifications as $class){
-    $logsByClass = filterLogsByClassification($libraryLogs, $class);
-    $userCheckins = [];   // id_number => count
-    $userDuration = [];   // id_number => total minutes
-    $userData = [];       // id_number => ['name'=>..., 'library'=>..., 'last_checkin'=>...]
+    return execsqlSRS($sql, 'Select', $boundParams);
+}
 
-    foreach($logsByClass as $log){
-        $id = $log['id_number'];
-        $name = $log['name'];
-        $library = $log['libraryName'];
-        $checkinTime = $log['checkin_time'];
 
-        // Accumulate check-ins (count visits, not unique days)
-        $userCheckins[$id] = ($userCheckins[$id] ?? 0) + 1;
-        $userDuration[$id] = ($userDuration[$id] ?? 0) + calculateDuration($log['checkin_time'], $log['checkout_time']);
+// ============================================================
+//  KPI AGGREGATION
+// ============================================================
 
-        // Store user details (first encountered, but last checkin time updated)
-        if (!isset($userData[$id])) {
-            $userData[$id] = [
-                'name' => $name,
-                'library' => $library,
-                'last_checkin' => $checkinTime
-            ];
-        } else {
-            if ($checkinTime > $userData[$id]['last_checkin']) {
-                $userData[$id]['last_checkin'] = $checkinTime;
+/**
+ * Computes the four global KPI metric values from the filtered visit logs.
+ * Returns totals for visits, duration, unique users, average duration,
+ * and the check-in count specifically on the selected end date.
+ */
+function computeDashboardKpis(array $visitLogs, string $selectedEndDate): array
+{
+    $totalVisitCount   = count($visitLogs);
+
+    $totalDurationMins = array_sum(array_map(
+        fn($log) => calcDurationMinutes($log['checkin_time'], $log['checkout_time']),
+        $visitLogs
+    ));
+
+    $uniqueVisitorCount = count(array_unique(array_column($visitLogs, 'id_number')));
+
+    $avgDurationMins    = $totalVisitCount
+        ? round($totalDurationMins / $totalVisitCount, 1)
+        : 0;
+
+    $endDateVisitCount  = 0;
+    if ($selectedEndDate) {
+        $endDateVisitCount = count(array_filter(
+            $visitLogs,
+            fn($log) => substr($log['checkin_time'], 0, 10) === $selectedEndDate
+        ));
+    }
+
+    return [
+        'totalVisits'     => $totalVisitCount,
+        'totalDuration'   => round($totalDurationMins),
+        'uniqueUsers'     => $uniqueVisitorCount,
+        'avgDuration'     => $avgDurationMins,
+        'endDateCheckins' => $endDateVisitCount,
+    ];
+}
+
+
+// ============================================================
+//  TAB DATA AGGREGATION
+// ============================================================
+
+/**
+ * Aggregates the top 3 users by visit count and total session duration,
+ * grouped by classification (Student, Employee, Guest).
+ */
+function aggregateTopUsersByClassification(array $visitLogs): array
+{
+    $classifications = ['Student', 'Employee', 'Guest'];
+    $topByCheckins   = [];
+    $topByDuration   = [];
+
+    foreach ($classifications as $classification) {
+        $logsForClass    = filterByClassification($visitLogs, $classification);
+        $visitCountById  = [];
+        $durationSumById = [];
+        $userMetaById    = [];
+
+        foreach ($logsForClass as $log) {
+            $userId    = $log['id_number'];
+            $checkinAt = $log['checkin_time'];
+
+            $visitCountById[$userId]  = ($visitCountById[$userId]  ?? 0) + 1;
+            $durationSumById[$userId] = ($durationSumById[$userId] ?? 0)
+                + calcDurationMinutes($log['checkin_time'], $log['checkout_time']);
+
+            if (!isset($userMetaById[$userId])) {
+                $userMetaById[$userId] = [
+                    'display_label' => getUserDisplayLabel($log),
+                    'library'       => $log['library_section_name'],
+                    'last_checkin'  => $checkinAt,
+                ];
+            } elseif ($checkinAt > $userMetaById[$userId]['last_checkin']) {
+                $userMetaById[$userId]['last_checkin'] = $checkinAt;
             }
+        }
+
+        // Top 3 by visit count
+        arsort($visitCountById);
+        $topByCheckins[$classification] = [];
+        $rank = 0;
+        foreach ($visitCountById as $userId => $visitCount) {
+            if ($rank >= 3) break;
+            $topByCheckins[$classification][$userId] = array_merge(
+                $userMetaById[$userId],
+                ['count' => $visitCount]
+            );
+            $rank++;
+        }
+
+        // Top 3 by total duration
+        arsort($durationSumById);
+        $topByDuration[$classification] = [];
+        $rank = 0;
+        foreach ($durationSumById as $userId => $totalMinutes) {
+            if ($rank >= 3) break;
+            $topByDuration[$classification][$userId] = array_merge(
+                $userMetaById[$userId],
+                ['minutes' => $totalMinutes]
+            );
+            $rank++;
         }
     }
 
-    // Build top check-ins (sorted by count)
-    arsort($userCheckins);
-    $topCheckins[$class] = [];
-    $count = 0;
-    foreach ($userCheckins as $id => $cnt) {
-        if ($count >= 3) break;
-        $topCheckins[$class][$id] = [
-            'count' => $cnt,
-            'name' => $userData[$id]['name'],
-            'library' => $userData[$id]['library'],
-            'last_checkin' => $userData[$id]['last_checkin']
+    return ['topCheckins' => $topByCheckins, 'topDuration' => $topByDuration];
+}
+
+/**
+ * Aggregates the top 3 colleges by unique visitor count and total session duration.
+ * Guests are excluded — only Students and Employees are counted.
+ */
+function aggregateTopColleges(array $visitLogs): array
+{
+    $nonGuestLogs             = excludeGuests($visitLogs);
+    $uniqueVisitorsByCollege  = [];
+    $visitCountByCollege      = [];
+    $durationSumByCollege     = [];
+    $lastCheckinByCollege     = [];
+
+    foreach ($nonGuestLogs as $log) {
+        $college = $log['college'] ?: 'Unknown';
+        $userId  = $log['id_number'];
+
+        // Count each unique visitor only once per college
+        if (!isset($uniqueVisitorsByCollege[$college][$userId])) {
+            $uniqueVisitorsByCollege[$college][$userId] = true;
+            $visitCountByCollege[$college] = ($visitCountByCollege[$college] ?? 0) + 1;
+        }
+
+        $durationSumByCollege[$college] = ($durationSumByCollege[$college] ?? 0)
+            + calcDurationMinutes($log['checkin_time'], $log['checkout_time']);
+
+        if (!isset($lastCheckinByCollege[$college]) || $log['checkin_time'] > $lastCheckinByCollege[$college]) {
+            $lastCheckinByCollege[$college] = $log['checkin_time'];
+        }
+    }
+
+    // Build top 3 by visit count
+    arsort($visitCountByCollege);
+    $topByCheckins = [];
+    $rank = 0;
+    foreach ($visitCountByCollege as $college => $visitCount) {
+        if ($rank >= 3) break;
+        $topByCheckins[$college] = [
+            'count'        => $visitCount,
+            'last_checkin' => $lastCheckinByCollege[$college],
         ];
-        $count++;
+        $rank++;
     }
 
-    // Build top duration (sorted by minutes)
-    arsort($userDuration);
-    $topDuration[$class] = [];
-    $count = 0;
-    foreach ($userDuration as $id => $mins) {
-        if ($count >= 3) break;
-        $topDuration[$class][$id] = [
-            'minutes' => $mins,
-            'name' => $userData[$id]['name'],
-            'library' => $userData[$id]['library'],
-            'last_checkin' => $userData[$id]['last_checkin']
+    // Build top 3 by total duration
+    arsort($durationSumByCollege);
+    $topByDuration = [];
+    $rank = 0;
+    foreach ($durationSumByCollege as $college => $totalMinutes) {
+        if ($rank >= 3) break;
+        $topByDuration[$college] = [
+            'minutes'      => $totalMinutes,
+            'last_checkin' => $lastCheckinByCollege[$college],
         ];
-        $count++;
+        $rank++;
     }
-}
 
-
-// ------------------- COLLEGES TAB -------------------
-$collegeLogs = array_filter($libraryLogs, fn($log) => strtolower($log['classification']) !== 'guest');
-
-$collegesCheckin = []; $collegesDuration = []; $collegeUsers = []; $collegeLastCheckin = [];
-foreach($collegeLogs as $log){
-    $college = $log['college'] ?: 'Unknown';
-    $userId = $log['id_number'];
-    $duration = calculateDuration($log['checkin_time'], $log['checkout_time']);
-
-    if(!isset($collegeUsers[$college][$userId])){
-        $collegeUsers[$college][$userId] = true;
-        $collegesCheckin[$college] = ($collegesCheckin[$college] ?? 0) + 1;
-    }
-    $collegesDuration[$college] = ($collegesDuration[$college] ?? 0) + $duration;
-    // track last checkin
-    if (!isset($collegeLastCheckin[$college]) || $log['checkin_time'] > $collegeLastCheckin[$college]) {
-        $collegeLastCheckin[$college] = $log['checkin_time'];
-    }
-}
-$top3CollegesCheckin = [];
-foreach (topN($collegesCheckin, 3) as $college => $count) {
-    $top3CollegesCheckin[$college] = ['count' => $count, 'last_checkin' => $collegeLastCheckin[$college]];
-}
-$top3CollegesDuration = [];
-foreach (topN($collegesDuration, 3) as $college => $mins) {
-    $top3CollegesDuration[$college] = ['minutes' => $mins, 'last_checkin' => $collegeLastCheckin[$college]];
-}
-// After building $collegesCheckin and $collegeLastCheckin:
-arsort($collegesCheckin);
-$top3CollegesCheckin = [];
-$count = 0;
-foreach ($collegesCheckin as $college => $checkins) {
-    if ($count >= 3) break;
-    $top3CollegesCheckin[$college] = [
-        'count' => $checkins,
-        'last_checkin' => $collegeLastCheckin[$college]
+    return [
+        'top3CollegesCheckin'  => $topByCheckins,
+        'top3CollegesDuration' => $topByDuration,
     ];
-    $count++;
 }
 
-arsort($collegesDuration);
-$top3CollegesDuration = [];
-$count = 0;
-foreach ($collegesDuration as $college => $mins) {
-    if ($count >= 3) break;
-    $top3CollegesDuration[$college] = [
-        'minutes' => $mins,
-        'last_checkin' => $collegeLastCheckin[$college]
+/**
+ * Aggregates the top 3 courses per college by unique visitor count and total session duration.
+ * Guests are excluded — only Students and Employees are counted.
+ */
+function aggregateTopCoursesByCollege(array $visitLogs): array
+{
+    $nonGuestLogs               = excludeGuests($visitLogs);
+    $uniqueVisitorsByCourse     = [];
+    $visitCountByCollegeCourse  = [];
+    $durationSumByCollegeCourse = [];
+    $lastCheckinByCollegeCourse = [];
+
+    foreach ($nonGuestLogs as $log) {
+        $college          = $log['college'] ?: 'Unknown';
+        $course           = $log['course']  ?: 'Unknown';
+        $userId           = $log['id_number'];
+        $collegeCourseKey = "{$college}|{$course}";
+
+        // Count each unique visitor only once per college + course combination
+        if (!isset($uniqueVisitorsByCourse[$college][$course][$userId])) {
+            $uniqueVisitorsByCourse[$college][$course][$userId] = true;
+            $visitCountByCollegeCourse[$college][$course] =
+                ($visitCountByCollegeCourse[$college][$course] ?? 0) + 1;
+        }
+
+        $durationSumByCollegeCourse[$college][$course] =
+            ($durationSumByCollegeCourse[$college][$course] ?? 0)
+            + calcDurationMinutes($log['checkin_time'], $log['checkout_time']);
+
+        if (!isset($lastCheckinByCollegeCourse[$collegeCourseKey])
+            || $log['checkin_time'] > $lastCheckinByCollegeCourse[$collegeCourseKey]) {
+            $lastCheckinByCollegeCourse[$collegeCourseKey] = $log['checkin_time'];
+        }
+    }
+
+    // Build top 3 courses per college by visit count
+    $topByCheckins = [];
+    foreach ($visitCountByCollegeCourse as $college => $courseVisitCounts) {
+        arsort($courseVisitCounts);
+        $topByCheckins[$college] = [];
+        $rank = 0;
+        foreach ($courseVisitCounts as $course => $visitCount) {
+            if ($rank >= 3) break;
+            $collegeCourseKey = "{$college}|{$course}";
+            $topByCheckins[$college][$course] = [
+                'count'        => $visitCount,
+                'last_checkin' => $lastCheckinByCollegeCourse[$collegeCourseKey] ?? null,
+            ];
+            $rank++;
+        }
+    }
+
+    // Build top 3 courses per college by total duration
+    $topByDuration = [];
+    foreach ($durationSumByCollegeCourse as $college => $courseDurations) {
+        arsort($courseDurations);
+        $topByDuration[$college] = [];
+        $rank = 0;
+        foreach ($courseDurations as $course => $totalMinutes) {
+            if ($rank >= 3) break;
+            $collegeCourseKey = "{$college}|{$course}";
+            $topByDuration[$college][$course] = [
+                'minutes'      => $totalMinutes,
+                'last_checkin' => $lastCheckinByCollegeCourse[$collegeCourseKey] ?? null,
+            ];
+            $rank++;
+        }
+    }
+
+    return [
+        'topCoursesCheckin'  => $topByCheckins,
+        'topCoursesDuration' => $topByDuration,
     ];
-    $count++;
 }
 
-// ------------------- COURSES TAB -------------------
-$coursesCheckin = []; $coursesDuration = []; $courseUsers = []; $courseLastCheckin = [];
-foreach($collegeLogs as $log){
-    $college = $log['college'] ?: 'Unknown';
-    $course  = $log['course'] ?: 'Unknown';
-    $userId  = $log['id_number'];
-    $duration = calculateDuration($log['checkin_time'], $log['checkout_time']);
+/**
+ * Counts visit log entries grouped by sex (Male, Female, Unknown).
+ */
+function aggregateSexDistribution(array $visitLogs): array
+{
+    $countBySex = [];
+    foreach ($visitLogs as $log) {
+        $sex = $log['sex'] ?: 'Unknown';
+        $countBySex[$sex] = ($countBySex[$sex] ?? 0) + 1;
+    }
+    return $countBySex;
+}
 
-    if(!isset($courseUsers[$college][$course][$userId])){
-        $courseUsers[$college][$course][$userId] = true;
-        $coursesCheckin[$college][$course] = ($coursesCheckin[$college][$course] ?? 0) + 1;
-    }
-    $coursesDuration[$college][$course] = ($coursesDuration[$college][$course] ?? 0) + $duration;
-    // last checkin per (college,course)
-    $key = $college.'|'.$course;
-    if (!isset($courseLastCheckin[$key]) || $log['checkin_time'] > $courseLastCheckin[$key]) {
-        $courseLastCheckin[$key] = $log['checkin_time'];
-    }
-}
-$topCoursesCheckin = []; $topCoursesDuration = [];
-foreach($coursesCheckin as $college => $courseList){
-    $topCoursesCheckin[$college] = [];
-    foreach (topN($courseList, 3) as $course => $count) {
-        $key = $college.'|'.$course;
-        $topCoursesCheckin[$college][$course] = ['count' => $count, 'last_checkin' => $courseLastCheckin[$key]];
-    }
-}
-foreach($coursesDuration as $college => $courseList){
-    $topCoursesDuration[$college] = [];
-    foreach (topN($courseList, 3) as $course => $mins) {
-        $key = $college.'|'.$course;
-        $topCoursesDuration[$college][$course] = ['minutes' => $mins, 'last_checkin' => $courseLastCheckin[$key]];
-    }
-}
-// After building $coursesCheckin and $courseLastCheckin:
-$topCoursesCheckin = [];
-$topCoursesDuration = [];
 
-foreach ($coursesCheckin as $college => $courseList) {
-    arsort($courseList);
-    $topCoursesCheckin[$college] = [];
-    $count = 0;
-    foreach ($courseList as $course => $checkins) {
-        if ($count >= 3) break;
-        $key = $college.'|'.$course;
-        $topCoursesCheckin[$college][$course] = [
-            'count' => $checkins,
-            'last_checkin' => $courseLastCheckin[$key]
+// ============================================================
+//  VIEWALL PAGINATED DATA BUILDERS
+// ============================================================
+
+/**
+ * Builds paginated user rows for the View All modal, aggregated by id_number.
+ * Each row represents one unique visitor with their cumulative stats.
+ */
+function buildViewAllUsers(array $visitLogs, int $offset, int $limit): array
+{
+    $aggregatedByUser = [];
+
+    foreach ($visitLogs as $log) {
+        $userId = $log['id_number'];
+
+        if (!isset($aggregatedByUser[$userId])) {
+            $aggregatedByUser[$userId] = [
+                'display_label' => getUserDisplayLabel($log),
+                'type'          => $log['classification'],
+                'library'       => $log['library_section_name'],
+                'checkins'      => 0,
+                'duration'      => 0,
+                'last_checkin'  => $log['checkin_time'],
+            ];
+        }
+
+        $aggregatedByUser[$userId]['checkins']++;
+        $aggregatedByUser[$userId]['duration'] += calcDurationMinutes(
+            $log['checkin_time'],
+            $log['checkout_time']
+        );
+
+        if ($log['checkin_time'] > $aggregatedByUser[$userId]['last_checkin']) {
+            $aggregatedByUser[$userId]['last_checkin'] = $log['checkin_time'];
+        }
+    }
+
+    uasort($aggregatedByUser, fn($userA, $userB) => $userB['checkins'] <=> $userA['checkins']);
+
+    $totalUsers = count($aggregatedByUser);
+    $pageRows   = array_values(array_slice($aggregatedByUser, $offset, $limit, true));
+
+    return ['rows' => $pageRows, 'total' => $totalUsers];
+}
+
+/**
+ * Builds paginated college rows for the View All modal, aggregated by college name.
+ * Each row shows the college's unique visitor count, total duration, and last visit.
+ */
+function buildViewAllColleges(array $visitLogs, int $offset, int $limit): array
+{
+    $aggregatedByCollege = [];
+
+    foreach (excludeGuests($visitLogs) as $log) {
+        $college = $log['college'] ?: 'Unknown';
+
+        if (!isset($aggregatedByCollege[$college])) {
+            $aggregatedByCollege[$college] = [
+                'college_name'    => $college,
+                'unique_visitors' => [],
+                'duration'        => 0,
+                'last_checkin'    => $log['checkin_time'],
+            ];
+        }
+
+        $aggregatedByCollege[$college]['unique_visitors'][$log['id_number']] = true;
+        $aggregatedByCollege[$college]['duration'] += calcDurationMinutes(
+            $log['checkin_time'],
+            $log['checkout_time']
+        );
+
+        if ($log['checkin_time'] > $aggregatedByCollege[$college]['last_checkin']) {
+            $aggregatedByCollege[$college]['last_checkin'] = $log['checkin_time'];
+        }
+    }
+
+    $rows = [];
+    foreach ($aggregatedByCollege as $collegeData) {
+        $rows[] = [
+            'name'         => $collegeData['college_name'],
+            'checkins'     => count($collegeData['unique_visitors']),
+            'duration'     => $collegeData['duration'],
+            'last_checkin' => $collegeData['last_checkin'],
         ];
-        $count++;
     }
+
+    usort($rows, fn($rowA, $rowB) => $rowB['checkins'] <=> $rowA['checkins']);
+
+    $totalColleges = count($rows);
+    $pageRows      = array_slice($rows, $offset, $limit);
+
+    return ['rows' => $pageRows, 'total' => $totalColleges];
 }
 
-foreach ($coursesDuration as $college => $courseList) {
-    arsort($courseList);
-    $topCoursesDuration[$college] = [];
-    $count = 0;
-    foreach ($courseList as $course => $mins) {
-        if ($count >= 3) break;
-        $key = $college.'|'.$course;
-        $topCoursesDuration[$college][$course] = [
-            'minutes' => $mins,
-            'last_checkin' => $courseLastCheckin[$key]
+/**
+ * Builds paginated course rows for the View All modal, aggregated by college + course.
+ * Each row shows the course's unique visitor count, total duration, and last visit.
+ */
+function buildViewAllCourses(array $visitLogs, int $offset, int $limit): array
+{
+    $aggregatedByCourse = [];
+
+    foreach (excludeGuests($visitLogs) as $log) {
+        $college          = $log['college'] ?: 'Unknown';
+        $course           = $log['course']  ?: 'Unknown';
+        $collegeCourseKey = "{$college}|{$course}";
+
+        if (!isset($aggregatedByCourse[$collegeCourseKey])) {
+            $aggregatedByCourse[$collegeCourseKey] = [
+                'college'         => $college,
+                'course'          => $course,
+                'unique_visitors' => [],
+                'duration'        => 0,
+                'last_checkin'    => $log['checkin_time'],
+            ];
+        }
+
+        $aggregatedByCourse[$collegeCourseKey]['unique_visitors'][$log['id_number']] = true;
+        $aggregatedByCourse[$collegeCourseKey]['duration'] += calcDurationMinutes(
+            $log['checkin_time'],
+            $log['checkout_time']
+        );
+
+        if ($log['checkin_time'] > $aggregatedByCourse[$collegeCourseKey]['last_checkin']) {
+            $aggregatedByCourse[$collegeCourseKey]['last_checkin'] = $log['checkin_time'];
+        }
+    }
+
+    $rows = [];
+    foreach ($aggregatedByCourse as $courseData) {
+        $rows[] = [
+            'college'      => $courseData['college'],
+            'course'       => $courseData['course'],
+            'checkins'     => count($courseData['unique_visitors']),
+            'duration'     => $courseData['duration'],
+            'last_checkin' => $courseData['last_checkin'],
         ];
-        $count++;
     }
+
+    usort($rows, fn($rowA, $rowB) => $rowB['checkins'] <=> $rowA['checkins']);
+
+    $totalCourses = count($rows);
+    $pageRows     = array_slice($rows, $offset, $limit);
+
+    return ['rows' => $pageRows, 'total' => $totalCourses];
 }
 
-// ------------------- DEMOGRAPHICS -------------------
-$sexDistribution = [];
-foreach($libraryLogs as $log){
-    $sex = $log['sex'] ?: 'Unknown';
-    $sexDistribution[$sex] = ($sexDistribution[$sex] ?? 0) + 1;
+/**
+ * Builds paginated raw visit log rows for the demographics View All modal.
+ * Each row is one individual visit entry with its duration calculated.
+ */
+function buildViewAllDemographics(array $visitLogs, int $offset, int $limit): array
+{
+    $rows = array_map(fn($log) => [
+        'display_label' => getUserDisplayLabel($log),
+        'sex'           => $log['sex'],
+        'checkin'       => $log['checkin_time'],
+        'checkout'      => $log['checkout_time'],
+        'duration'      => calcDurationMinutes($log['checkin_time'], $log['checkout_time']),
+    ], $visitLogs);
+
+    $totalLogs = count($rows);
+    $pageRows  = array_slice($rows, $offset, $limit);
+
+    return ['rows' => $pageRows, 'total' => $totalLogs];
 }
 
-// ------------------- HTML GENERATION -------------------
-ob_start();
 
-switch($requestedTab){
-   case 'users':
-?>
-<div class="tab-pane fade show active" id="users" role="tabpanel">
-    <!-- header unchanged -->
-    <div class="row g-4">
-    <!-- Top Users Check-ins -->
-    <div class="col-xl-8">
-        <div class="card border shadow-sm h-100">
-            <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
-                <div>
-                    <div class="fw-semibold">Top Users by Check-ins</div>
-                    <small class="text-muted">Most frequent visitors</small>
+// ============================================================
+//  VIEWALL HTML RENDER FUNCTIONS
+// ============================================================
+
+/**
+ * Renders the full paginated modal table HTML for a given tab and its row data.
+ * Column headers and row cell mappings are defined per-tab in one central place,
+ * making it easy to add, remove, or reorder columns with minimal changes.
+ */
+function renderModalTable(string $tab, array $rows): string
+{
+    $columnsByTab = [
+        'users' => [
+            'headers' => ['ID Number', 'Type', 'Library', 'Check-ins', 'Duration (min)', 'Last Check-in'],
+            'rowFn'   => fn($row) => '
+                <td class="fw-semibold">' . safe($row['display_label'])         . '</td>
+                <td>'                     . safe($row['type'])                   . '</td>
+                <td>'                     . safe($row['library'])                . '</td>
+                <td class="text-end">'    . (int)$row['checkins']               . '</td>
+                <td class="text-end">'    . (int)round($row['duration'])         . '</td>
+                <td>'                     . formatDateTime($row['last_checkin']) . '</td>
+            ',
+        ],
+        'colleges' => [
+            'headers' => ['College', 'Unique Visitors', 'Total Duration (min)', 'Last Check-in'],
+            'rowFn'   => fn($row) => '
+                <td class="fw-semibold">' . safe($row['name'])                  . '</td>
+                <td class="text-end">'    . (int)$row['checkins']               . '</td>
+                <td class="text-end">'    . (int)round($row['duration'])         . '</td>
+                <td>'                     . formatDateTime($row['last_checkin']) . '</td>
+            ',
+        ],
+        'courses' => [
+            'headers' => ['College', 'Course', 'Unique Visitors', 'Total Duration (min)', 'Last Check-in'],
+            'rowFn'   => fn($row) => '
+                <td>'                     . safe($row['college'])                . '</td>
+                <td class="fw-semibold">' . safe($row['course'])                 . '</td>
+                <td class="text-end">'    . (int)$row['checkins']               . '</td>
+                <td class="text-end">'    . (int)round($row['duration'])         . '</td>
+                <td>'                     . formatDateTime($row['last_checkin']) . '</td>
+            ',
+        ],
+        'demographics' => [
+            'headers' => ['ID Number', 'Sex', 'Check-in', 'Check-out', 'Duration (min)'],
+            'rowFn'   => fn($row) => '
+                <td class="fw-semibold">' . safe($row['display_label'])                                 . '</td>
+                <td>'                     . safe($row['sex'])                                           . '</td>
+                <td>'                     . formatDateTime($row['checkin'])                             . '</td>
+                <td>'                     . ($row['checkout'] ? formatDateTime($row['checkout']) : '—') . '</td>
+                <td class="text-end">'    . (int)round($row['duration'])                                . '</td>
+            ',
+        ],
+    ];
+
+    if (!isset($columnsByTab[$tab])) return '';
+
+    $tabConfig   = $columnsByTab[$tab];
+    $headerCells = implode('', array_map(fn($heading) => "<th>{$heading}</th>", $tabConfig['headers']));
+    $bodyRows    = implode('', array_map(fn($row) => '<tr>' . ($tabConfig['rowFn'])($row) . '</tr>', $rows));
+
+    return "
+        <div class=\"table-responsive\">
+            <table class=\"table table-sm table-striped\">
+                <thead><tr>{$headerCells}</tr></thead>
+                <tbody>{$bodyRows}</tbody>
+            </table>
+        </div>
+    ";
+}
+
+/**
+ * Renders Bootstrap pagination HTML for the View All modal.
+ */
+function renderModalPagination(int $totalPages, int $currentPage): string
+{
+    $pageItems = '';
+    for ($pageNum = 1; $pageNum <= $totalPages; $pageNum++) {
+        $activeClass = ($pageNum === $currentPage) ? 'active' : '';
+        $pageItems  .= "<li class=\"page-item {$activeClass}\">
+                            <a class=\"page-link\" href=\"#\" data-page=\"{$pageNum}\">{$pageNum}</a>
+                        </li>";
+    }
+
+    return "<nav><ul class=\"pagination mb-0\">{$pageItems}</ul></nav>";
+}
+
+
+// ============================================================
+//  TAB HTML RENDER FUNCTIONS
+// ============================================================
+
+/**
+ * Renders the Users tab — top visitors by check-in count and session duration,
+ * each grouped into classification sections (Student, Employee, Guest).
+ */
+function renderUsersTab(array $topByCheckins, array $topByDuration): string
+{
+    ob_start(); ?>
+    <div class="tab-pane fade show active" id="users" role="tabpanel">
+        <div class="row g-4">
+
+            <!-- Top Users by Check-ins -->
+            <div class="col-xl-8">
+                <div class="card border shadow-sm h-100">
+                    <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="fw-semibold">Top Users by Check-ins</div>
+                            <small class="text-muted">Most frequent visitors</small>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div style="height:300px;"><canvas id="chartUsersCheckin"></canvas></div>
+                        <div class="table-responsive mt-4">
+                            <table class="table table-sm align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>ID Number</th>
+                                        <th>Type</th>
+                                        <th>Library</th>
+                                        <th class="text-end">Check-ins</th>
+                                        <th class="text-end">Last Check-in</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                <?php foreach ($topByCheckins as $classification => $usersInClass): ?>
+                                    <?php foreach ($usersInClass as $userId => $userData): ?>
+                                        <tr>
+                                            <td class="fw-semibold"><?= safe($userData['display_label']) ?></td>
+                                            <td><span class="badge bg-light text-dark"><?= safe($classification) ?></span></td>
+                                            <td><?= safe($userData['library']) ?></td>
+                                            <td class="text-end"><?= $userData['count'] ?></td>
+                                            <td class="text-end"><?= formatDateTime($userData['last_checkin']) ?></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="mt-3 text-end">
+                            <button class="btn btn-sm btn-outline-primary view-all-btn" data-tab="users">
+                                View All Users
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="card-body">
-                <div style="height:300px;"><canvas id="chartUsersCheckin"></canvas></div>
-                <div class="table-responsive mt-4">
-                    <table class="table table-sm align-middle">
-                        <thead class="table-light">
-                            <tr>
-                                <th>User</th>
-                                <th>Type</th>
-                                <th>Library</th>
-                                <th class="text-end">Check-ins</th>
-                                <th class="text-end">Last Check-in</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                        <?php foreach($topCheckins as $class => $users): ?>
-                            <?php foreach($users as $id => $data): ?>
-                                <tr>
-                                    <td class="fw-semibold"><?= htmlspecialchars($data['name']) ?></td>
-                                    <td><span class="badge bg-light text-dark"><?= $class ?></span></td>
-                                    <td><?= htmlspecialchars($data['library']) ?></td>
-                                    <td class="text-end"><?= $data['count'] ?></td>
-                                    <td class="text-end"><?= date('M j, Y g:i A', strtotime($data['last_checkin'])) ?></td>
-                                </tr>
-                            <?php endforeach; ?>
-                        <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-                <div class="mt-3 text-end">
-                    <button class="btn btn-sm btn-outline-primary view-all-btn" data-tab="users" data-type="checkins">View All Users</button>
+
+            <!-- Top Users by Duration -->
+            <div class="col-xl-4">
+                <div class="card border shadow-sm h-100">
+                    <div class="card-header bg-white border-bottom">
+                        <div class="fw-semibold">Top Users by Duration</div>
+                        <small class="text-muted">Longest sessions</small>
+                    </div>
+                    <div class="card-body">
+                        <div style="height:300px;"><canvas id="chartUsersDuration"></canvas></div>
+                        <div class="table-responsive mt-4">
+                            <table class="table table-sm align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>ID Number</th>
+                                        <th>Type</th>
+                                        <th>Library</th>
+                                        <th class="text-end">Duration (min)</th>
+                                        <th class="text-end">Last Check-in</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                <?php foreach ($topByDuration as $classification => $usersInClass): ?>
+                                    <?php foreach ($usersInClass as $userId => $userData): ?>
+                                        <tr>
+                                            <td class="fw-semibold"><?= safe($userData['display_label']) ?></td>
+                                            <td><span class="badge bg-light text-dark"><?= safe($classification) ?></span></td>
+                                            <td><?= safe($userData['library']) ?></td>
+                                            <td class="text-end"><?= round($userData['minutes']) ?></td>
+                                            <td class="text-end"><?= formatDateTime($userData['last_checkin']) ?></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
+
         </div>
     </div>
+    <?php
+    return ob_get_clean();
+}
 
-    <!-- Top Users Duration -->
-    <div class="col-xl-4">
-        <div class="card border shadow-sm h-100">
-            <div class="card-header bg-white border-bottom">
-                <div class="fw-semibold">Top Users by Duration</div>
-                <small class="text-muted">Longest sessions</small>
-            </div>
-            <div class="card-body">
-                <div style="height:300px;"><canvas id="chartUsersDuration"></canvas></div>
-                <div class="table-responsive mt-4">
-                    <table class="table table-sm align-middle">
-                        <thead class="table-light">
-                            <tr>
-                                <th>User</th>
-                                <th>Type</th>
-                                <th>Library</th>
-                                <th class="text-end">Duration (min)</th>
-                                <th class="text-end">Last Check-in</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                        <?php foreach($topDuration as $class => $users): ?>
-                            <?php foreach($users as $id => $data): ?>
-                                <tr>
-                                    <td class="fw-semibold"><?= htmlspecialchars($data['name']) ?></td>
-                                    <td><span class="badge bg-light text-dark"><?= $class ?></span></td>
-                                    <td><?= htmlspecialchars($data['library']) ?></td>
-                                    <td class="text-end"><?= round($data['minutes']) ?></td>
-                                    <td class="text-end"><?= date('M j, Y g:i A', strtotime($data['last_checkin'])) ?></td>
-                                </tr>
-                            <?php endforeach; ?>
-                        <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-<?php
-break;
+/**
+ * Renders the Colleges tab — top colleges by unique visitor count and total session duration.
+ */
+function renderCollegesTab(array $topByCheckins, array $topByDuration): string
+{
+    ob_start(); ?>
+    <div class="row g-4 mb-4">
 
-case 'colleges':
-?>
-<!-- Colleges Tab Content -->
-<div class="row g-4 mb-4">
-    <!-- Top Colleges by Check-ins -->
-    <div class="col-md-6">
-        <div class="card border shadow-sm h-100">
-            <div class="card-header">Top Colleges by Check-ins</div>
-            <div class="card-body">
-                <div style="height:300px;"><canvas id="chartCollegeCheckin"></canvas></div>
-                <div class="table-responsive mt-3">
-                    <table class="table table-sm align-middle">
-                        <thead class="table-light">
-                            <tr>
-                                <th>College</th>
-                                <th class="text-end">Check-ins</th>
-                                <th class="text-end">Last Check-in</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                        <?php foreach($top3CollegesCheckin as $college => $data): ?>
-                            <tr>
-                                <td class="fw-semibold"><?= htmlspecialchars($college) ?></td>
-                                <td class="text-end"><?= $data['count'] ?></td>
-                                <td class="text-end"><?= date('M j, Y g:i A', strtotime($data['last_checkin'])) ?></td>
-                            </tr>
-                        <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Top Colleges by Duration -->
-    <div class="col-md-6">
-        <div class="card border shadow-sm h-100">
-            <div class="card-header">Top Colleges by Duration</div>
-            <div class="card-body">
-                <div style="height:300px;"><canvas id="chartCollegeDuration"></canvas></div>
-                <div class="table-responsive mt-3">
-                    <table class="table table-sm align-middle">
-                        <thead class="table-light">
-                            <tr>
-                                <th>College</th>
-                                <th class="text-end">Duration (min)</th>
-                                <th class="text-end">Last Check-in</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                        <?php foreach($top3CollegesDuration as $college => $data): ?>
-                            <tr>
-                                <td class="fw-semibold"><?= htmlspecialchars($college) ?></td>
-                                <td class="text-end"><?= round($data['minutes']) ?></td>
-                                <td class="text-end"><?= date('M j, Y g:i A', strtotime($data['last_checkin'])) ?></td>
-                            </tr>
-                        <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-                <div class="mt-3 text-end">
-                    <button class="btn btn-sm btn-outline-primary view-all-btn" data-tab="colleges">View All Colleges</button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-<?php
-break;
-
-case 'courses':
-?>
-<!-- Courses Tab Content -->
-<?php foreach($topCoursesCheckin as $college => $courses): ?>
-<div class="col-12 mb-4">
-    <h6 class="fw-semibold"><?= htmlspecialchars($college) ?></h6>
-    <div class="row g-4">
-        <!-- Top Courses by Check-ins -->
+        <!-- Top Colleges by Check-ins -->
         <div class="col-md-6">
             <div class="card border shadow-sm h-100">
-                <div class="card-header">Top Courses by Check-ins</div>
+                <div class="card-header">Top Colleges by Check-ins</div>
                 <div class="card-body">
-                    <div style="height:250px;"><canvas id="chartCourseCheckin_<?= preg_replace('/[^a-zA-Z0-9]/','', $college) ?>"></canvas></div>
+                    <div style="height:300px;"><canvas id="chartCollegeCheckin"></canvas></div>
                     <div class="table-responsive mt-3">
                         <table class="table table-sm align-middle">
                             <thead class="table-light">
                                 <tr>
-                                    <th>Course</th>
-                                    <th class="text-end">Check-ins</th>
+                                    <th>College</th>
+                                    <th class="text-end">Unique Visitors</th>
                                     <th class="text-end">Last Check-in</th>
                                 </tr>
                             </thead>
                             <tbody>
-                            <?php foreach($courses as $course => $data): ?>
+                            <?php foreach ($topByCheckins as $collegeName => $collegeData): ?>
                                 <tr>
-                                    <td class="fw-semibold"><?= htmlspecialchars($course) ?></td>
-                                    <td class="text-end"><?= $data['count'] ?></td>
-                                    <td class="text-end"><?= date('M j, Y g:i A', strtotime($data['last_checkin'])) ?></td>
+                                    <td class="fw-semibold"><?= safe($collegeName) ?></td>
+                                    <td class="text-end"><?= $collegeData['count'] ?></td>
+                                    <td class="text-end"><?= formatDateTime($collegeData['last_checkin']) ?></td>
                                 </tr>
                             <?php endforeach; ?>
                             </tbody>
@@ -615,122 +801,293 @@ case 'courses':
                 </div>
             </div>
         </div>
-        <!-- Top Courses by Duration -->
+
+        <!-- Top Colleges by Duration -->
         <div class="col-md-6">
             <div class="card border shadow-sm h-100">
-                <div class="card-header">Top Courses by Duration</div>
+                <div class="card-header">Top Colleges by Duration</div>
                 <div class="card-body">
-                    <div style="height:250px;"><canvas id="chartCourseDuration_<?= md5($college) ?>"></canvas></div>
+                    <div style="height:300px;"><canvas id="chartCollegeDuration"></canvas></div>
                     <div class="table-responsive mt-3">
                         <table class="table table-sm align-middle">
                             <thead class="table-light">
                                 <tr>
-                                    <th>Course</th>
+                                    <th>College</th>
                                     <th class="text-end">Duration (min)</th>
                                     <th class="text-end">Last Check-in</th>
                                 </tr>
                             </thead>
                             <tbody>
-                            <?php foreach($topCoursesDuration[$college] as $course => $data): ?>
+                            <?php foreach ($topByDuration as $collegeName => $collegeData): ?>
                                 <tr>
-                                    <td class="fw-semibold"><?= htmlspecialchars($course) ?></td>
-                                    <td class="text-end"><?= round($data['minutes']) ?></td>
-                                    <td class="text-end"><?= date('M j, Y g:i A', strtotime($data['last_checkin'])) ?></td>
+                                    <td class="fw-semibold"><?= safe($collegeName) ?></td>
+                                    <td class="text-end"><?= round($collegeData['minutes']) ?></td>
+                                    <td class="text-end"><?= formatDateTime($collegeData['last_checkin']) ?></td>
                                 </tr>
                             <?php endforeach; ?>
                             </tbody>
                         </table>
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-<?php endforeach; ?>
-<div class="text-end">
-    <button class="btn btn-sm btn-outline-primary view-all-btn" data-tab="courses">View All Courses</button>
-</div>
-<?php
-break;
-
-case 'demographics':
-?>
-<!-- Demographics Tab Content -->
-<div class="row g-4 mb-4">
-    <!-- Sex Distribution Chart -->
-    <div class="col-md-6">
-        <div class="card border shadow-sm h-100">
-            <div class="card-header">Sex Distribution</div>
-            <div class="card-body">
-                <div style="height:300px;"><canvas id="chartSexCheckin"></canvas></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Key Metrics -->
-    <div class="col-md-6">
-        <div class="row g-4">
-            <div class="col-12">
-                <div class="card border shadow-sm h-100">
-                    <div class="card-body text-center">
-                        <div class="text-muted small">Total Users</div>
-                        <h3 class="fw-bold mb-0"><?= count($libraryLogs) ?></h3>
-                    </div>
-                </div>
-            </div>
-            <div class="col-12">
-                <div class="card border shadow-sm h-100">
-                    <div class="card-body text-center">
-                        <div class="text-muted small">Male Users</div>
-                        <h3 class="fw-bold mb-0"><?= $sexDistribution['Male'] ?? 0 ?></h3>
-                    </div>
-                </div>
-            </div>
-            <div class="col-12">
-                <div class="card border shadow-sm h-100">
-                    <div class="card-body text-center">
-                        <div class="text-muted small">Female Users</div>
-                        <h3 class="fw-bold mb-0"><?= $sexDistribution['Female'] ?? 0 ?></h3>
+                    <div class="mt-3 text-end">
+                        <button class="btn btn-sm btn-outline-primary view-all-btn" data-tab="colleges">
+                            View All Colleges
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
-</div>
-<div class="text-end">
-    <button class="btn btn-sm btn-outline-primary view-all-btn" data-tab="demographics">View All Logs</button>
-</div>
-<?php
-break;
 
-default:
-    echo "<div class='text-center text-danger p-4'>Tab not found.</div>";
+    </div>
+    <?php
+    return ob_get_clean();
 }
 
-$html = ob_get_clean();
+/**
+ * Renders the Courses tab — top courses per college by unique visitor count and session duration.
+ * Each college gets its own card pair (check-ins + duration).
+ */
+function renderCoursesTab(array $topByCheckins, array $topByDuration): string
+{
+    ob_start();
+    foreach ($topByCheckins as $collegeName => $topCoursesByCheckins):
+        $safeCollegeId = preg_replace('/[^a-zA-Z0-9]/', '', $collegeName);
+    ?>
+    <div class="col-12 mb-4">
+        <h6 class="fw-semibold"><?= safe($collegeName) ?></h6>
+        <div class="row g-4">
+
+            <!-- Top Courses by Check-ins -->
+            <div class="col-md-6">
+                <div class="card border shadow-sm h-100">
+                    <div class="card-header">Top Courses by Check-ins</div>
+                    <div class="card-body">
+                        <div style="height:250px;">
+                            <canvas id="chartCourseCheckin_<?= $safeCollegeId ?>"></canvas>
+                        </div>
+                        <div class="table-responsive mt-3">
+                            <table class="table table-sm align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Course</th>
+                                        <th class="text-end">Unique Visitors</th>
+                                        <th class="text-end">Last Check-in</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                <?php foreach ($topCoursesByCheckins as $courseName => $courseData): ?>
+                                    <tr>
+                                        <td class="fw-semibold"><?= safe($courseName) ?></td>
+                                        <td class="text-end"><?= $courseData['count'] ?></td>
+                                        <td class="text-end"><?= formatDateTime($courseData['last_checkin']) ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top Courses by Duration -->
+            <div class="col-md-6">
+                <div class="card border shadow-sm h-100">
+                    <div class="card-header">Top Courses by Duration</div>
+                    <div class="card-body">
+                        <div style="height:250px;">
+                            <canvas id="chartCourseDuration_<?= $safeCollegeId ?>"></canvas>
+                        </div>
+                        <div class="table-responsive mt-3">
+                            <table class="table table-sm align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Course</th>
+                                        <th class="text-end">Duration (min)</th>
+                                        <th class="text-end">Last Check-in</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                <?php if (isset($topByDuration[$collegeName])): ?>
+                                    <?php foreach ($topByDuration[$collegeName] as $courseName => $courseData): ?>
+                                        <tr>
+                                            <td class="fw-semibold"><?= safe($courseName) ?></td>
+                                            <td class="text-end"><?= round($courseData['minutes']) ?></td>
+                                            <td class="text-end"><?= formatDateTime($courseData['last_checkin']) ?></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+    <?php endforeach; ?>
+    <div class="text-end">
+        <button class="btn btn-sm btn-outline-primary view-all-btn" data-tab="courses">View All Courses</button>
+    </div>
+    <?php
+    return ob_get_clean();
+}
+
+/**
+ * Renders the Demographics tab — sex distribution chart and total/male/female visitor counts.
+ */
+function renderDemographicsTab(array $countBySex, int $totalVisitCount): string
+{
+    ob_start(); ?>
+    <div class="row g-4 mb-4">
+
+        <!-- Sex Distribution Chart -->
+        <div class="col-md-6">
+            <div class="card border shadow-sm h-100">
+                <div class="card-header">Sex Distribution</div>
+                <div class="card-body">
+                    <div style="height:300px;"><canvas id="chartSexCheckin"></canvas></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Key Metrics -->
+        <div class="col-md-6">
+            <div class="row g-4">
+                <div class="col-12">
+                    <div class="card border shadow-sm h-100">
+                        <div class="card-body text-center">
+                            <div class="text-muted small">Total Visitors</div>
+                            <h3 class="fw-bold mb-0"><?= $totalVisitCount ?></h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12">
+                    <div class="card border shadow-sm h-100">
+                        <div class="card-body text-center">
+                            <div class="text-muted small">Male Visitors</div>
+                            <h3 class="fw-bold mb-0"><?= $countBySex['Male'] ?? 0 ?></h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12">
+                    <div class="card border shadow-sm h-100">
+                        <div class="card-body text-center">
+                            <div class="text-muted small">Female Visitors</div>
+                            <h3 class="fw-bold mb-0"><?= $countBySex['Female'] ?? 0 ?></h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    <div class="text-end">
+        <button class="btn btn-sm btn-outline-primary view-all-btn" data-tab="demographics">View All Logs</button>
+    </div>
+    <?php
+    return ob_get_clean();
+}
 
 
-// ------------------- JSON RESPONSE -------------------
-echo json_encode([
-    'status' => 'success',
-    'html'   => $html,
+// ============================================================
+//  REQUEST BOOTSTRAP
+// ============================================================
 
-    // Global KPIs (from unfiltered logs)
-    'totalVisits'   => $totalVisits,
-    'totalDuration' => round($totalDuration),
-    'avgDuration'   => $avgDuration,
-    'uniqueUsers'   => $uniqueUsers,
+$requestedAction  = $_POST['action'] ?? 'tab';
+$requestedTab     = $_POST['tab']    ?? 'users';
+$requestedPage    = max(1, (int)($_POST['page'] ?? 1));
+$rowsPerPage      = 10;
+$paginationOffset = ($requestedPage - 1) * $rowsPerPage;
+
+$validTabs = ['users', 'colleges', 'courses', 'demographics'];
+if (!in_array($requestedTab, $validTabs)) {
+    echo json_encode(['status' => 'error', 'message' => 'Invalid tab specified.']);
+    exit;
+}
+
+[$where, $boundParams] = buildWhereClauseFromFilters($_POST);
+$visitLogs = fetchFilteredVisitLogs($where, $boundParams);
 
 
-    // Tab-specific data (filtered)
-    'logs'   => $libraryLogs,
-    'topCheckins' => $topCheckins,
-    'topDuration' => $topDuration,
-    'top3CollegesCheckin' => $top3CollegesCheckin,
-    'top3CollegesDuration' => $top3CollegesDuration,
-    'topCoursesCheckin' => $topCoursesCheckin,
-    'topCoursesDuration' => $topCoursesDuration,
-    'sexDistribution' => $sexDistribution,
-    'endDateCheckins' => $endDateCheckins
-]);
+// ============================================================
+//  ACTION SWITCH
+// ============================================================
+
+switch ($requestedAction) {
+
+    // ----------------------------------------------------------
+    // viewAll — Returns rendered modal HTML + pagination for a tab
+    // ----------------------------------------------------------
+    case 'viewAll':
+
+        switch ($requestedTab) {
+            case 'users':        $pageData = buildViewAllUsers($visitLogs, $paginationOffset, $rowsPerPage);        break;
+            case 'colleges':     $pageData = buildViewAllColleges($visitLogs, $paginationOffset, $rowsPerPage);     break;
+            case 'courses':      $pageData = buildViewAllCourses($visitLogs, $paginationOffset, $rowsPerPage);      break;
+            case 'demographics': $pageData = buildViewAllDemographics($visitLogs, $paginationOffset, $rowsPerPage); break;
+            default:             $pageData = ['rows' => [], 'total' => 0];
+        }
+
+        $totalPages = $pageData['total'] > 0 ? (int)ceil($pageData['total'] / $rowsPerPage) : 1;
+
+        echo json_encode([
+            'status'     => 'success',
+            'tableHtml'  => renderModalTable($requestedTab, $pageData['rows']),
+            'pagination' => renderModalPagination($totalPages, $requestedPage),
+            'total'      => $pageData['total'],
+            'totalPages' => $totalPages,
+            'page'       => $requestedPage,
+        ]);
+        break;
+
+
+    // ----------------------------------------------------------
+    // tab — Returns rendered HTML + chart data for a dashboard tab
+    // ----------------------------------------------------------
+    case 'tab':
+    default:
+
+        $kpis         = computeDashboardKpis($visitLogs, $_POST['endDate'] ?? '');
+        $usersData    = aggregateTopUsersByClassification($visitLogs);
+        $collegesData = aggregateTopColleges($visitLogs);
+        $coursesData  = aggregateTopCoursesByCollege($visitLogs);
+        $sexCounts    = aggregateSexDistribution($visitLogs);
+
+        switch ($requestedTab) {
+            case 'users':
+                $tabHtml = renderUsersTab($usersData['topCheckins'], $usersData['topDuration']);
+                break;
+            case 'colleges':
+                $tabHtml = renderCollegesTab($collegesData['top3CollegesCheckin'], $collegesData['top3CollegesDuration']);
+                break;
+            case 'courses':
+                $tabHtml = renderCoursesTab($coursesData['topCoursesCheckin'], $coursesData['topCoursesDuration']);
+                break;
+            case 'demographics':
+                $tabHtml = renderDemographicsTab($sexCounts, count($visitLogs));
+                break;
+        }
+
+        echo json_encode([
+            'status'               => 'success',
+            'html'                 => $tabHtml,
+
+            // KPI metrics
+            'totalVisits'          => $kpis['totalVisits'],
+            'totalDuration'        => $kpis['totalDuration'],
+            'avgDuration'          => $kpis['avgDuration'],
+            'uniqueUsers'          => $kpis['uniqueUsers'],
+            'endDateCheckins'      => $kpis['endDateCheckins'],
+
+            // Chart data
+            'topCheckins'          => $usersData['topCheckins'],
+            'topDuration'          => $usersData['topDuration'],
+            'top3CollegesCheckin'  => $collegesData['top3CollegesCheckin'],
+            'top3CollegesDuration' => $collegesData['top3CollegesDuration'],
+            'topCoursesCheckin'    => $coursesData['topCoursesCheckin'],
+            'topCoursesDuration'   => $coursesData['topCoursesDuration'],
+            'sexDistribution'      => $sexCounts,
+        ]);
+        break;
+}
 ?>

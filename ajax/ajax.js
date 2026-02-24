@@ -76,6 +76,7 @@ $(document).on('click', '#callpages', function(e) {
 		
 		beforeSend: function() {
           $("#loadingSpinner").css("display", "flex").hide().fadeIn(200);
+		     $("#mainContent").html("");
             },		
 			
         success: function(dataResult) {
@@ -910,7 +911,7 @@ function updateSidebarMenu(RID = null) {
         },
 
         complete: function () {
-            // 🔥 Always hide spinner (success or error)
+            // Always hide spinner (success or error)
             $spinner.fadeOut(200);
         },
 

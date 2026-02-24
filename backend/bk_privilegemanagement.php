@@ -1,77 +1,7 @@
 <?php
 include "../db/dbconnection.php";
 
-$request = $_POST["request"] ?? "";
 
-switch ($request) {
-    case "UpdatePrivilege":
-        $roleID = $_POST["RID"] ?? "";
-        $menuID = $_POST["MenID"] ?? "";
-        $status = $_POST["status"] ?? "0"; // 0=Active, 1=Inactive
-        
-        // FIRST: Check if this role-menu combination exists
-        $existing = execsqlSRS("
-            SELECT URID FROM Sys_RoleMenu 
-            WHERE RID = :roleID AND MenID = :menuID",
-            "Search", 
-            ["roleID" => $roleID, "menuID" => $menuID]
-        );
-        
-        if (!empty($existing)) {
-            // EXISTS: Update it
-            execsqlSRS("UPDATE Sys_RoleMenu 
-                       SET UnActive = :status 
-                       WHERE RID = :roleID AND MenID = :menuID",
-                "Update",
-                ["status" => $status, "roleID" => $roleID, "menuID" => $menuID]
-            );
-        } else {
-            // DOESN'T EXIST: Insert new record
-            execsqlSRS("INSERT INTO Sys_RoleMenu (RID, MenID, UnActive) 
-                       VALUES (:roleID, :menuID, :status)",
-                "Insert",
-                ["roleID" => $roleID, "menuID" => $menuID, "status" => $status]
-            );
-        }
-        
-        echo "SUCCESS";
-        break;
-        
-    case "GetRole":
-        $roles = execsqlSRS("SELECT RID, Role FROM Sys_Role WHERE UnActive = '0' ORDER BY Role",
-            "Search", []);
-        
-        echo "<option value=''>-- All Roles --</option>";
-        foreach($roles as $role) {
-            echo "<option value='{$role["RID"]}'>{$role["Role"]}</option>";
-        }
-        break;
-		
-		case "GetUserMenu":
-    $roleID = $_POST["RID"] ?? 0;
-    echo generateUserMenuHTML($roleID);
-    break;
-        
-    case "showtblData":
-        $roleID = $_POST["RID"] ?? "";
-        echo generatePrivilegeTable($roleID);
-        break;
-        
-    case "showAllRolesAndMenus":
-        echo generateAllRolesAndMenusTable();
-        break;
-        
-    case "RefreshSidebar":
-        // This will be called to refresh sidebar for all users with the updated role
-        $roleID = $_POST["RID"] ?? "";
-        refreshSidebarForRoleUsers($roleID);
-        echo "SIDEBAR_REFRESHED";
-        break;
-        
-    default:
-        echo "Invalid request";
-        break;
-}
 
 function generatePrivilegeTable($roleID) {
     if (empty($roleID)) {
@@ -362,4 +292,79 @@ function generateUserMenuHTML($roleID) {
 function refreshSidebarForRoleUsers($roleID) {
     return true;
 }
+
+
+$request = $_POST["request"] ?? "";
+
+switch ($request) {
+    case "UpdatePrivilege":
+        $roleID = $_POST["RID"] ?? "";
+        $menuID = $_POST["MenID"] ?? "";
+        $status = $_POST["status"] ?? "0"; // 0=Active, 1=Inactive
+        
+        // FIRST: Check if this role-menu combination exists
+        $existing = execsqlSRS("
+            SELECT URID FROM Sys_RoleMenu 
+            WHERE RID = :roleID AND MenID = :menuID",
+            "Search", 
+            ["roleID" => $roleID, "menuID" => $menuID]
+        );
+        
+        if (!empty($existing)) {
+            // EXISTS: Update it
+            execsqlSRS("UPDATE Sys_RoleMenu 
+                       SET UnActive = :status 
+                       WHERE RID = :roleID AND MenID = :menuID",
+                "Update",
+                ["status" => $status, "roleID" => $roleID, "menuID" => $menuID]
+            );
+        } else {
+            // DOESN'T EXIST: Insert new record
+            execsqlSRS("INSERT INTO Sys_RoleMenu (RID, MenID, UnActive) 
+                       VALUES (:roleID, :menuID, :status)",
+                "Insert",
+                ["roleID" => $roleID, "menuID" => $menuID, "status" => $status]
+            );
+        }
+        
+        echo "SUCCESS";
+        break;
+        
+    case "GetRole":
+        $roles = execsqlSRS("SELECT RID, Role FROM Sys_Role WHERE UnActive = '0' ORDER BY Role",
+            "Search", []);
+        
+        echo "<option value=''>-- All Roles --</option>";
+        foreach($roles as $role) {
+            echo "<option value='{$role["RID"]}'>{$role["Role"]}</option>";
+        }
+        break;
+		
+		case "GetUserMenu":
+    $roleID = $_POST["RID"] ?? 0;
+    echo generateUserMenuHTML($roleID);
+    break;
+        
+    case "showtblData":
+        $roleID = $_POST["RID"] ?? "";
+        echo generatePrivilegeTable($roleID);
+        break;
+        
+    case "showAllRolesAndMenus":
+        echo generateAllRolesAndMenusTable();
+        break;
+        
+    case "RefreshSidebar":
+        // This will be called to refresh sidebar for all users with the updated role
+        $roleID = $_POST["RID"] ?? "";
+        refreshSidebarForRoleUsers($roleID);
+        echo "SIDEBAR_REFRESHED";
+        break;
+        
+    default:
+        echo "Invalid request";
+        break;
+}
+
+
 ?>

@@ -7,6 +7,28 @@ function send($data){ echo json_encode($data); exit; }
 
 if($_SERVER["REQUEST_METHOD"] !== "POST"){ send(["error"=>"Invalid request method"]); }
 
+
+// ======================
+// KPI HELPER
+// ======================
+function getLibraryKPI($pdo,$sectionID,$today){
+    $result=["totalToday"=>0,"currentlyInside"=>0,"topColleges"=>["-","-","-"],"topCourses"=>["-","-","-"]];
+    try{
+        $stmt=$pdo->prepare("SELECT COUNT(*) AS totalToday,SUM(CASE WHEN checkout_time IS NULL THEN 1 ELSE 0 END) AS currentlyInside FROM Library_logs WHERE library=? AND CAST(checkin_time AS DATE)=?");
+        $stmt->execute([$sectionID,$today]); $data=$stmt->fetch(PDO::FETCH_ASSOC);
+        $result["totalToday"]=intval($data["totalToday"]??0); $result["currentlyInside"]=intval($data["currentlyInside"]??0);
+
+        $stmt=$pdo->prepare("SELECT TOP 3 college, COUNT(*) AS cnt FROM Library_logs WHERE library=? AND CONVERT(date, checkin_time)=? AND college IS NOT NULL AND college<>'' GROUP BY college ORDER BY cnt DESC");
+        $stmt->execute([$sectionID,$today]); $result["topColleges"]=array_pad(array_column($stmt->fetchAll(PDO::FETCH_ASSOC),"college"),3,"-");
+
+        $stmt=$pdo->prepare("SELECT TOP 3 course, COUNT(*) AS cnt FROM Library_logs WHERE library=? AND CONVERT(date, checkin_time)=? AND course IS NOT NULL AND course<>'' GROUP BY course ORDER BY cnt DESC");
+        $stmt->execute([$sectionID,$today]); $result["topCourses"]=array_pad(array_column($stmt->fetchAll(PDO::FETCH_ASSOC),"course"),3,"-");
+
+    } catch(Exception $e){ error_log("KPI error: ".$e->getMessage()); }
+    return $result;
+}
+
+
 $request = $_POST["request"] ?? '';
 
 try {
@@ -110,23 +132,5 @@ case "getLibraries":
 } catch(Exception $e){ send(["error"=>$e->getMessage()]); }
 
 
-// ======================
-// KPI HELPER
-// ======================
-function getLibraryKPI($pdo,$sectionID,$today){
-    $result=["totalToday"=>0,"currentlyInside"=>0,"topColleges"=>["-","-","-"],"topCourses"=>["-","-","-"]];
-    try{
-        $stmt=$pdo->prepare("SELECT COUNT(*) AS totalToday,SUM(CASE WHEN checkout_time IS NULL THEN 1 ELSE 0 END) AS currentlyInside FROM Library_logs WHERE library=? AND CAST(checkin_time AS DATE)=?");
-        $stmt->execute([$sectionID,$today]); $data=$stmt->fetch(PDO::FETCH_ASSOC);
-        $result["totalToday"]=intval($data["totalToday"]??0); $result["currentlyInside"]=intval($data["currentlyInside"]??0);
 
-        $stmt=$pdo->prepare("SELECT TOP 3 college, COUNT(*) AS cnt FROM Library_logs WHERE library=? AND CONVERT(date, checkin_time)=? AND college IS NOT NULL AND college<>'' GROUP BY college ORDER BY cnt DESC");
-        $stmt->execute([$sectionID,$today]); $result["topColleges"]=array_pad(array_column($stmt->fetchAll(PDO::FETCH_ASSOC),"college"),3,"-");
-
-        $stmt=$pdo->prepare("SELECT TOP 3 course, COUNT(*) AS cnt FROM Library_logs WHERE library=? AND CONVERT(date, checkin_time)=? AND course IS NOT NULL AND course<>'' GROUP BY course ORDER BY cnt DESC");
-        $stmt->execute([$sectionID,$today]); $result["topCourses"]=array_pad(array_column($stmt->fetchAll(PDO::FETCH_ASSOC),"course"),3,"-");
-
-    } catch(Exception $e){ error_log("KPI error: ".$e->getMessage()); }
-    return $result;
-}
 ?>
