@@ -88,13 +88,13 @@
 <?php include 'modalContainer.php'; ?>
 
 <script>
+// SIMPLE MENU MANAGEMENT - CLEAN VERSION (like user management)
 $(document).ready(function() {
+    // Load initial data
+    loadMenus('all');
+	loadMenus('deleted'); // <-- add this line
 
-    // Load initial tab (All menus)
-    if (typeof loadMenus === "function") {
-        loadMenus('all');
-    }
-
+    // Setup event handlers
     setupMenuEvents();
 });
 
