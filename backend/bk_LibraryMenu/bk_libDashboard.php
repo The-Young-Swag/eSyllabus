@@ -62,14 +62,18 @@ function getSingleSectionKPI()
 
 function loadDailyLogs()
 {
-    $page  = max(1, (int)($_POST["page"] ?? 1));
-    $limit = 5;
-    $offset = ($page - 1) * $limit;
+    $page      = max(1, (int)($_POST["page"] ?? 1));
+    $limit     = 5;
+    $offset    = ($page - 1) * $limit;
+    $sectionID = isset($_POST['sectionID']) && $_POST['sectionID'] !== '' ? (int)$_POST['sectionID'] : null;
+
+    $sectionFilter = $sectionID ? "AND l.library = $sectionID" : "";
 
     $countResult = execsqlSRS("
         SELECT COUNT(*) AS total
-        FROM Library_logs
-        WHERE CAST(checkin_time AS DATE) = CAST(GETDATE() AS DATE)
+        FROM Library_logs l
+        WHERE CAST(l.checkin_time AS DATE) = CAST(GETDATE() AS DATE)
+        {$sectionFilter}
     ", "Search", []);
 
     $totalRows  = (int)$countResult[0]["total"];
@@ -86,6 +90,7 @@ function loadDailyLogs()
         FROM Library_logs l
         LEFT JOIN LibrarySection s ON l.library = s.SectionID
         WHERE CAST(l.checkin_time AS DATE) = CAST(GETDATE() AS DATE)
+        {$sectionFilter}
         ORDER BY l.checkin_time DESC
         OFFSET $offset ROWS
         FETCH NEXT $limit ROWS ONLY
@@ -123,16 +128,21 @@ function loadDailyLogs()
 
 // ============================================================
 //  MONTHLY TREND — Visit counts for the last 6 months
+//  Optionally filtered by library section.
 // ============================================================
 
 function loadMonthlyTrend()
 {
+    $sectionID     = isset($_POST['sectionID']) && $_POST['sectionID'] !== '' ? (int)$_POST['sectionID'] : null;
+    $sectionFilter = $sectionID ? "AND library = $sectionID" : "";
+
     $rows = execsqlSRS("
         SELECT
             FORMAT(checkin_time, 'MMM') AS month,
             COUNT(*)                    AS total
         FROM Library_logs
         WHERE checkin_time >= DATEADD(MONTH, -6, GETDATE())
+          {$sectionFilter}
         GROUP BY FORMAT(checkin_time, 'MMM'), MONTH(checkin_time)
         ORDER BY MIN(checkin_time)
     ", "Search", []);
@@ -165,45 +175,75 @@ function loadDepartmentOverview()
 
 // ============================================================
 //  COLLEGE & COURSE ACTIVITY
-//  Returns colleges with their nested course breakdowns for today.
-//  Shape: [ { college, total, courses: [ { course, total }, ... ] } ]
+//  Returns colleges → courses → section breakdown for today.
+//  Shape: [
+//    { college, total, courses: [
+//      { course, total, sections: [ { section_name, total }, ... ] }
+//    ]}
+//  ]
+//  Optionally filtered by library section.
 // ============================================================
 
 function loadCollegeCourseActivity()
 {
-    // Flat rows: one row per college+course with visit count today
+    $sectionID     = isset($_POST['sectionID']) && $_POST['sectionID'] !== '' ? (int)$_POST['sectionID'] : null;
+    $sectionFilter = $sectionID ? "AND l.library = $sectionID" : "";
+
+    // One row per college + course + section
     $rows = execsqlSRS("
         SELECT
-            college,
-            course,
-            COUNT(*) AS total
-        FROM Library_logs
-        WHERE CAST(checkin_time AS DATE) = CAST(GETDATE() AS DATE)
-          AND college IS NOT NULL AND college <> ''
-          AND course  IS NOT NULL AND course  <> ''
-        GROUP BY college, course
-        ORDER BY college, total DESC
+            l.college,
+            l.course,
+            s.SectionName  AS section_name,
+            COUNT(*)       AS total
+        FROM Library_logs l
+        LEFT JOIN LibrarySection s ON l.library = s.SectionID
+        WHERE CAST(l.checkin_time AS DATE) = CAST(GETDATE() AS DATE)
+          AND l.college IS NOT NULL AND l.college <> ''
+          AND l.course  IS NOT NULL AND l.course  <> ''
+          {$sectionFilter}
+        GROUP BY l.college, l.course, s.SectionName
+        ORDER BY l.college, l.course, total DESC
     ", "Search", []);
 
-    // Group courses under their college and sum college totals in PHP
+    // Build nested structure: college → course → sections[]
     $grouped = [];
     foreach ($rows as $row) {
         $college = $row['college'];
+        $course  = $row['course'];
+
         if (!isset($grouped[$college])) {
             $grouped[$college] = ['college' => $college, 'total' => 0, 'courses' => []];
         }
-        $grouped[$college]['total']     += (int)$row['total'];
-        $grouped[$college]['courses'][]  = [
-            'course' => $row['course'],
-            'total'  => (int)$row['total'],
+        if (!isset($grouped[$college]['courses'][$course])) {
+            $grouped[$college]['courses'][$course] = [
+                'course'   => $course,
+                'total'    => 0,
+                'sections' => [],
+            ];
+        }
+
+        $courseTotal = (int)$row['total'];
+        $grouped[$college]['courses'][$course]['total']      += $courseTotal;
+        $grouped[$college]['courses'][$course]['sections'][]  = [
+            'section_name' => $row['section_name'] ?? '—',
+            'total'        => $courseTotal,
         ];
+        $grouped[$college]['total'] += $courseTotal;
     }
 
-    // Re-index, sort colleges by total descending
-    $result = array_values($grouped);
+    // Sort courses within each college by total desc; re-index
+    $result = [];
+    foreach ($grouped as $col) {
+        $courses = array_values($col['courses']);
+        usort($courses, fn($a, $b) => $b['total'] - $a['total']);
+        $col['courses'] = $courses;
+        $result[] = $col;
+    }
+
     usort($result, fn($a, $b) => $b['total'] - $a['total']);
 
-    echo json_encode($result);
+    echo json_encode(array_values($result));
 }
 
 

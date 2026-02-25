@@ -1,28 +1,7 @@
 <?php
 include "../db/dbconnection.php";
 
-$request = $_POST["request"] ?? "";
 
-switch ($request) {
-    case "viewRoles":
-        viewRoles();
-        break;
-        
-    case "addRole":
-        addRole();
-        break;
-        
-    case "updateRole":
-        updateRole();
-        break;
-        
-    case "toggleRoleStatus":
-        toggleRoleStatus();
-        break;
-        
-    default:
-        echo json_encode(["status" => "error", "message" => "Invalid request"]);
-}
 
 //  FUNCTIONS 
 
@@ -157,4 +136,29 @@ function generateRoleRow($role) {
         </td>
     </tr>";
 }
+
+$request = $_POST["request"] ?? "";
+
+switch ($request) {
+    case "viewRoles":
+        viewRoles();
+        break;
+        
+    case "addRole":
+        addRole();
+        break;
+        
+    case "updateRole":
+        updateRole();
+        break;
+        
+    case "toggleRoleStatus":
+        toggleRoleStatus();
+        break;
+        
+    default:
+        echo json_encode(["status" => "error", "message" => "Invalid request"]);
+}
+
+
 ?>

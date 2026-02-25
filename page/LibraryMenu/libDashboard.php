@@ -75,7 +75,12 @@
                 <h6 class="mb-0 fw-bold text-dark">Daily Logs</h6>
                 <small class="text-muted">Real-time check-in / check-out records</small>
             </div>
-            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-3" style="font-size:.72rem;">Today</span>
+            <div class="d-flex align-items-center gap-2">
+                <select id="sectionFilter" class="form-select form-select-sm" style="font-size:.75rem;width:auto;">
+                    <option value="">All Sections</option>
+                </select>
+                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-3" style="font-size:.72rem;">Today</span>
+            </div>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
@@ -117,7 +122,7 @@
                     <small class="text-muted">Monthly student logins — last 6 months</small>
                 </div>
                 <div id="userChart" class="card-body px-4 pb-4 pt-3">
-                    <div id="trendBars" class="d-flex align-items-end gap-2 justify-content-between" style="height:180px;">
+                    <div id="trendBars">
                         <div class="text-center text-muted w-100 py-4" style="font-size:.8rem;">Loading...</div>
                     </div>
                 </div>
@@ -127,19 +132,21 @@
         <!-- College & Course Activity — stacked horizontal bar -->
         <div class="col-lg-6">
             <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-white border-bottom px-4 py-3 d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="mb-0 fw-bold text-dark"><i class="fas fa-layer-group me-2 text-primary"></i>College &amp; Course Activity</h6>
-                        <small class="text-muted">Visit distribution by college and course — today</small>
+                <div class="card-header bg-white border-bottom px-4 py-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="mb-0 fw-bold text-dark"><i class="fas fa-layer-group me-2 text-primary"></i>College &amp; Course Activity</h6>
+                            <small class="text-muted">Visit distribution by college, course &amp; library section — today</small>
+                        </div>
+                        <span id="chartSectionBadge" class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-3 ms-2" style="font-size:.72rem;white-space:nowrap;">All Sections</span>
                     </div>
-                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-3" style="font-size:.72rem;">Today</span>
+                    <!-- Course legend -->
+                    <div id="collegeCourseActivityLegend" class="d-flex flex-wrap gap-2 mt-2" style="min-height:16px;"></div>
                 </div>
-                <div class="card-body px-4 py-3">
+                <div class="card-body px-4 py-3" style="overflow-x:auto;">
                     <div id="collegeCourseActivity">
                         <div class="text-center text-muted py-4" style="font-size:.8rem;">Loading...</div>
                     </div>
-                    <!-- Legend -->
-                    <div id="collegeCourseActivityLegend" class="d-flex flex-wrap gap-2 mt-3"></div>
                 </div>
             </div>
         </div>
@@ -186,6 +193,7 @@ $(document).ready(function () {
                     const total = section.total ?? 0;
                     $(`.kpi-count[data-section-code="${code}"]`).text(total);
                 });
+                populateSectionFilter(sections);
             },
             error: function () {
                 console.error("KPI load failed.");
@@ -198,20 +206,20 @@ $(document).ready(function () {
     //  DAILY LOGS
     // =========================================================
 
-    function loadLogs(page = 1) {
+    function loadLogs(page = 1, sectionID = "") {
         $.ajax({
             type: "POST",
             url:  BACKEND_URL,
-            data: { request: "dailyLogs", page },
+            data: { request: "dailyLogs", page, sectionID },
             success: function (raw) {
                 const res = JSON.parse(raw);
                 $("#dailyLogs").html(res.rows);
-                renderPagination(res.totalPages, res.currentPage);
+                renderPagination(res.totalPages, res.currentPage, sectionID);
             }
         });
     }
 
-    function renderPagination(totalPages, currentPage) {
+    function renderPagination(totalPages, currentPage, sectionID = "") {
         const $pag = $("#logsPagination").empty();
         if (totalPages <= 1) return;
 
@@ -226,160 +234,327 @@ $(document).ready(function () {
 
         $pag.find(".page-link").on("click", function (e) {
             e.preventDefault();
-            loadLogs(parseInt($(this).data("page")));
+            loadLogs(parseInt($(this).data("page")), sectionID);
         });
     }
 
 
     // =========================================================
-    //  USAGE TREND
+    //  USAGE TREND — vertical bar chart with precise Y-axis
     // =========================================================
 
-    function loadMonthlyTrend() {
+    function loadMonthlyTrend(sectionID = "") {
         $.ajax({
             type:     "POST",
             url:      BACKEND_URL,
-            data:     { request: "monthlyTrend" },
+            data:     { request: "monthlyTrend", sectionID },
             dataType: "json",
-            success:  renderMonthlyTrend,
+            success: function (rows) { renderMonthlyTrend(rows, sectionID); },
             error: function () {
                 $("#trendBars").html('<div class="text-center text-muted w-100">No data available.</div>');
             }
         });
     }
 
-    function renderMonthlyTrend(rows) {
+    function renderMonthlyTrend(rows, sectionID) {
         if (!rows || !rows.length) {
-            $("#trendBars").html('<div class="text-center text-muted w-100">No data available.</div>');
+            $("#trendBars").html('<div class="text-center text-muted w-100 py-4">No data available.</div>');
             return;
         }
 
-        const maxVal = Math.max(...rows.map(r => parseInt(r.total)));
-        const bars   = rows.map(function (r) {
-            const pct      = maxVal > 0 ? (parseInt(r.total) / maxVal * 100).toFixed(1) : 0;
-            const isCurrent = rows.indexOf(r) === rows.length - 1;
-            const barColor = isCurrent ? "bg-success" : "bg-success bg-opacity-50";
-            const labelClass = isCurrent ? "text-success fw-bold" : "text-muted fw-semibold";
-            return `
-                <div class="d-flex flex-column align-items-center flex-fill gap-1">
-                    <small class="${labelClass}" style="font-size:.7rem;">${r.total}</small>
-                    <div class="w-100 rounded-top ${barColor}" style="height:${pct}%;min-height:4px;"></div>
-                    <small class="${isCurrent ? 'text-success fw-semibold' : 'text-muted'}" style="font-size:.72rem;">${r.month}</small>
-                </div>
-            `;
+        const maxRaw   = Math.max(...rows.map(r => parseInt(r.total)));
+        const niceMax  = niceUpperBound(maxRaw);
+        const STEPS    = 4;
+        const stepVal  = niceMax / STEPS;
+        const CHART_H  = 160; // px — plotting area height
+
+        // Y-axis labels (top → bottom: niceMax down to 0)
+        const yLabels = Array.from({ length: STEPS + 1 }, (_, i) => niceMax - i * stepVal);
+
+        // Section context label
+        const sectionLabel = sectionID
+            ? `<small class="text-primary fw-semibold" style="font-size:.7rem;">
+                   <i class="fas fa-filter me-1" style="font-size:.6rem;"></i>${escHtml($("#sectionFilter option:selected").text())}
+               </small>`
+            : `<small class="text-muted" style="font-size:.7rem;">All Sections</small>`;
+
+        // Build grid + bars wrapper
+        const yAxisHtml = yLabels.map((val, i) => {
+            const topPct = (i / STEPS * 100).toFixed(1);
+            return `<div style="position:absolute;top:${topPct}%;left:0;right:0;display:flex;align-items:center;gap:4px;pointer-events:none;">
+                        <span style="width:28px;text-align:right;flex-shrink:0;">
+                            <small class="text-muted" style="font-size:.62rem;line-height:1;">${val}</small>
+                        </span>
+                        <div style="flex:1;border-top:1px ${i === STEPS ? 'solid #adb5bd' : 'dashed #e9ecef'};"></div>
+                    </div>`;
         }).join('');
 
-        $("#trendBars").html(bars);
+        const barsHtml = rows.map(function (r, idx) {
+            const val       = parseInt(r.total);
+            const heightPct = niceMax > 0 ? (val / niceMax * 100).toFixed(2) : 0;
+            const isCurrent = idx === rows.length - 1;
+            const barColor  = isCurrent ? "#198754" : "#198754";
+            const barOpacity = isCurrent ? "1" : "0.38";
+            return `
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0;">
+                    <small style="font-size:.65rem;font-weight:${isCurrent ? 700 : 500};color:${isCurrent ? '#198754' : '#6c757d'};">${val}</small>
+                    <div style="width:100%;flex:1;display:flex;align-items:flex-end;">
+                        <div style="width:100%;background:${barColor};opacity:${barOpacity};border-radius:3px 3px 0 0;height:${heightPct}%;min-height:${val > 0 ? 3 : 0}px;transition:height .3s;"></div>
+                    </div>
+                    <small style="font-size:.68rem;font-weight:${isCurrent ? 600 : 400};color:${isCurrent ? '#198754' : '#6c757d'};">${r.month}</small>
+                </div>`;
+        }).join('');
+
+        $("#userChart .chart-section-label").remove();
+        $("#userChart").prepend(`<div class="chart-section-label d-flex justify-content-end mb-1">${sectionLabel}</div>`);
+
+        $("#trendBars").html(`
+            <div style="display:flex;gap:0;height:${CHART_H}px;width:100%;position:relative;">
+                <!-- Y-axis grid overlay -->
+                <div style="position:absolute;inset:0;padding-left:32px;pointer-events:none;">
+                    ${yAxisHtml}
+                </div>
+                <!-- Bars -->
+                <div style="flex:1;display:flex;gap:6px;align-items:stretch;padding-left:32px;position:relative;z-index:1;">
+                    ${barsHtml}
+                </div>
+            </div>
+        `);
     }
 
 
     // =========================================================
-    //  COLLEGE & COURSE ACTIVITY — stacked horizontal bar chart
-    //  Each row = one college. The bar is segmented by course.
+    //  COLLEGE & COURSE ACTIVITY
+    //  Each college = one row.
+    //  Bar is segmented by course (colour-coded, label inside).
+    //  Below each bar: a thin section strip shows which library
+    //  section contributed what portion of that college's visits.
     // =========================================================
 
-    function loadCollegeCourseActivity() {
+    const COURSE_PALETTE = [
+        "#4f7df3","#2ebd85","#f5a623","#e05c5c","#9b6fe8",
+        "#17a2b8","#fd7e14","#20c997","#d63384","#6f42c1"
+    ];
+
+    const courseColorMap  = {};
+    let   coursePaletteIdx  = 0;
+
+    function getCourseColor(name) {
+        if (!courseColorMap[name]) {
+            courseColorMap[name] = COURSE_PALETTE[coursePaletteIdx % COURSE_PALETTE.length];
+            coursePaletteIdx++;
+        }
+        return courseColorMap[name];
+    }
+
+    let sectionFilterPopulated = false;
+
+    function populateSectionFilter(sections) {
+        if (sectionFilterPopulated) return;
+        sectionFilterPopulated = true;
+
+        const $filter = $("#sectionFilter");
+        const seenIDs = new Set();
+
+        $filter.find("option:not(:first)").remove();
+
+        sections.forEach(function (s) {
+            const id = String(s.SectionID ?? "").trim();
+            if (!id || seenIDs.has(id)) return;
+            seenIDs.add(id);
+            $filter.append(`<option value="${escHtml(id)}">${escHtml(s.SectionName)}</option>`);
+        });
+    }
+
+    function loadCollegeCourseActivity(sectionID = "") {
+        $("#collegeCourseActivity").html(
+            '<div class="text-center text-muted py-4" style="font-size:.8rem;"><span class="spinner-border spinner-border-sm me-1"></span> Loading...</div>'
+        );
         $.ajax({
             type:     "POST",
             url:      BACKEND_URL,
-            data:     { request: "collegeCourseActivity" },
+            data:     { request: "collegeCourseActivity", sectionID },
             dataType: "json",
-            success:  renderCollegeCourseStackedChart,
+            success:  function (data) { renderCollegeCourseStackedChart(data, sectionID); },
             error: function () {
                 $("#collegeCourseActivity").html('<div class="text-center text-muted py-4">No data available.</div>');
             }
         });
     }
 
-    function renderCollegeCourseStackedChart(colleges) {
+    function renderCollegeCourseStackedChart(colleges, sectionID) {
+        const $area = $("#collegeCourseActivity");
+
         if (!colleges || !colleges.length) {
-            $("#collegeCourseActivity").html('<div class="text-center text-muted py-4" style="font-size:.8rem;">No activity today.</div>');
+            $area.html('<div class="text-center text-muted py-4" style="font-size:.8rem;">No activity today.</div>');
+            $("#collegeCourseActivityLegend").empty();
             return;
         }
 
-        // Build a global course → color map so each course has one consistent color
-        const courseColorPalette = ["#4f7df3","#e05c5c","#3dbfa8","#f59e0b","#8b5cf6","#06B6D4","#ef4444","#10b981","#f97316","#a855f7"];
-        const courseColors       = {};
-        let   colorIdx           = 0;
+        // ── Badge in card header ──────────────────────────────────
+        const badgeText = sectionID
+            ? $("#sectionFilter option:selected").text()
+            : "All Sections";
+        $("#chartSectionBadge").text(badgeText);
+
+        // ── Pre-assign colours for every course seen ──────────────
         colleges.forEach(function (col) {
-            col.courses.forEach(function (course) {
-                if (!courseColors[course.course]) {
-                    courseColors[course.course] = courseColorPalette[colorIdx % courseColorPalette.length];
-                    colorIdx++;
-                }
-            });
+            col.courses.forEach(function (c) { getCourseColor(c.course); });
         });
 
-        const globalMax = Math.max(...colleges.map(c => parseInt(c.total)));
+        // ── Course legend ─────────────────────────────────────────
+        const seenCourses = new Set();
+        colleges.forEach(c => c.courses.forEach(cr => seenCourses.add(cr.course)));
 
-        // X-axis tick markers
-        const tickCount = 5;
-        const tickStep  = Math.ceil(globalMax / tickCount);
-        const ticks     = [];
-        for (let t = 0; t <= tickCount; t++) ticks.push(t * tickStep);
+        $("#collegeCourseActivityLegend").html(
+            [...seenCourses].map(function (course) {
+                const color = getCourseColor(course);
+                return `<span class="d-inline-flex align-items-center gap-1" style="font-size:.7rem;">
+                            <span style="width:9px;height:9px;border-radius:2px;background:${color};flex-shrink:0;display:inline-block;"></span>
+                            <span class="text-muted">${escHtml(course)}</span>
+                        </span>`;
+            }).join('')
+        );
 
-        // Build tick header
-        const tickHtml = `
-            <div class="d-flex mb-1" style="padding-left:110px;">
-                ${ticks.map(t => `<div style="flex:${t === 0 ? 0 : tickStep};min-width:0;text-align:${t === 0 ? 'left' : 'right'}">
-                    <small class="text-muted" style="font-size:.68rem;">${t === 0 ? '' : t}</small>
-                </div>`).join('')}
-            </div>
-        `;
+        // ── Axis scale ────────────────────────────────────────────
+        const rawMax  = Math.max(...colleges.map(c => parseInt(c.total)));
+        const niceMax = niceUpperBound(rawMax);
+        const TICKS   = 4;
+        const ticks   = Array.from({ length: TICKS + 1 }, (_, i) => Math.round(i / TICKS * niceMax));
 
-        // Build one row per college
+        // ── Layout constants ──────────────────────────────────────
+        const LABEL_W = 116; // px  college name column
+        const COUNT_W = 36;  // px  total count column
+        const BAR_H   = 24;  // px  bar height
+        const ROW_GAP = 14;  // px  gap between college rows
+
+        // ── Tick header ───────────────────────────────────────────
+        const tickRowHtml = `
+            <div style="display:flex;align-items:flex-end;margin-bottom:4px;">
+                <div style="width:${LABEL_W}px;flex-shrink:0;"></div>
+                <div style="flex:1;position:relative;height:14px;">
+                    ${ticks.map(t => {
+                        const leftPct = niceMax > 0 ? (t / niceMax * 100).toFixed(2) : 0;
+                        return `<div style="position:absolute;left:${leftPct}%;transform:translateX(-50%);">
+                                    <small class="text-muted" style="font-size:.6rem;white-space:nowrap;">${t}</small>
+                                </div>`;
+                    }).join('')}
+                </div>
+                <div style="width:${COUNT_W}px;flex-shrink:0;"></div>
+            </div>`;
+
+        // ── Bar rows ──────────────────────────────────────────────
         const rowsHtml = colleges.map(function (col) {
-            const colTotal  = parseInt(col.total);
-            const barWidthPct = globalMax > 0 ? (colTotal / globalMax * 100).toFixed(2) : 0;
+            const colTotal    = parseInt(col.total);
+            const barWidthPct = niceMax > 0 ? (colTotal / niceMax * 100).toFixed(3) : 0;
 
-            // Segments: each course is a proportional slice of the college's full bar
-            const segments = col.courses.map(function (course) {
-                const segPct = colTotal > 0 ? (parseInt(course.total) / colTotal * 100).toFixed(2) : 0;
-                const color  = courseColors[course.course];
-                return `<div title="${escHtml(course.course)}: ${course.total}"
-                              style="width:${segPct}%;background:${color};height:100%;display:inline-block;"></div>`;
+            // Grid lines at tick positions
+            const gridLines = ticks.map(t => {
+                if (t === 0) return '';
+                const leftPct = (t / niceMax * 100).toFixed(2);
+                return `<div style="position:absolute;left:${leftPct}%;top:0;bottom:0;width:1px;background:#e9ecef;pointer-events:none;"></div>`;
             }).join('');
 
+            // Course segments
+            const courseSegments = col.courses.map(function (course) {
+                const segPct = colTotal > 0 ? (course.total / colTotal * 100).toFixed(3) : 0;
+                const color  = getCourseColor(course.course);
+                return `<div style="width:${segPct}%;background:${color};height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;">
+                            <span style="color:#fff;font-size:.65rem;font-weight:600;white-space:nowrap;padding:0 5px;text-shadow:0 1px 2px rgba(0,0,0,.35);">
+                                ${escHtml(course.course)}: ${course.total}
+                            </span>
+                        </div>`;
+            }).join('');
+
+            // ── Section breakdown list ─────────────────────────────
+            // Aggregate section totals across all courses for this college
+            const sectionTotals = {};
+            col.courses.forEach(function (cr) {
+                cr.sections.forEach(function (s) {
+                    sectionTotals[s.section_name] = (sectionTotals[s.section_name] || 0) + s.total;
+                });
+            });
+
+            // Sort sections by total descending
+            const sectionItems = Object.entries(sectionTotals)
+                .sort((a, b) => b[1] - a[1])
+                .map(function ([secName, secTotal]) {
+                    return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:.68rem;color:#6c757d;">
+                                <span style="width:5px;height:5px;border-radius:50%;background:#adb5bd;flex-shrink:0;display:inline-block;"></span>
+                                <span class="fw-semibold" style="color:#495057;">${escHtml(secName)}</span>
+                                <span>: ${secTotal}</span>
+                            </span>`;
+                }).join('<span style="color:#dee2e6;margin:0 4px;font-size:.65rem;">|</span>');
+
+            const sectionBreakdownHtml = `
+                <div style="display:flex;align-items:flex-start;margin-top:4px;">
+                    <div style="width:${LABEL_W}px;flex-shrink:0;"></div>
+                    <div style="flex:1;display:flex;flex-wrap:wrap;gap:3px 0;align-items:center;padding-right:${COUNT_W}px;">
+                        ${sectionItems}
+                    </div>
+                </div>`;
+
             return `
-                <div class="d-flex align-items-center mb-2" style="gap:8px;">
-                    <!-- College label -->
-                    <div style="width:102px;flex-shrink:0;text-align:right;">
-                        <small class="fw-semibold text-dark" style="font-size:.78rem;">${escHtml(col.college || '—')}</small>
-                    </div>
-                    <!-- Stacked bar -->
-                    <div style="flex:1;position:relative;">
-                        <!-- Grid lines -->
-                        <div style="position:absolute;inset:0;display:flex;pointer-events:none;">
-                            ${ticks.slice(1).map(t => `<div style="position:absolute;left:${(t/globalMax*100).toFixed(1)}%;top:0;bottom:0;border-left:1px solid #e9ecef;"></div>`).join('')}
+                <div style="margin-bottom:${ROW_GAP}px;">
+                    <!-- Bar row -->
+                    <div style="display:flex;align-items:center;gap:0;">
+                        <div style="width:${LABEL_W}px;flex-shrink:0;text-align:right;padding-right:10px;">
+                            <small class="fw-semibold text-dark" style="font-size:.74rem;line-height:1.3;">${escHtml(col.college || '—')}</small>
                         </div>
-                        <div style="width:${barWidthPct}%;height:18px;border-radius:3px;overflow:hidden;display:flex;">
-                            ${segments}
+                        <div style="flex:1;position:relative;height:${BAR_H}px;">
+                            ${gridLines}
+                            <div style="position:relative;width:${barWidthPct}%;height:100%;display:flex;border-radius:3px;overflow:hidden;">
+                                ${courseSegments}
+                            </div>
+                        </div>
+                        <div style="width:${COUNT_W}px;flex-shrink:0;padding-left:7px;">
+                            <small class="text-muted fw-semibold" style="font-size:.71rem;">${colTotal}</small>
                         </div>
                     </div>
-                    <!-- Total count -->
-                    <small class="text-muted fw-semibold" style="font-size:.75rem;min-width:28px;">${colTotal}</small>
-                </div>
-            `;
+                    <!-- Section breakdown listed below each row -->
+                    ${sectionBreakdownHtml}
+                </div>`;
         }).join('');
 
-        // X-axis label
+        // ── X-axis label ──────────────────────────────────────────
         const xAxisHtml = `
-            <div class="d-flex mt-1" style="padding-left:110px;">
-                <small class="text-muted w-100 text-center" style="font-size:.72rem;">Frequency</small>
-            </div>
-        `;
+            <div style="display:flex;margin-top:2px;">
+                <div style="width:${LABEL_W}px;flex-shrink:0;"></div>
+                <div style="flex:1;text-align:center;">
+                    <small class="text-muted" style="font-size:.66rem;letter-spacing:.04em;text-transform:uppercase;">No. of Visits</small>
+                </div>
+                <div style="width:${COUNT_W}px;flex-shrink:0;"></div>
+            </div>`;
 
-        // Legend — one entry per unique course
-        const legendHtml = Object.entries(courseColors).map(function ([course, color]) {
-            return `<span class="d-flex align-items-center gap-1" style="font-size:.73rem;">
-                        <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${color};flex-shrink:0;"></span>
-                        <span class="text-muted">${escHtml(course)}</span>
-                    </span>`;
-        }).join('');
-
-        $("#collegeCourseActivity").html(tickHtml + rowsHtml + xAxisHtml);
-        $("#collegeCourseActivityLegend").html(legendHtml);
+        $area.html(tickRowHtml + rowsHtml + xAxisHtml);
     }
+
+
+    // =========================================================
+    //  SCALE UTIL — "nice" upper bound for axis max
+    //  Rounds up to the nearest clean number: 1,2,5 × 10^n
+    // =========================================================
+
+    function niceUpperBound(rawMax) {
+        if (rawMax <= 0) return 10;
+        const magnitude  = Math.pow(10, Math.floor(Math.log10(rawMax)));
+        const normalized = rawMax / magnitude;
+        let   niceFactor;
+        if      (normalized <= 1)  niceFactor = 1;
+        else if (normalized <= 2)  niceFactor = 2;
+        else if (normalized <= 5)  niceFactor = 5;
+        else                       niceFactor = 10;
+        return Math.max(niceFactor * magnitude, rawMax);
+    }
+
+
+    // ── Single filter in the table header drives everything ──────
+    $("#sectionFilter").on("change", function () {
+        const sectionID = $(this).val();
+        loadLogs(1, sectionID);
+        loadCollegeCourseActivity(sectionID);
+        loadMonthlyTrend(sectionID);
+    });
 
 
     // =========================================================
