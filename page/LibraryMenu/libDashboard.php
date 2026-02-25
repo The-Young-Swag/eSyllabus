@@ -124,31 +124,13 @@
             </div>
         </div>
 
-        <!-- College Activity -->
+        <!-- College & Course Activity — stacked horizontal bar -->
         <div class="col-lg-6">
             <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-white border-bottom px-4 py-3">
-                    <h6 class="mb-0 fw-bold text-dark"><i class="fas fa-users me-2 text-primary"></i>College Activity</h6>
-                    <small class="text-muted">Student distribution by college — today</small>
-                </div>
-                <div id="departmentChart" class="card-body px-4 py-4">
-                    <div id="collegeActivityBars" class="d-flex flex-column gap-4">
-                        <div class="text-center text-muted py-4" style="font-size:.8rem;">Loading...</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-    </div>
-
-    <!-- College & Course Activity -->
-    <div class="row g-3">
-        <div class="col-12">
-            <div class="card border-0 shadow-sm">
                 <div class="card-header bg-white border-bottom px-4 py-3 d-flex justify-content-between align-items-center">
                     <div>
-                        <h6 class="mb-0 fw-bold text-dark"><i class="fas fa-layer-group me-2 text-info"></i>College &amp; Course Activity</h6>
-                        <small class="text-muted">Visits grouped by college and course — today</small>
+                        <h6 class="mb-0 fw-bold text-dark"><i class="fas fa-layer-group me-2 text-primary"></i>College &amp; Course Activity</h6>
+                        <small class="text-muted">Visit distribution by college and course — today</small>
                     </div>
                     <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-3" style="font-size:.72rem;">Today</span>
                 </div>
@@ -156,9 +138,12 @@
                     <div id="collegeCourseActivity">
                         <div class="text-center text-muted py-4" style="font-size:.8rem;">Loading...</div>
                     </div>
+                    <!-- Legend -->
+                    <div id="collegeCourseActivityLegend" class="d-flex flex-wrap gap-2 mt-3"></div>
                 </div>
             </div>
         </div>
+
     </div>
 
 </div>
@@ -181,7 +166,6 @@ $(document).ready(function () {
     loadKPI();
     loadLogs();
     loadMonthlyTrend();
-    loadDepartmentOverview();
     loadCollegeCourseActivity();
 
 
@@ -290,54 +274,8 @@ $(document).ready(function () {
 
 
     // =========================================================
-    //  COLLEGE ACTIVITY
-    // =========================================================
-
-    function loadDepartmentOverview() {
-        $.ajax({
-            type:     "POST",
-            url:      BACKEND_URL,
-            data:     { request: "departmentOverview" },
-            dataType: "json",
-            success:  renderCollegeActivity,
-            error: function () {
-                $("#collegeActivityBars").html('<div class="text-center text-muted">No data available.</div>');
-            }
-        });
-    }
-
-    function renderCollegeActivity(rows) {
-        if (!rows || !rows.length) {
-            $("#collegeActivityBars").html('<div class="text-center text-muted py-4" style="font-size:.8rem;">No activity today.</div>');
-            return;
-        }
-
-        const maxVal  = Math.max(...rows.map(r => parseInt(r.total)));
-        const palette = ["bg-primary", "bg-primary bg-opacity-75", "bg-primary bg-opacity-50", "bg-info", "bg-info bg-opacity-75"];
-
-        const html = rows.map(function (r, idx) {
-            const pct   = maxVal > 0 ? (parseInt(r.total) / maxVal * 100).toFixed(1) : 0;
-            const color = palette[idx % palette.length];
-            return `
-                <div>
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                        <small class="fw-semibold text-dark">${escHtml(r.college || '—')}</small>
-                        <small class="text-muted">${r.total} students</small>
-                    </div>
-                    <div class="progress" style="height:8px;border-radius:8px;">
-                        <div class="progress-bar ${color}" role="progressbar"
-                             style="width:${pct}%;border-radius:8px;"></div>
-                    </div>
-                </div>
-            `;
-        }).join('');
-
-        $("#collegeActivityBars").html(html);
-    }
-
-
-    // =========================================================
-    //  COLLEGE & COURSE ACTIVITY
+    //  COLLEGE & COURSE ACTIVITY — stacked horizontal bar chart
+    //  Each row = one college. The bar is segmented by course.
     // =========================================================
 
     function loadCollegeCourseActivity() {
@@ -346,64 +284,101 @@ $(document).ready(function () {
             url:      BACKEND_URL,
             data:     { request: "collegeCourseActivity" },
             dataType: "json",
-            success:  renderCollegeCourseActivity,
+            success:  renderCollegeCourseStackedChart,
             error: function () {
                 $("#collegeCourseActivity").html('<div class="text-center text-muted py-4">No data available.</div>');
             }
         });
     }
 
-    function renderCollegeCourseActivity(colleges) {
+    function renderCollegeCourseStackedChart(colleges) {
         if (!colleges || !colleges.length) {
             $("#collegeCourseActivity").html('<div class="text-center text-muted py-4" style="font-size:.8rem;">No activity today.</div>');
             return;
         }
 
-        // colleges = [ { college, total, courses: [ { course, total }, ... ] }, ... ]
-        const maxCollegeTotal = Math.max(...colleges.map(c => parseInt(c.total)));
-        const palette = ["#3a6cf4", "#06B6D4", "#8b5cf6", "#f59e0b", "#ef4444", "#10b981"];
+        // Build a global course → color map so each course has one consistent color
+        const courseColorPalette = ["#4f7df3","#e05c5c","#3dbfa8","#f59e0b","#8b5cf6","#06B6D4","#ef4444","#10b981","#f97316","#a855f7"];
+        const courseColors       = {};
+        let   colorIdx           = 0;
+        colleges.forEach(function (col) {
+            col.courses.forEach(function (course) {
+                if (!courseColors[course.course]) {
+                    courseColors[course.course] = courseColorPalette[colorIdx % courseColorPalette.length];
+                    colorIdx++;
+                }
+            });
+        });
 
-        const html = colleges.map(function (col, colIdx) {
-            const color        = palette[colIdx % palette.length];
-            const colPct       = maxCollegeTotal > 0 ? (parseInt(col.total) / maxCollegeTotal * 100).toFixed(1) : 0;
-            const maxCourse    = Math.max(...col.courses.map(c => parseInt(c.total)));
+        const globalMax = Math.max(...colleges.map(c => parseInt(c.total)));
 
-            const courseRows = col.courses.map(function (course) {
-                const coursePct = maxCourse > 0 ? (parseInt(course.total) / maxCourse * 100).toFixed(1) : 0;
-                return `
-                    <div class="d-flex align-items-center gap-3">
-                        <small class="text-muted text-end" style="min-width:130px;font-size:.78rem;">${escHtml(course.course || '—')}</small>
-                        <div class="flex-fill" style="position:relative;">
-                            <div class="rounded" style="height:6px;background:#f1f3f5;">
-                                <div class="rounded" style="height:6px;width:${coursePct}%;background:${color};opacity:.55;transition:width .4s;"></div>
-                            </div>
-                        </div>
-                        <small class="text-muted fw-semibold" style="min-width:24px;font-size:.75rem;">${course.total}</small>
-                    </div>
-                `;
+        // X-axis tick markers
+        const tickCount = 5;
+        const tickStep  = Math.ceil(globalMax / tickCount);
+        const ticks     = [];
+        for (let t = 0; t <= tickCount; t++) ticks.push(t * tickStep);
+
+        // Build tick header
+        const tickHtml = `
+            <div class="d-flex mb-1" style="padding-left:110px;">
+                ${ticks.map(t => `<div style="flex:${t === 0 ? 0 : tickStep};min-width:0;text-align:${t === 0 ? 'left' : 'right'}">
+                    <small class="text-muted" style="font-size:.68rem;">${t === 0 ? '' : t}</small>
+                </div>`).join('')}
+            </div>
+        `;
+
+        // Build one row per college
+        const rowsHtml = colleges.map(function (col) {
+            const colTotal  = parseInt(col.total);
+            const barWidthPct = globalMax > 0 ? (colTotal / globalMax * 100).toFixed(2) : 0;
+
+            // Segments: each course is a proportional slice of the college's full bar
+            const segments = col.courses.map(function (course) {
+                const segPct = colTotal > 0 ? (parseInt(course.total) / colTotal * 100).toFixed(2) : 0;
+                const color  = courseColors[course.course];
+                return `<div title="${escHtml(course.course)}: ${course.total}"
+                              style="width:${segPct}%;background:${color};height:100%;display:inline-block;"></div>`;
             }).join('');
 
             return `
-                <div class="mb-4">
-                    <!-- College header row -->
-                    <div class="d-flex align-items-center gap-3 mb-2">
-                        <small class="fw-bold text-dark" style="min-width:130px;font-size:.82rem;">${escHtml(col.college || '—')}</small>
-                        <div class="flex-fill" style="position:relative;">
-                            <div class="rounded" style="height:8px;background:#f1f3f5;">
-                                <div class="rounded" style="height:8px;width:${colPct}%;background:${color};transition:width .4s;"></div>
-                            </div>
+                <div class="d-flex align-items-center mb-2" style="gap:8px;">
+                    <!-- College label -->
+                    <div style="width:102px;flex-shrink:0;text-align:right;">
+                        <small class="fw-semibold text-dark" style="font-size:.78rem;">${escHtml(col.college || '—')}</small>
+                    </div>
+                    <!-- Stacked bar -->
+                    <div style="flex:1;position:relative;">
+                        <!-- Grid lines -->
+                        <div style="position:absolute;inset:0;display:flex;pointer-events:none;">
+                            ${ticks.slice(1).map(t => `<div style="position:absolute;left:${(t/globalMax*100).toFixed(1)}%;top:0;bottom:0;border-left:1px solid #e9ecef;"></div>`).join('')}
                         </div>
-                        <small class="fw-semibold" style="min-width:24px;font-size:.78rem;color:${color};">${col.total}</small>
+                        <div style="width:${barWidthPct}%;height:18px;border-radius:3px;overflow:hidden;display:flex;">
+                            ${segments}
+                        </div>
                     </div>
-                    <!-- Course breakdown -->
-                    <div class="d-flex flex-column gap-2 ps-1">
-                        ${courseRows}
-                    </div>
+                    <!-- Total count -->
+                    <small class="text-muted fw-semibold" style="font-size:.75rem;min-width:28px;">${colTotal}</small>
                 </div>
             `;
         }).join('');
 
-        $("#collegeCourseActivity").html(html);
+        // X-axis label
+        const xAxisHtml = `
+            <div class="d-flex mt-1" style="padding-left:110px;">
+                <small class="text-muted w-100 text-center" style="font-size:.72rem;">Frequency</small>
+            </div>
+        `;
+
+        // Legend — one entry per unique course
+        const legendHtml = Object.entries(courseColors).map(function ([course, color]) {
+            return `<span class="d-flex align-items-center gap-1" style="font-size:.73rem;">
+                        <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${color};flex-shrink:0;"></span>
+                        <span class="text-muted">${escHtml(course)}</span>
+                    </span>`;
+        }).join('');
+
+        $("#collegeCourseActivity").html(tickHtml + rowsHtml + xAxisHtml);
+        $("#collegeCourseActivityLegend").html(legendHtml);
     }
 
 
