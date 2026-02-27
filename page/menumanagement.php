@@ -92,7 +92,7 @@
 $(document).ready(function() {
     // Load initial data
     loadMenus('all');
-	loadMenus('deleted'); // <-- add this line
+	loadMenus('deleted'); 
 
     // Setup event handlers
     setupMenuEvents();
