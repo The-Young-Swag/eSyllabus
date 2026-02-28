@@ -670,103 +670,148 @@ function renderModalPagination(int $totalPages, int $currentPage): string
 function renderUsersTab(array $topByCheckins, array $topByDuration): string
 {
     ob_start(); ?>
-    <div class="tab-pane fade show active" id="users" role="tabpanel">
-        <div class="row g-4">
 
-            <!-- Top Users by Check-ins: table -->
-            <div class="col-xl-8">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center py-3">
-                        <div>
-                            <h6 class="fw-semibold mb-0">Top Users by Check-ins</h6>
-                            <small class="text-muted">Most frequent library visitors</small>
-                        </div>
-                        <span class="badge bg-primary-subtle text-primary rounded-pill px-3">Top 3 per type</span>
+    <div class="row g-4">
+
+        <!-- ── Left column: Check-ins ──────────────────────────────────── -->
+        <div class="col-xl-8 d-flex flex-column gap-4">
+
+            <!-- Check-ins bar chart -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center py-3 px-4">
+                    <div>
+                        <h6 class="fw-semibold mb-0">Top Users by Check-ins</h6>
+                        <small class="text-muted">Most frequent visitors this period</small>
                     </div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-sm table-hover align-middle mb-0">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>ID Number</th>
-                                        <th>Type</th>
-                                        <th>Library Section</th>
-                                        <th class="text-end">Check-ins</th>
-                                        <th class="text-end">Last Check-in</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                <?php foreach ($topByCheckins as $classification => $usersInClass): ?>
-                                    <?php foreach ($usersInClass as $userId => $userData): ?>
-                                        <tr>
-                                            <td class="fw-semibold"><?= safe($userData['display_label']) ?></td>
-                                            <td><span class="badge bg-secondary-subtle text-secondary"><?= safe($classification) ?></span></td>
-                                            <td class="text-muted small"><?= safe($userData['library']) ?></td>
-                                            <td class="text-end fw-semibold"><?= $userData['count'] ?></td>
-                                            <td class="text-end text-muted small"><?= formatDateTime($userData['last_checkin']) ?></td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                <?php endforeach; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                        <div class="mt-3 text-end">
-                            <button class="btn btn-sm btn-outline-primary view-all-btn" data-tab="users">View All Users</button>
-                        </div>
+                    <span class="badge rounded-pill bg-primary-subtle text-primary px-3 py-2">Top 3</span>
+                </div>
+                <div class="card-body px-4 pt-3 pb-2">
+                    <!-- Height 160px gives comfortable spacing for 3 horizontal bars -->
+                    <div style="height:160px; position:relative;">
+                        <canvas id="chartTopUserCheckins"></canvas>
                     </div>
                 </div>
             </div>
 
-            <!-- Right column: Visitor Type donut + Duration table -->
-            <div class="col-xl-4 d-flex flex-column gap-4">
-
-                <!-- Visitor type donut chart (Student / Employee / Guest) -->
-                <div class="card border-0 shadow-sm">
-                    <div class="card-header bg-white border-bottom py-3">
-                        <h6 class="fw-semibold mb-0">Visitor Type</h6>
-                        <small class="text-muted">Breakdown by classification</small>
-                    </div>
-                    <div class="card-body d-flex align-items-center justify-content-center">
-                        <div style="height:260px;width:100%;"><canvas id="chartVisitorTypeDonut"></canvas></div>
+            <!-- Check-ins detail table -->
+            <div class="card border-0 shadow-sm flex-grow-1">
+                <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center py-3 px-4">
+                    <h6 class="fw-semibold mb-0">Check-in Details</h6>
+                    <button class="btn btn-sm btn-outline-primary view-all-btn" data-tab="users">
+                        <i class="bi bi-arrow-up-right-square me-1"></i> View All
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-4">ID Number</th>
+                                    <th>Type</th>
+                                    <th>Library Section</th>
+                                    <th class="text-end">Check-ins</th>
+                                    <th class="text-end pe-4">Last Check-in</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            <?php foreach ($topByCheckins as $classification => $userList): ?>
+                                <?php foreach ($userList as $userData): ?>
+                                    <tr>
+                                        <td class="ps-4 fw-semibold"><?= safe($userData['display_label']) ?></td>
+                                        <td>
+                                            <span class="badge bg-secondary-subtle text-secondary rounded-pill">
+                                                <?= safe($classification) ?>
+                                            </span>
+                                        </td>
+                                        <td class="text-muted small"><?= safe($userData['library'] ?? '—') ?></td>
+                                        <td class="text-end fw-semibold text-primary"><?= number_format($userData['count']) ?></td>
+                                        <td class="text-end text-muted small pe-4"><?= formatDateTime($userData['last_checkin']) ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php endforeach; ?>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
+            </div>
 
-                <!-- Top users by session duration: compact table -->
-                <div class="card border-0 shadow-sm flex-grow-1">
-                    <div class="card-header bg-white border-bottom py-3">
+        </div><!-- /left column -->
+
+
+        <!-- ── Right column ────────────────────────────────────────────── -->
+        <div class="col-xl-4 d-flex flex-column gap-4">
+
+            <!-- Visitor type donut -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom py-3 px-4">
+                    <h6 class="fw-semibold mb-0">Visitor Type Breakdown</h6>
+                    <small class="text-muted">Distribution by user classification</small>
+                </div>
+                <div class="card-body px-4 py-3">
+                    <div style="height:260px; position:relative;">
+                        <canvas id="chartVisitorTypeDonut"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Duration bar chart -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center py-3 px-4">
+                    <div>
                         <h6 class="fw-semibold mb-0">Top Users by Duration</h6>
                         <small class="text-muted">Longest cumulative sessions</small>
                     </div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-sm table-hover align-middle mb-0">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>ID Number</th>
-                                        <th>Type</th>
-                                        <th class="text-end">Min</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                <?php foreach ($topByDuration as $classification => $usersInClass): ?>
-                                    <?php foreach ($usersInClass as $userId => $userData): ?>
-                                        <tr>
-                                            <td class="fw-semibold"><?= safe($userData['display_label']) ?></td>
-                                            <td><span class="badge bg-secondary-subtle text-secondary"><?= safe($classification) ?></span></td>
-                                            <td class="text-end"><?= round($userData['minutes']) ?></td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                <?php endforeach; ?>
-                                </tbody>
-                            </table>
-                        </div>
+                    <span class="badge rounded-pill bg-success-subtle text-success px-3 py-2">Top 3</span>
+                </div>
+                <div class="card-body px-4 pt-3 pb-2">
+                    <div style="height:160px; position:relative;">
+                        <canvas id="chartTopUserDuration"></canvas>
                     </div>
                 </div>
-
             </div>
 
-        </div>
-    </div>
+            <!-- Duration detail table -->
+            <div class="card border-0 shadow-sm flex-grow-1">
+                <div class="card-header bg-white border-bottom py-3 px-4">
+                    <h6 class="fw-semibold mb-0">Duration Details</h6>
+                    <small class="text-muted">Total session time per user</small>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-4">ID Number</th>
+                                    <th>Type</th>
+                                    <th class="text-end pe-4">Minutes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            <?php foreach ($topByDuration as $classification => $userList): ?>
+                                <?php foreach ($userList as $userData): ?>
+                                    <tr>
+                                        <td class="ps-4 fw-semibold"><?= safe($userData['display_label']) ?></td>
+                                        <td>
+                                            <span class="badge bg-secondary-subtle text-secondary rounded-pill">
+                                                <?= safe($classification) ?>
+                                            </span>
+                                        </td>
+                                        <td class="text-end fw-semibold text-success pe-4">
+                                            <?= number_format(round($userData['minutes'])) ?>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- /right column -->
+
+    </div><!-- /row -->
+
     <?php
     return ob_get_clean();
 }
@@ -863,93 +908,124 @@ function renderCollegesTab(array $topByCheckins, array $topByDuration): string
  */
 function renderCoursesTab(array $topByCheckins, array $topByDuration): string
 {
-    ob_start();
-    foreach ($topByCheckins as $collegeName => $topCoursesByCheckins):
-        $safeCollegeId = preg_replace('/[^a-zA-Z0-9]/', '', $collegeName);
-    ?>
-    <div class="col-12 mb-4">
-        <div class="d-flex align-items-center gap-2 mb-3">
-            <span class="badge bg-dark rounded-pill px-3 py-2 fs-6"><?= safe($collegeName) ?></span>
-        </div>
-        <div class="row g-4">
+    // ── Flatten all courses from all colleges into a single sorted list ──────
 
-            <div class="col-md-6">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-header bg-white border-bottom py-3">
-                        <h6 class="fw-semibold mb-0">Top Courses by Check-ins</h6>
-                        <small class="text-muted">Unique visitors per course</small>
+    // Checkins: College → Course → { count, last_checkin }
+    $allCheckins = [];
+    foreach ($topByCheckins as $college => $courses) {
+        foreach ($courses as $course => $data) {
+            $allCheckins[] = [
+                'college'      => $college,
+                'course'       => $course,
+                'count'        => $data['count'],
+                'last_checkin' => $data['last_checkin'],
+            ];
+        }
+    }
+    usort($allCheckins, fn($a, $b) => $b['count'] <=> $a['count']);
+
+    // Duration: College → Course → { minutes, last_checkin }
+    $allDuration = [];
+    foreach ($topByDuration as $college => $courses) {
+        foreach ($courses as $course => $data) {
+            $allDuration[] = [
+                'college'      => $college,
+                'course'       => $course,
+                'minutes'      => $data['minutes'],
+                'last_checkin' => $data['last_checkin'],
+            ];
+        }
+    }
+    usort($allDuration, fn($a, $b) => $b['minutes'] <=> $a['minutes']);
+
+    ob_start(); ?>
+    <div class="row g-4 mb-4">
+
+        <!-- Courses by Check-ins -->
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h6 class="fw-semibold mb-0">Top Courses by Check-ins</h6>
+                    <small class="text-muted">Unique visitors per course across all colleges</small>
+                </div>
+                <div class="card-body">
+                    <div style="height:280px;" class="d-flex align-items-center justify-content-center">
+                        <canvas id="chartCoursesCheckin"></canvas>
                     </div>
-                    <div class="card-body">
-                        <div style="height:260px;" class="d-flex align-items-center justify-content-center">
-                            <canvas id="chartCourseCheckin_<?= $safeCollegeId ?>"></canvas>
-                        </div>
-                        <hr class="my-3">
-                        <div class="table-responsive">
-                            <table class="table table-sm table-hover align-middle mb-0">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Course</th>
-                                        <th class="text-end">Unique Visitors</th>
-                                        <th class="text-end">Last Check-in</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                <?php foreach ($topCoursesByCheckins as $courseName => $courseData): ?>
-                                    <tr>
-                                        <td class="fw-semibold"><?= safe($courseName) ?></td>
-                                        <td class="text-end"><?= $courseData['count'] ?></td>
-                                        <td class="text-end text-muted small"><?= formatDateTime($courseData['last_checkin']) ?></td>
-                                    </tr>
-                                <?php endforeach; ?>
-                                </tbody>
-                            </table>
-                        </div>
+                    <hr class="my-3">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>College</th>
+                                    <th>Course</th>
+                                    <th class="text-end">Visitors</th>
+                                    <th class="text-end">Last Check-in</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            <?php foreach ($allCheckins as $row): ?>
+                                <tr>
+                                    <td class="text-muted small"><?= safe($row['college']) ?></td>
+                                    <td class="fw-semibold"><?= safe($row['course']) ?></td>
+                                    <td class="text-end"><?= $row['count'] ?></td>
+                                    <td class="text-end text-muted small"><?= formatDateTime($row['last_checkin']) ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                            <?php if (empty($allCheckins)): ?>
+                                <tr><td colspan="4" class="text-center text-muted py-3">No data available</td></tr>
+                            <?php endif; ?>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
+        </div>
 
-            <div class="col-md-6">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-header bg-white border-bottom py-3">
-                        <h6 class="fw-semibold mb-0">Top Courses by Duration</h6>
-                        <small class="text-muted">Total session time per course</small>
+        <!-- Courses by Duration -->
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h6 class="fw-semibold mb-0">Top Courses by Duration</h6>
+                    <small class="text-muted">Total session time per course across all colleges</small>
+                </div>
+                <div class="card-body">
+                    <div style="height:280px;" class="d-flex align-items-center justify-content-center">
+                        <canvas id="chartCoursesDuration"></canvas>
                     </div>
-                    <div class="card-body">
-                        <div style="height:260px;" class="d-flex align-items-center justify-content-center">
-                            <canvas id="chartCourseDuration_<?= $safeCollegeId ?>"></canvas>
-                        </div>
-                        <hr class="my-3">
-                        <div class="table-responsive">
-                            <table class="table table-sm table-hover align-middle mb-0">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Course</th>
-                                        <th class="text-end">Duration (min)</th>
-                                        <th class="text-end">Last Check-in</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                <?php if (isset($topByDuration[$collegeName])): ?>
-                                    <?php foreach ($topByDuration[$collegeName] as $courseName => $courseData): ?>
-                                        <tr>
-                                            <td class="fw-semibold"><?= safe($courseName) ?></td>
-                                            <td class="text-end"><?= round($courseData['minutes']) ?></td>
-                                            <td class="text-end text-muted small"><?= formatDateTime($courseData['last_checkin']) ?></td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                <?php endif; ?>
-                                </tbody>
-                            </table>
-                        </div>
+                    <hr class="my-3">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>College</th>
+                                    <th>Course</th>
+                                    <th class="text-end">Duration (min)</th>
+                                    <th class="text-end">Last Check-in</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            <?php foreach ($allDuration as $row): ?>
+                                <tr>
+                                    <td class="text-muted small"><?= safe($row['college']) ?></td>
+                                    <td class="fw-semibold"><?= safe($row['course']) ?></td>
+                                    <td class="text-end"><?= round($row['minutes']) ?></td>
+                                    <td class="text-end text-muted small"><?= formatDateTime($row['last_checkin']) ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                            <?php if (empty($allDuration)): ?>
+                                <tr><td colspan="4" class="text-center text-muted py-3">No data available</td></tr>
+                            <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="mt-3 text-end">
+                        <button class="btn btn-sm btn-outline-primary view-all-btn" data-tab="courses">View All Courses</button>
                     </div>
                 </div>
             </div>
-
         </div>
-    </div>
-    <?php endforeach; ?>
-    <div class="text-end mt-2">
-        <button class="btn btn-sm btn-outline-primary view-all-btn" data-tab="courses">View All Courses</button>
+
     </div>
     <?php
     return ob_get_clean();

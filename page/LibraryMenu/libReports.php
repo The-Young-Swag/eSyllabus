@@ -13,6 +13,7 @@ $librarySections = execsqlSRS(
 );
 ?>
 
+
 <div class="container-fluid py-4">
 
     <!-- =========================================================
@@ -27,9 +28,14 @@ $librarySections = execsqlSRS(
             <button class="btn btn-outline-secondary btn-sm" id="refreshBtn">
                 <i class="fas fa-sync-alt me-1"></i> Refresh
             </button>
-            <button class="btn btn-danger btn-sm" id="exportPDF">
-                <i class="fas fa-file-pdf me-1"></i> Export Report
-            </button>
+            <div class="btn-group">
+                <button class="btn btn-danger btn-sm" id="exportPDF">
+                    <i class="fas fa-file-pdf me-1"></i> Export PDF
+                </button>
+                <button class="btn btn-success btn-sm" id="exportXLSX">
+                    <i class="fas fa-file-excel me-1"></i> Export XLSX
+                </button>
+            </div>
         </div>
     </div>
 
@@ -203,6 +209,36 @@ $librarySections = execsqlSRS(
 </div>
 
 
+<!-- =========================================================
+     VIEW ALL MODAL
+     Fixed: proper Bootstrap structure, subtitle support, clean footer pagination
+========================================================== -->
+<div class="modal fade" id="viewAllModal" tabindex="-1" aria-labelledby="viewAllModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title fw-semibold mb-0" id="viewAllModalLabel">Records</h5>
+                    <small class="text-muted" id="viewAllModalSubtitle"></small>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body p-0" id="viewAllModalBody">
+                <!-- Table injected here via AJAX -->
+            </div>
+
+            <div class="modal-footer d-flex justify-content-between align-items-center">
+                <small class="text-muted" id="viewAllModalCount"></small>
+                <div id="viewAllModalPagination"></div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+
 <?php include '../modalContainer.php'; ?>
 <?php include 'LibModals.php'; ?>
 
@@ -211,78 +247,89 @@ $librarySections = execsqlSRS(
 $(function () {
 
     // =========================================================
-    //  CONFIGURATION
+    //  DASHBOARD SETTINGS
+    //  Single source of truth for all constants.
+    //  Rename a tab, swap a color, or change the backend URL here
+    //  without touching any other part of the code.
     // =========================================================
 
-    const BACKEND_URL       = 'backend/bk_LibraryMenu/bk_libReports.php';
-    const ROWS_PER_PAGE     = 10;
-    const DEFAULT_TAB       = 'users';
-    const DEFAULT_DAYS_BACK = 7;
+    const Analytics = {
 
-    const TAB_MODAL_TITLES = {
-        users:        'All Users',
-        colleges:     'All Colleges',
-        courses:      'All Courses',
-        demographics: 'All Check-in Logs',
+        backendUrl:  'backend/bk_LibraryMenu/bk_libReports.php',
+        defaultTab:  'users',
+        defaultDays: 7,
+
+        // Human-readable labels for each tab key
+        // — used in modal titles, export filenames, and PDF headers
+        tabLabels: {
+            users:        'All Users',
+            colleges:     'All Colleges',
+            courses:      'All Courses',
+            demographics: 'All Check-in Logs',
+        },
+
+        // Bar chart colors per rank position (Rank 1 / 2 / 3)
+        // checkins: blue-indigo range  |  duration: green-teal range
+        rankColors: {
+            checkins: ['rgba(59,130,246,0.88)', 'rgba(99,102,241,0.88)', 'rgba(139,92,246,0.88)'],
+            duration: ['rgba(16,185,129,0.88)', 'rgba(20,184,166,0.88)', 'rgba(8,145,178,0.88)'],
+        },
+
+        // Donut palette: visitor type (Student / Employee / Guest / fallback)
+        donutColorsVisitorType: [
+            'rgba(59,130,246,0.88)',
+            'rgba(16,185,129,0.88)',
+            'rgba(245,158,11,0.88)',
+            'rgba(100,116,139,0.88)',
+        ],
+
+        // Donut palette: sex distribution (Male / Female / Unknown)
+        donutColorsSex: [
+            'rgba(59,130,246,0.88)',
+            'rgba(239,68,68,0.88)',
+            'rgba(100,116,139,0.88)',
+        ],
+
+        // Donut palette: courses (cycles)
+        donutColorsCourse: [
+            'rgba(59,130,246,0.82)',  'rgba(16,185,129,0.82)',
+            'rgba(245,158,11,0.82)',  'rgba(139,92,246,0.82)',
+            'rgba(239,68,68,0.82)',   'rgba(20,184,166,0.82)',
+            'rgba(100,116,139,0.82)',
+        ],
+
+        // College abbreviation → donut color
+        // Keep in sync with PHP COLLEGE_COLOR_MAP constant
+        collegeColorMap: {
+            CAF: 'rgba(22,163,74,0.88)',
+            CAS: 'rgba(234,88,12,0.88)',
+            CBM: 'rgba(202,138,4,0.88)',
+            CET: 'rgba(220,38,38,0.88)',
+            CED: 'rgba(37,99,235,0.88)',
+            CVM: 'rgba(107,114,128,0.88)',
+        },
+        collegeColorFallback: 'rgba(139,92,246,0.88)',
+
+        // CDN scripts loaded on demand for PDF/XLSX export
+        // Update version numbers here when upgrading libraries
+        exportLibraries: {
+            jspdf:     'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+            autotable: 'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js',
+            xlsx:      'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+        },
     };
-
-    // =========================================================
-    //  COLLEGE COLOR MAP
-    //  Mirrors the PHP COLLEGE_COLOR_MAP for consistent chart colors.
-    //  To update a college color: change both here AND in the PHP constant.
-    // =========================================================
-    const COLLEGE_COLOR_MAP = {
-        CAF: 'rgba(22,163,74,0.88)',   // green
-        CAS: 'rgba(234,88,12,0.88)',   // orange
-        CBM: 'rgba(202,138,4,0.88)',   // yellow
-        CET: 'rgba(220,38,38,0.88)',   // red
-        CED: 'rgba(37,99,235,0.88)',   // blue
-        CVM: 'rgba(107,114,128,0.88)', // grey
-    };
-    const COLLEGE_COLOR_FALLBACK = 'rgba(139,92,246,0.88)'; // violet
-
-    /**
-     * Resolves a college name string to its designated color.
-     * Checks if any known abbreviation key appears in the college string.
-     */
-    function resolveCollegeColor(collegeName) {
-        const upperName = (collegeName || '').toUpperCase();
-        for (const [abbr, color] of Object.entries(COLLEGE_COLOR_MAP)) {
-            if (upperName.includes(abbr)) return color;
-        }
-        return COLLEGE_COLOR_FALLBACK;
-    }
-
-    // Visitor type donut color palette (Student / Employee / Guest / fallback)
-    const VISITOR_TYPE_DONUT_COLORS = [
-        'rgba(59,130,246,0.88)',   // Student  — blue
-        'rgba(16,185,129,0.88)',   // Employee — green
-        'rgba(245,158,11,0.88)',   // Guest    — amber
-        'rgba(100,116,139,0.88)', // fallback — slate
-    ];
-
-    // Sex distribution donut color palette (Male / Female / Unknown)
-    const SEX_DONUT_COLORS = [
-        'rgba(59,130,246,0.88)',   // Male    — blue
-        'rgba(239,68,68,0.88)',    // Female  — rose
-        'rgba(100,116,139,0.88)', // Unknown — slate
-    ];
-
-    // Course donut fallback color palette (when no college-based color applies)
-    const COURSE_DONUT_COLORS = [
-        'rgba(59,130,246,0.82)',
-        'rgba(16,185,129,0.82)',
-        'rgba(245,158,11,0.82)',
-        'rgba(139,92,246,0.82)',
-        'rgba(239,68,68,0.82)',
-        'rgba(20,184,166,0.82)',
-        'rgba(100,116,139,0.82)',
-    ];
 
 
     // =========================================================
     //  DOM REFERENCES
+    //  All jQuery selectors in one place — update selectors here
+    //  if IDs ever change without touching logic elsewhere.
     // =========================================================
+
+    const $tabContentArea  = $('#tabContent');
+    const $tabNavButtons   = $('#analyticsTabs .nav-link');
+    const $lastUpdatedLabel = $('#lastUpdatedLabel');
+    const $loadingSpinner  = $('#loadingSpinner');   // owned by parent layout
 
     const filters = {
         startDate:      $('#startDate'),
@@ -298,19 +345,25 @@ $(function () {
         endDateCheckins: $('#kpiEndDateCheckins'),
     };
 
-    const tabContentArea   = $('#tabContent');
-    const tabNavButtons    = $('#analyticsTabs .nav-link');
-    const lastUpdatedLabel = $('#lastUpdatedLabel');
-
 
     // =========================================================
     //  APPLICATION STATE
     // =========================================================
 
-    let activeTab      = DEFAULT_TAB;
-    let pendingRequest = null;
-    let viewAllTab     = DEFAULT_TAB;
-    let viewAllPage    = 1;
+    let activeTab          = Analytics.defaultTab;
+    let pendingTabRequest  = null;
+    let viewAllActiveTab   = Analytics.defaultTab;
+    let viewAllCurrentPage = 1;
+    let lastResponse = null;  // cached for export use
+
+
+    // =========================================================
+    //  SPINNER
+    //  Uses the #loadingSpinner element defined in the parent layout.
+    // =========================================================
+
+    function showSpinner() { $loadingSpinner.stop(true).css('display', 'flex').hide().fadeIn(150); }
+    function hideSpinner() { $loadingSpinner.fadeOut(200); }
 
 
     // =========================================================
@@ -326,136 +379,150 @@ $(function () {
         };
     }
 
-    function hasDateRange() {
+    function hasValidDateRange() {
         return filters.startDate.val() && filters.endDate.val();
     }
 
     function setDefaultDateRange() {
         if (filters.startDate.val()) return;
-        const today        = new Date();
-        const defaultStart = new Date(today);
-        defaultStart.setDate(today.getDate() - DEFAULT_DAYS_BACK);
+        const today         = new Date();
+        const defaultStart  = new Date(today);
+        defaultStart.setDate(today.getDate() - Analytics.defaultDays);
         filters.startDate.val(defaultStart.toISOString().split('T')[0]);
         filters.endDate.val(today.toISOString().split('T')[0]);
+    }
+
+    function buildDateRangeLabel() {
+        const startVal = filters.startDate.val() || '—';
+        const endVal   = filters.endDate.val()   || '—';
+        return `${startVal} to ${endVal}`;
     }
 
 
     // =========================================================
     //  CHART MANAGER
-    //  Centralised Chart.js lifecycle management.
-    //  All charts use consistent professional base options.
+    //  Owns Chart.js instance lifecycle (create / destroy / render).
+    //  Always call renderBarH or renderDonut — never Chart() directly.
     // =========================================================
 
     const ChartManager = {
-        instances: {},
 
-        destroy(canvasId) {
-            if (this.instances[canvasId]) {
-                this.instances[canvasId].destroy();
-                delete this.instances[canvasId];
+        _activeInstances: {},
+
+        // Destroy an existing chart instance before re-rendering
+        destroyChart(canvasId) {
+            if (this._activeInstances[canvasId]) {
+                this._activeInstances[canvasId].destroy();
+                delete this._activeInstances[canvasId];
             }
         },
 
-        create(canvasId, config) {
-            const canvas = document.getElementById(canvasId);
-            if (!canvas) return;
-            this.destroy(canvasId);
-            this.instances[canvasId] = new Chart(canvas, config);
+        // Internal: create and register a Chart.js instance
+        _createChart(canvasId, chartConfig) {
+            const canvasElement = document.getElementById(canvasId);
+            if (!canvasElement) return;
+            this.destroyChart(canvasId);
+            this._activeInstances[canvasId] = new Chart(canvasElement, chartConfig);
         },
 
-        /** Shared base options for all donut/doughnut charts */
-        _donutBaseOptions(centerLabelText) {
+        // Shared tooltip appearance used across all chart types
+        _tooltip() {
             return {
-                responsive:          true,
-                maintainAspectRatio: false,
-                animation:           { duration: 600, easing: 'easeInOutQuart' },
-                cutout:              '65%',
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: {
-                            color:         '#374151',
-                            font:          { size: 11 },
-                            padding:       14,
-                            usePointStyle: true,
-                            pointStyle:    'circle',
-                            // Format legend: "Label (count)"
-                            generateLabels: (chart) => {
-                                const data = chart.data;
-                                return data.labels.map((label, i) => ({
-                                    text:        `${label} (${(data.datasets[0].data[i] || 0).toLocaleString()})`,
-                                    fillStyle:   data.datasets[0].backgroundColor[i],
-                                    strokeStyle: data.datasets[0].backgroundColor[i],
-                                    hidden:      false,
-                                    index:       i,
-                                    pointStyle:  'circle',
-                                }));
-                            },
-                        },
-                    },
-                    tooltip: {
-                        backgroundColor: 'rgba(15,23,42,0.92)',
-                        titleColor:      '#f8fafc',
-                        bodyColor:       '#94a3b8',
-                        borderColor:     'rgba(148,163,184,0.15)',
-                        borderWidth:     1,
-                        padding:         10,
-                        cornerRadius:    6,
-                        callbacks: {
-                            label: (ctx) => {
-                                const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
-                                const pct   = total > 0 ? ((ctx.parsed / total) * 100).toFixed(1) : 0;
-                                return ` ${ctx.label}: ${ctx.parsed.toLocaleString()} (${pct}%)`;
-                            },
-                        },
-                    },
-                },
+                backgroundColor: 'rgba(15,23,42,0.92)',
+                titleColor:      '#f8fafc',
+                bodyColor:       '#94a3b8',
+                borderColor:     'rgba(148,163,184,0.15)',
+                borderWidth:     1,
+                padding:         10,
+                cornerRadius:    6,
             };
         },
 
-        /**
-         * Renders a professional donut chart with a center label showing
-         * the total count and a custom inner label text.
-         *
-         * @param {string}   canvasId       - Canvas element ID
-         * @param {string[]} sliceLabels    - Label for each slice
-         * @param {number[]} sliceValues    - Value for each slice
-         * @param {string[]} sliceColors    - RGBA color strings per slice
-         * @param {string}   centerLabel    - Text shown inside the donut hole
-         */
-        renderDonut(canvasId, sliceLabels, sliceValues, sliceColors, centerLabel = 'Total') {
-            const totalCount = sliceValues.reduce((sum, v) => sum + v, 0);
+        // ── Horizontal Bar Chart ──────────────────────────────────────────
+        // Renders a horizontal bar chart ideal for ranked top-N lists.
+        //
+        // @param {string}   canvasId    Target canvas element ID
+        // @param {string[]} barLabels   Y-axis labels (one per bar, e.g. user IDs)
+        // @param {number[]} barValues   Bar lengths (e.g. check-in counts)
+        // @param {string[]} barColors   Per-bar colors — one color per rank position
+        // @param {string}   valueUnit   Unit shown in tooltip (e.g. "Check-ins")
+        renderBarH(canvasId, barLabels, barValues, barColors, valueUnit) {
+            this._createChart(canvasId, {
+                type: 'bar',
+                data: {
+                    labels:   barLabels,
+                    datasets: [{
+                        label:           valueUnit,      // fixes "undefined" in legend/tooltip
+                        data:            barValues,
+                        backgroundColor: barColors,
+                        borderRadius:    5,
+                        borderSkipped:   false,
+                    }],
+                },
+                options: {
+                    indexAxis:           'y',            // ← horizontal bars
+                    responsive:          true,
+                    maintainAspectRatio: false,
+                    animation:           { duration: 500, easing: 'easeInOutQuart' },
+                    plugins: {
+                        legend:  { display: false },    // legend off — colors tell the story
+                        tooltip: {
+                            ...this._tooltip(),
+                            callbacks: {
+                                label: (tooltipItem) =>
+                                    `  ${valueUnit}: ${tooltipItem.parsed.x.toLocaleString()}`,
+                            },
+                        },
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            grid:  { color: 'rgba(0,0,0,0.04)' },
+                            ticks: { color: '#6b7280', font: { size: 10 } },
+                        },
+                        y: {
+                            grid:  { display: false },
+                            ticks: { color: '#374151', font: { size: 12 }, padding: 8 },
+                        },
+                    },
+                },
+            });
+        },
 
-            // Custom center-text plugin scoped to this instance
+        // ── Doughnut Chart ────────────────────────────────────────────────
+        // Renders a doughnut with a bold total + label drawn in the center hole.
+        //
+        // @param {string}   canvasId    Target canvas element ID
+        // @param {string[]} sliceLabels One label per slice
+        // @param {number[]} sliceValues One value per slice
+        // @param {string[]} sliceColors One color per slice
+        // @param {string}   centerLabel Small text drawn below the total in the hole
+        renderDonut(canvasId, sliceLabels, sliceValues, sliceColors, centerLabel) {
+            const totalValue = sliceValues.reduce((sum, value) => sum + value, 0);
+
+            // Inline plugin: draws the total count + label text inside the donut hole
             const centerTextPlugin = {
-                id: 'centerText_' + canvasId,
-                afterDraw(chart) {
-                    const { ctx, chartArea } = chart;
+                id: `centerText_${canvasId}`,
+                afterDraw(chartInstance) {
+                    const { ctx, chartArea } = chartInstance;
                     if (!chartArea) return;
-
                     const centerX = (chartArea.left + chartArea.right)  / 2;
                     const centerY = (chartArea.top  + chartArea.bottom) / 2;
-
                     ctx.save();
-
-                    // Total count — large bold
-                    ctx.font         = 'bold 22px sans-serif';
-                    ctx.fillStyle    = '#111827';
                     ctx.textAlign    = 'center';
                     ctx.textBaseline = 'middle';
-                    ctx.fillText(totalCount.toLocaleString(), centerX, centerY - 9);
-
-                    // Center label text — small muted
+                    ctx.font         = 'bold 22px sans-serif';
+                    ctx.fillStyle    = '#111827';
+                    ctx.fillText(totalValue.toLocaleString(), centerX, centerY - 9);
                     ctx.font      = '11px sans-serif';
                     ctx.fillStyle = '#6b7280';
                     ctx.fillText(centerLabel, centerX, centerY + 13);
-
                     ctx.restore();
                 },
             };
 
-            this.create(canvasId, {
-                type:    'doughnut',
+            this._createChart(canvasId, {
+                type: 'doughnut',
                 data: {
                     labels:   sliceLabels,
                     datasets: [{
@@ -466,7 +533,44 @@ $(function () {
                         hoverOffset:     6,
                     }],
                 },
-                options: this._donutBaseOptions(centerLabel),
+                options: {
+                    responsive:          true,
+                    maintainAspectRatio: false,
+                    animation:           { duration: 600, easing: 'easeInOutQuart' },
+                    cutout:              '65%',
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color:         '#374151',
+                                font:          { size: 11 },
+                                padding:       14,
+                                usePointStyle: true,
+                                pointStyle:    'circle',
+                                generateLabels: (chartInstance) =>
+                                    chartInstance.data.labels.map((labelText, sliceIndex) => ({
+                                        text:        `${labelText} (${(chartInstance.data.datasets[0].data[sliceIndex] || 0).toLocaleString()})`,
+                                        fillStyle:   chartInstance.data.datasets[0].backgroundColor[sliceIndex],
+                                        strokeStyle: chartInstance.data.datasets[0].backgroundColor[sliceIndex],
+                                        hidden:      false,
+                                        index:       sliceIndex,
+                                        pointStyle:  'circle',
+                                    })),
+                            },
+                        },
+                        tooltip: {
+                            ...this._tooltip(),
+                            callbacks: {
+                                label: (tooltipItem) => {
+                                    const percentage = totalValue > 0
+                                        ? ((tooltipItem.parsed / totalValue) * 100).toFixed(1)
+                                        : 0;
+                                    return ` ${tooltipItem.label}: ${tooltipItem.parsed.toLocaleString()} (${percentage}%)`;
+                                },
+                            },
+                        },
+                    },
+                },
                 plugins: [centerTextPlugin],
             });
         },
@@ -475,145 +579,161 @@ $(function () {
 
     // =========================================================
     //  CHART INITIALIZERS
+    //  One function per tab. Add a new ChartManager.render*() call
+    //  inside the matching init function to add more charts.
+    //  Add a new tab by adding one entry to TAB_CHART_INITIALIZERS.
     // =========================================================
 
-    /**
-     * Initialises all charts for the Users tab.
-     * - Visitor type donut: Student / Employee / Guest breakdown.
-     */
-    function initUsersCharts(backendResponse) {
-        const visitorTypeLabels = Object.keys(backendResponse.classificationDistribution);
-        const visitorTypeValues = Object.values(backendResponse.classificationDistribution);
+    // Resolves a college name string to its configured donut color
+    function resolveCollegeColor(collegeName) {
+        const upperCaseName = (collegeName || '').toUpperCase();
+        for (const [abbreviation, color] of Object.entries(Analytics.collegeColorMap)) {
+            if (upperCaseName.includes(abbreviation)) return color;
+        }
+        return Analytics.collegeColorFallback;
+    }
 
+    // Flattens the nested classification → userId → data structure
+    // into a flat sorted array, returning only the top N items.
+    // valueKey: 'count' for check-ins, 'minutes' for duration
+    function flattenUserRanking(source, valueKey, topCount) {
+        const flatItems = [];
+        for (const [classificationType, userMap] of Object.entries(source)) {
+            for (const userData of Object.values(userMap)) {
+                flatItems.push({
+                    displayLabel:       userData.display_label,
+                    value:              userData[valueKey] ?? 0,
+                    classificationName: classificationType,
+                });
+            }
+        }
+        return flatItems
+            .sort((itemA, itemB) => itemB.value - itemA.value)
+            .slice(0, topCount);
+    }
+
+    function initUsersTab(responseData) {
+        const TOP_COUNT = 3;
+
+        // Top users by check-in count — horizontal bar
+        const topCheckinUsers = flattenUserRanking(responseData.topCheckins, 'count', TOP_COUNT);
+        ChartManager.renderBarH(
+            'chartTopUserCheckins',
+            topCheckinUsers.map(item => item.displayLabel),
+            topCheckinUsers.map(item => item.value),
+            Analytics.rankColors.checkins.slice(0, topCheckinUsers.length),
+            'Check-ins'
+        );
+
+        // Top users by session duration — horizontal bar
+        const topDurationUsers = flattenUserRanking(responseData.topDuration, 'minutes', TOP_COUNT);
+        ChartManager.renderBarH(
+            'chartTopUserDuration',
+            topDurationUsers.map(item => item.displayLabel),
+            topDurationUsers.map(item => Math.round(item.value)),
+            Analytics.rankColors.duration.slice(0, topDurationUsers.length),
+            'Minutes'
+        );
+
+        // Visitor type breakdown — doughnut
         ChartManager.renderDonut(
             'chartVisitorTypeDonut',
-            visitorTypeLabels,
-            visitorTypeValues,
-            VISITOR_TYPE_DONUT_COLORS,
+            Object.keys(responseData.classificationDistribution),
+            Object.values(responseData.classificationDistribution),
+            Analytics.donutColorsVisitorType,
             'Visitors'
         );
     }
 
-    /**
-     * Initialises all charts for the Colleges tab.
-     * Uses college-specific colors resolved from COLLEGE_COLOR_MAP.
-     */
-    function initCollegesCharts(backendResponse) {
-        const checkinCollegeNames  = Object.keys(backendResponse.top3CollegesCheckin);
-        const checkinVisitorCounts = checkinCollegeNames.map(name => backendResponse.top3CollegesCheckin[name].count);
-        const checkinColors        = checkinCollegeNames.map(name => resolveCollegeColor(name));
+    function initCollegesTab(responseData) {
+        const checkinCollegeNames  = Object.keys(responseData.top3CollegesCheckin);
+        const durationCollegeNames = Object.keys(responseData.top3CollegesDuration);
 
         ChartManager.renderDonut(
             'chartCollegeCheckin',
             checkinCollegeNames,
-            checkinVisitorCounts,
-            checkinColors,
+            checkinCollegeNames.map(name => responseData.top3CollegesCheckin[name].count),
+            checkinCollegeNames.map(resolveCollegeColor),
             'Visitors'
         );
-
-        const durationCollegeNames  = Object.keys(backendResponse.top3CollegesDuration);
-        const durationTotalMinutes  = durationCollegeNames.map(name => Math.round(backendResponse.top3CollegesDuration[name].minutes));
-        const durationColors        = durationCollegeNames.map(name => resolveCollegeColor(name));
 
         ChartManager.renderDonut(
             'chartCollegeDuration',
             durationCollegeNames,
-            durationTotalMinutes,
-            durationColors,
+            durationCollegeNames.map(name => Math.round(responseData.top3CollegesDuration[name].minutes)),
+            durationCollegeNames.map(resolveCollegeColor),
             'Minutes'
         );
     }
 
-    /**
-     * Initialises all course donut charts, one pair per college.
-     * Course slices inherit the parent college's color with slight opacity variation.
-     */
-    function initCoursesCharts(backendResponse) {
-        Object.keys(backendResponse.topCoursesCheckin).forEach(collegeName => {
-            const safeCollegeId        = collegeName.replace(/[^a-zA-Z0-9]/g, '');
-            const topCoursesByCheckins = backendResponse.topCoursesCheckin[collegeName];
-            const topCoursesByDuration = backendResponse.topCoursesDuration[collegeName];
+    function initCoursesTab(responseData) {
+        // Flatten all college→course entries into parallel arrays for the donut chart
+        function flattenCourseData(sourceObject, valueKey) {
+            const labelList  = [];
+            const valueList  = [];
+            const colorList  = [];
+            Object.entries(sourceObject).forEach(([collegeName, courseMap], collegeIndex) => {
+                Object.entries(courseMap).forEach(([courseName, courseData], courseIndex) => {
+                    labelList.push(`${collegeName} · ${courseName}`);
+                    valueList.push(valueKey === 'count' ? courseData.count : Math.round(courseData.minutes));
+                    colorList.push(Analytics.donutColorsCourse[(collegeIndex * 3 + courseIndex) % Analytics.donutColorsCourse.length]);
+                });
+            });
+            return { labelList, valueList, colorList };
+        }
 
-            // Course slices use generic palette since course abbreviations vary per college
-            const checkinCourseNames   = Object.keys(topCoursesByCheckins);
-            const checkinCourseValues  = checkinCourseNames.map(c => topCoursesByCheckins[c].count);
-            const checkinCourseColors  = checkinCourseNames.map((_, i) => COURSE_DONUT_COLORS[i % COURSE_DONUT_COLORS.length]);
+        const checkinCourseData  = flattenCourseData(responseData.topCoursesCheckin,  'count');
+        const durationCourseData = flattenCourseData(responseData.topCoursesDuration, 'minutes');
 
-            ChartManager.renderDonut(
-                'chartCourseCheckin_' + safeCollegeId,
-                checkinCourseNames,
-                checkinCourseValues,
-                checkinCourseColors,
-                'Visitors'
-            );
-
-            if (topCoursesByDuration) {
-                const durationCourseNames  = Object.keys(topCoursesByDuration);
-                const durationCourseValues = durationCourseNames.map(c => Math.round(topCoursesByDuration[c].minutes));
-                const durationCourseColors = durationCourseNames.map((_, i) => COURSE_DONUT_COLORS[i % COURSE_DONUT_COLORS.length]);
-
-                ChartManager.renderDonut(
-                    'chartCourseDuration_' + safeCollegeId,
-                    durationCourseNames,
-                    durationCourseValues,
-                    durationCourseColors,
-                    'Minutes'
-                );
-            }
-        });
+        if (checkinCourseData.labelList.length) {
+            ChartManager.renderDonut('chartCoursesCheckin',  checkinCourseData.labelList,  checkinCourseData.valueList,  checkinCourseData.colorList,  'Visitors');
+        }
+        if (durationCourseData.labelList.length) {
+            ChartManager.renderDonut('chartCoursesDuration', durationCourseData.labelList, durationCourseData.valueList, durationCourseData.colorList, 'Minutes');
+        }
     }
 
-    /**
-     * Initialises all charts for the Demographics tab.
-     * - Sex distribution donut: Male / Female / Unknown.
-     */
-    function initDemographicsCharts(backendResponse) {
-        const sexLabels = Object.keys(backendResponse.sexDistribution);
-        const sexValues = Object.values(backendResponse.sexDistribution);
-
+    function initDemographicsTab(responseData) {
         ChartManager.renderDonut(
             'chartSexDonut',
-            sexLabels,
-            sexValues,
-            SEX_DONUT_COLORS,
+            Object.keys(responseData.sexDistribution),
+            Object.values(responseData.sexDistribution),
+            Analytics.donutColorsSex,
             'Visitors'
         );
     }
 
-    function initializeCharts(backendResponse, tab) {
-        switch (tab) {
-            case 'users':        initUsersCharts(backendResponse);        break;
-            case 'colleges':     initCollegesCharts(backendResponse);     break;
-            case 'courses':      initCoursesCharts(backendResponse);      break;
-            case 'demographics': initDemographicsCharts(backendResponse); break;
-        }
-    }
+    // Maps each tab key to its chart initializer function.
+    // To add a new tab: add one entry here + its PHP tab renderer.
+    const TAB_CHART_INITIALIZERS = {
+        users:        initUsersTab,
+        colleges:     initCollegesTab,
+        courses:      initCoursesTab,
+        demographics: initDemographicsTab,
+    };
 
 
     // =========================================================
-    //  KPI CARD UPDATERS
+    //  KPI CARDS
     // =========================================================
 
-    function updateKpiCards(backendResponse) {
-        kpi.totalCheckins.text(backendResponse.totalVisits.toLocaleString());
-        kpi.avgDuration.text(backendResponse.avgDuration + ' min');
-
+    function updateKpiCards(responseData) {
         const selectedEndDate  = filters.endDate.val();
         const formattedEndDate = selectedEndDate
             ? new Date(selectedEndDate).toLocaleDateString('en-US', {
-                month: 'short', day: 'numeric', year: 'numeric'
+                month: 'short', day: 'numeric', year: 'numeric',
               })
             : '—';
 
+        kpi.totalCheckins.text(responseData.totalVisits.toLocaleString());
+        kpi.avgDuration.text(responseData.avgDuration + ' min');
         kpi.endDateLabel.text('Check-ins on ' + formattedEndDate);
-        kpi.endDateCheckins.text(backendResponse.endDateCheckins.toLocaleString());
-    }
+        kpi.endDateCheckins.text(responseData.endDateCheckins.toLocaleString());
 
-    function updateLastUpdatedTimestamp() {
         const currentTime = new Date().toLocaleTimeString('en-US', {
             hour: 'numeric', minute: 'numeric', hour12: true,
         });
-        lastUpdatedLabel.html('<i class="fas fa-sync-alt me-1"></i> Last updated: Today at ' + currentTime);
+        $lastUpdatedLabel.html(`<i class="fas fa-sync-alt me-1"></i> Last updated: Today at ${currentTime}`);
     }
 
 
@@ -621,184 +741,416 @@ $(function () {
     //  TAB LOADER
     // =========================================================
 
-    function showLoadingSpinner() {
-        tabContentArea.html(`
-            <div class="d-flex justify-content-center align-items-center p-5">
-                <div class="spinner-border text-secondary" role="status">
-                    <span class="visually-hidden">Loading...</span>
-                </div>
-            </div>
-        `);
-    }
+    function loadTab(tabKey) {
+        activeTab = tabKey;
 
-    function setActiveTabStyle(clickedTabButton) {
-        tabNavButtons.each(function () {
-            $(this).removeClass('active');
-        });
-        $(clickedTabButton).addClass('active');
-    }
+        $tabNavButtons.removeClass('active');
+        $tabNavButtons.filter(`[data-tab="${tabKey}"]`).addClass('active');
 
-    function loadTab(tab) {
-        activeTab = tab;
+        if (pendingTabRequest) pendingTabRequest.abort();
 
-        if (pendingRequest) pendingRequest.abort();
-        showLoadingSpinner();
+        showSpinner();
 
-        pendingRequest = $.ajax({
-            url:      BACKEND_URL,
+        pendingTabRequest = $.ajax({
+            url:      Analytics.backendUrl,
             type:     'POST',
             dataType: 'json',
-            data: {
-                action: 'tab',
-                tab,
-                ...getActiveFilters(),
-            },
+            data:     { action: 'tab', tab: tabKey, ...getActiveFilters() },
         })
-        .done(function (backendResponse) {
-            if (backendResponse.status !== 'success') {
-                tabContentArea.html(`<div class="alert alert-danger m-3">${backendResponse.message}</div>`);
+        .done(function (responseData) {
+            hideSpinner();
+            if (responseData.status !== 'success') {
+                $tabContentArea.html(`<div class="alert alert-danger m-3">${responseData.message}</div>`);
                 return;
             }
-
-            tabContentArea.html(backendResponse.html);
-            initializeCharts(backendResponse, tab);
-            updateKpiCards(backendResponse);
-            updateLastUpdatedTimestamp();
+            $tabContentArea.html(responseData.html);
+            TAB_CHART_INITIALIZERS[tabKey]?.(responseData);
+            updateKpiCards(responseData);
+            lastResponse = responseData;
         })
-        .fail(function (xhr, status) {
-            if (status === 'abort') return; // Silently ignore aborted requests
-            tabContentArea.html(`<div class="alert alert-danger m-3">Failed to load analytics. Please try again.</div>`);
+        .fail(function (xhr, statusText) {
+            hideSpinner();
+            if (statusText !== 'abort') {
+                $tabContentArea.html('<div class="alert alert-danger m-3">Failed to load analytics. Please try again.</div>');
+            }
         });
     }
 
 
     // =========================================================
     //  VIEW ALL MODAL
+    //  Follows the openAddModal pattern: destroys previous AJAX
+    //  injection and removes stale backdrop before showing fresh data.
     // =========================================================
 
-    function loadViewAll(tab, page) {
-        $('#dynamicModalBody').html(
-            '<div class="text-center p-4"><div class="spinner-border text-secondary"></div></div>'
-        );
-        $('#dynamicModalFooter').empty();
+    function loadViewAll(tabKey, pageNumber) {
+        showSpinner();
+
+        // Destroy any open modal and stale backdrop before injecting new content
+        $('.modal').modal('hide');
+        $('.modal-backdrop').remove();
+        $('body').removeClass('modal-open');
 
         $.ajax({
-            url:      BACKEND_URL,
+            url:      Analytics.backendUrl,
             type:     'POST',
             dataType: 'json',
-            data: {
-                action: 'viewAll',
-                tab,
-                page,
-                ...getActiveFilters(),
-            },
+            data:     { action: 'viewAll', tab: tabKey, page: pageNumber, ...getActiveFilters() },
         })
-        .done(function (backendResponse) {
-            if (backendResponse.status !== 'success') {
-                $('#dynamicModalBody').html('<div class="alert alert-danger">Failed to load data.</div>');
+        .done(function (responseData) {
+            hideSpinner();
+            if (responseData.status !== 'success') {
+                $('#viewAllModalBody').html('<div class="alert alert-danger m-3">Failed to load records.</div>');
+                $('#viewAllModal').modal('show');
                 return;
             }
 
-            const { page: currentPage, totalPages, total, tableHtml, pagination } = backendResponse;
-
-            $('#dynamicModalTitle').text(TAB_MODAL_TITLES[tab] ?? 'All Records');
-            $('#dynamicModalSubtitle').text(
-                'Page ' + currentPage + ' of ' + totalPages + '  ·  ' + total + ' total records'
+            const tabLabel = Analytics.tabLabels[tabKey] ?? 'All Records';
+            $('#viewAllModalLabel').text(tabLabel);
+            $('#viewAllModalSubtitle').text(
+                `Page ${responseData.page} of ${responseData.totalPages} · ${responseData.total} total records`
             );
-            $('#dynamicModalBody').html(tableHtml);
-            $('#dynamicModalFooter').html(pagination);
+            $('#viewAllModalBody').html(responseData.tableHtml);
+            $('#viewAllModalCount').text(`Showing ${responseData.total} records`);
+            $('#viewAllModalPagination').html(responseData.pagination);
 
-            $('#dynamicModalFooter .page-link').on('click', function (e) {
-                e.preventDefault();
-                viewAllPage = parseInt($(this).data('page'));
-                loadViewAll(tab, viewAllPage);
-            });
+            $('#viewAllModal').modal('show');
+        })
+        .fail(function () {
+            hideSpinner();
         });
     }
 
+    // Paginator — delegated, scoped to the modal footer element
+    $('#viewAllModalPagination').on('click', '.page-link', function (event) {
+        event.preventDefault();
+        viewAllCurrentPage = parseInt($(this).data('page'), 10);
+        loadViewAll(viewAllActiveTab, viewAllCurrentPage);
+    });
+
 
     // =========================================================
-    //  PDF EXPORT
+    //  EXPORT MANAGER
+    //  ─────────────────────────────────────────────────────────
+    //  To add a new tab's export columns:
+    //    → Add one entry to EXPORT_CONFIG below.
+    //  To add a new export format (e.g. CSV):
+    //    → Add a new method and bind a button in EVENT BINDINGS.
     // =========================================================
 
-    function exportDashboardToPdf() {
-        const { jsPDF }         = window.jspdf;
-        const pdf               = new jsPDF('l', 'mm', 'a4');
-        const tabContentElement = document.getElementById('tabContent');
+    const ExportManager = {
 
-        const A4_LANDSCAPE_WIDTH_MM  = 280;
-        const A4_LANDSCAPE_HEIGHT_MM = 210;
-        const MARGIN_MM              = 5;
+        // Column headers and row data mappers per tab.
+        // rowMapper receives the full backend response and returns string[][].
+        EXPORT_CONFIG: {
+            users: {
+                headers: ['ID Number', 'Type', 'Library Section', 'Check-ins', 'Duration (min)', 'Last Check-in'],
+                rowMapper(responseData) {
+                    const exportRows = [];
+                    for (const [classificationType, userMap] of Object.entries(responseData.topCheckins)) {
+                        for (const [userId, userData] of Object.entries(userMap)) {
+                            const durationEntry = responseData.topDuration?.[classificationType]?.[userId];
+                            exportRows.push([
+                                userData.display_label,
+                                classificationType,
+                                userData.library ?? '—',
+                                userData.count,
+                                durationEntry ? Math.round(durationEntry.minutes) : '—',
+                                ExportManager._fmtDate(userData.last_checkin),
+                            ]);
+                        }
+                    }
+                    return exportRows;
+                },
+            },
 
-        html2canvas(tabContentElement, { scale: 2, logging: false, useCORS: true })
-            .then(canvas => {
-                const imageData      = canvas.toDataURL('image/png');
-                const printableWidth = A4_LANDSCAPE_WIDTH_MM - MARGIN_MM * 2;
-                const scaledHeight   = (canvas.height * printableWidth) / canvas.width;
+            colleges: {
+                headers: ['College', 'Unique Visitors', 'Total Duration (min)', 'Last Check-in'],
+                rowMapper(responseData) {
+                    const mergedColleges = {};
+                    for (const [collegeName, collegeData] of Object.entries(responseData.top3CollegesCheckin)) {
+                        mergedColleges[collegeName] = { count: collegeData.count, minutes: '—', lastCheckin: collegeData.last_checkin };
+                    }
+                    for (const [collegeName, collegeData] of Object.entries(responseData.top3CollegesDuration)) {
+                        mergedColleges[collegeName] ??= { count: '—', minutes: '—', lastCheckin: collegeData.last_checkin };
+                        mergedColleges[collegeName].minutes = Math.round(collegeData.minutes);
+                    }
+                    return Object.entries(mergedColleges).map(([collegeName, row]) => [
+                        collegeName, row.count, row.minutes, ExportManager._fmtDate(row.lastCheckin),
+                    ]);
+                },
+            },
 
-                let remainingHeight = scaledHeight;
-                let verticalOffset  = 0;
+            courses: {
+                headers: ['College', 'Course', 'Unique Visitors', 'Duration (min)', 'Last Check-in'],
+                rowMapper(responseData) {
+                    const exportRows = [];
+                    for (const [collegeName, courseMap] of Object.entries(responseData.topCoursesCheckin)) {
+                        for (const [courseName, courseData] of Object.entries(courseMap)) {
+                            const durationData = responseData.topCoursesDuration?.[collegeName]?.[courseName];
+                            exportRows.push([
+                                collegeName,
+                                courseName,
+                                courseData.count,
+                                durationData ? Math.round(durationData.minutes) : '—',
+                                ExportManager._fmtDate(courseData.last_checkin),
+                            ]);
+                        }
+                    }
+                    return exportRows;
+                },
+            },
 
-                pdf.addImage(imageData, 'PNG', MARGIN_MM, MARGIN_MM, printableWidth, scaledHeight, undefined, 'FAST');
-                remainingHeight -= A4_LANDSCAPE_HEIGHT_MM;
+            demographics: {
+                headers: ['Sex', 'Visitors', '% of Total'],
+                rowMapper(responseData) {
+                    const totalVisitors = Object.values(responseData.sexDistribution).reduce((sum, count) => sum + count, 0);
+                    return Object.entries(responseData.sexDistribution).map(([sexLabel, visitorCount]) => [
+                        sexLabel,
+                        visitorCount,
+                        totalVisitors > 0 ? (visitorCount / totalVisitors * 100).toFixed(1) + '%' : '0%',
+                    ]);
+                },
+            },
+        },
 
-                while (remainingHeight >= 0) {
-                    verticalOffset = remainingHeight - scaledHeight;
-                    pdf.addPage();
-                    pdf.addImage(imageData, 'PNG', MARGIN_MM, verticalOffset + MARGIN_MM, printableWidth, scaledHeight, undefined, 'FAST');
-                    remainingHeight -= A4_LANDSCAPE_HEIGHT_MM;
+        // ── Internal Utilities ────────────────────────────────────────────
+
+        _fmtDate(rawDateString) {
+            if (!rawDateString) return '—';
+            const parsedDate = new Date(rawDateString.replace(' ', 'T'));
+            return isNaN(parsedDate)
+                ? rawDateString
+                : parsedDate.toLocaleString('en-US', {
+                    month: 'short', day: 'numeric', year: 'numeric',
+                    hour: 'numeric', minute: '2-digit', hour12: true,
+                  });
+        },
+
+        _getExportData(tabKey) {
+            if (!lastResponse) {
+                alert('No data loaded. Please generate analytics first.');
+                return null;
+            }
+            const definition = this.EXPORT_CONFIG[tabKey];
+            if (!definition) {
+                alert('Export is not configured for this tab.');
+                return null;
+            }
+            return {
+                headers: definition.headers,
+                rows:    definition.rowMapper(lastResponse),
+            };
+        },
+
+        _buildExportFilename(tabKey, fileExtension) {
+            const startDate = filters.startDate.val() || 'unknown';
+            const endDate   = filters.endDate.val()   || 'unknown';
+            return `LibraryReport_${tabKey}_${startDate}_${endDate}.${fileExtension}`;
+        },
+
+        // Loads an external script only once — resolves instantly on repeat calls
+        _loadScript(scriptUrl) {
+            return new Promise((resolve, reject) => {
+                if (document.querySelector(`script[src="${scriptUrl}"]`)) {
+                    resolve();
+                    return;
+                }
+                const scriptElement    = document.createElement('script');
+                scriptElement.src      = scriptUrl;
+                scriptElement.onload   = resolve;
+                scriptElement.onerror  = () => reject(new Error(`Failed to load: ${scriptUrl}`));
+                document.head.appendChild(scriptElement);
+            });
+        },
+
+        // Captures all Chart.js <canvas> elements in #tabContent as PNG data URLs for PDF embedding
+        _captureCharts() {
+            const capturedImages = [];
+            document.querySelectorAll('#tabContent canvas').forEach(canvasElement => {
+                try {
+                    capturedImages.push({
+                        dataUrl:       canvasElement.toDataURL('image/png'),
+                        pixelWidth:    canvasElement.offsetWidth  || canvasElement.width,
+                        pixelHeight:   canvasElement.offsetHeight || canvasElement.height,
+                    });
+                } catch (captureError) {
+                    // Skip tainted canvases (cross-origin)
+                }
+            });
+            return capturedImages;
+        },
+
+        // ── PDF Export ────────────────────────────────────────────────────
+        exportPDF(tabKey) {
+            const exportData = this._getExportData(tabKey);
+            if (!exportData) return;
+
+            showSpinner();
+
+            this._loadScript(Analytics.exportLibraries.jspdf)
+            .then(() => this._loadScript(Analytics.exportLibraries.autotable))
+            .then(() => {
+                const { jsPDF }     = window.jspdf;
+                const pdfDoc        = new jsPDF('l', 'mm', 'a4');
+                const PAGE_MARGIN   = 14;
+                const PAGE_WIDTH    = pdfDoc.internal.pageSize.getWidth();
+                const PAGE_HEIGHT   = pdfDoc.internal.pageSize.getHeight();
+                const CONTENT_WIDTH = PAGE_WIDTH - PAGE_MARGIN * 2;
+                const tabLabel      = Analytics.tabLabels[tabKey] ?? tabKey;
+
+                // Title block
+                pdfDoc.setFont('helvetica', 'bold').setFontSize(14).setTextColor(31, 41, 55);
+                pdfDoc.text('Library Analytics Report', PAGE_MARGIN, 18);
+                pdfDoc.setFont('helvetica', 'normal').setFontSize(10).setTextColor(100, 100, 100);
+                pdfDoc.text(`Section: ${tabLabel}   |   Period: ${buildDateRangeLabel()}`, PAGE_MARGIN, 26);
+                pdfDoc.text(`Generated: ${new Date().toLocaleString()}`, PAGE_MARGIN, 32);
+
+                // Chart images (2 per row, max 70mm tall)
+                let cursorY = 38;
+                const chartImages = this._captureCharts();
+                if (chartImages.length > 0) {
+                    const CHART_GAP      = 6;
+                    const CHART_MAX_H    = 70;
+                    const CHARTS_PER_ROW = Math.min(chartImages.length, 2);
+                    const chartWidth     = (CONTENT_WIDTH - (CHARTS_PER_ROW - 1) * CHART_GAP) / CHARTS_PER_ROW;
+
+                    for (let rowStart = 0; rowStart < chartImages.length; rowStart += CHARTS_PER_ROW) {
+                        if (cursorY + CHART_MAX_H + 10 > PAGE_HEIGHT) {
+                            pdfDoc.addPage();
+                            cursorY = PAGE_MARGIN;
+                        }
+                        chartImages.slice(rowStart, rowStart + CHARTS_PER_ROW).forEach((chartImage, colIndex) => {
+                            const drawHeight = Math.min(CHART_MAX_H, chartWidth * (chartImage.pixelHeight / chartImage.pixelWidth));
+                            pdfDoc.addImage(
+                                chartImage.dataUrl, 'PNG',
+                                PAGE_MARGIN + colIndex * (chartWidth + CHART_GAP),
+                                cursorY, chartWidth, drawHeight
+                            );
+                        });
+                        cursorY += CHART_MAX_H + CHART_GAP;
+                    }
+                    cursorY += 4;
                 }
 
-                pdf.save('Library_Analytics_Report.pdf');
-            });
-    }
+                // Data table
+                if (cursorY + 20 > PAGE_HEIGHT) { pdfDoc.addPage(); cursorY = PAGE_MARGIN; }
+                pdfDoc.autoTable({
+                    head:               [exportData.headers],
+                    body:               exportData.rows,
+                    startY:             cursorY,
+                    styles:             { fontSize: 9, cellPadding: 3 },
+                    headStyles:         { fillColor: [31, 41, 55], textColor: 255, fontStyle: 'bold' },
+                    alternateRowStyles: { fillColor: [248, 250, 252] },
+                    margin:             { left: PAGE_MARGIN, right: PAGE_MARGIN },
+                });
+
+                pdfDoc.save(this._buildExportFilename(tabKey, 'pdf'));
+            })
+            .catch(error => {
+                console.error('PDF export error:', error);
+                alert('PDF export failed. Check your internet connection.');
+            })
+            .finally(hideSpinner);
+        },
+
+        // ── XLSX Export ───────────────────────────────────────────────────
+        exportXLSX(tabKey) {
+            const exportData = this._getExportData(tabKey);
+            if (!exportData) return;
+
+            showSpinner();
+
+            this._loadScript(Analytics.exportLibraries.xlsx)
+            .then(() => {
+                const XLSXLib       = window.XLSX;
+                const tabLabel      = Analytics.tabLabels[tabKey] ?? tabKey;
+                const worksheetData = [
+                    ['Library Analytics Report'],
+                    [`Section: ${tabLabel}   |   Period: ${buildDateRangeLabel()}`],
+                    [`Generated: ${new Date().toLocaleString()}`],
+                    [],
+                    exportData.headers,
+                    ...exportData.rows,
+                ];
+
+                const worksheet = XLSXLib.utils.aoa_to_sheet(worksheetData);
+
+                // Auto-fit column widths based on the longest value in each column
+                worksheet['!cols'] = exportData.headers.map((headerText, colIndex) => {
+                    const allCellValues = [headerText, ...exportData.rows.map(row => String(row[colIndex] ?? ''))];
+                    return { wch: Math.min(50, Math.max(...allCellValues.map(cellValue => cellValue.length)) + 2) };
+                });
+
+                // Merge title row across all columns
+                worksheet['!merges'] = [{
+                    s: { r: 0, c: 0 },
+                    e: { r: 0, c: exportData.headers.length - 1 },
+                }];
+
+                const workbook = XLSXLib.utils.book_new();
+                XLSXLib.utils.book_append_sheet(workbook, worksheet, tabLabel.substring(0, 31));
+                XLSXLib.writeFile(workbook, this._buildExportFilename(tabKey, 'xlsx'));
+            })
+            .catch(error => {
+                console.error('XLSX export error:', error);
+                alert('XLSX export failed. Check your internet connection.');
+            })
+            .finally(hideSpinner);
+        },
+    };
 
 
     // =========================================================
     //  EVENT BINDINGS
+    //  All user interactions wired here — no inline handlers in HTML.
     // =========================================================
 
-    tabNavButtons.on('click', function (e) {
-        e.preventDefault();
-        setActiveTabStyle(this);
+    // Tab navigation
+    $tabNavButtons.on('click', function (event) {
+        event.preventDefault();
         loadTab($(this).data('tab'));
     });
 
+    // Generate analytics
     $('#generateBtn').on('click', function () {
-        if (!hasDateRange()) {
+        if (!hasValidDateRange()) {
             alert('Please select both a start and end date.');
             return;
         }
         loadTab(activeTab);
     });
 
+    // Refresh current tab
     $('#refreshBtn').on('click', function () {
-        if (hasDateRange()) loadTab(activeTab);
+        if (hasValidDateRange()) loadTab(activeTab);
     });
 
-    filters.startDate
-        .add(filters.endDate)
-        .add(filters.classification)
-        .add(filters.library)
-        .on('change', function () {
-            if (hasDateRange()) loadTab(activeTab);
+    // Auto-reload when any filter input changes
+    Object.values(filters).forEach(function ($filterElement) {
+        $filterElement.on('change', function () {
+            if (hasValidDateRange()) loadTab(activeTab);
         });
-
-    $(document).on('click', '.view-all-btn', function () {
-        viewAllTab  = $(this).data('tab');
-        viewAllPage = 1;
-        loadViewAll(viewAllTab, viewAllPage);
-        $('#dynamicModal').modal('show');
     });
 
-    $('#exportPDF').on('click', exportDashboardToPdf);
+    // View All button — delegated because button lives inside AJAX-injected HTML
+    $(document).on('click', '.view-all-btn', function () {
+        viewAllActiveTab   = $(this).data('tab');
+        viewAllCurrentPage = 1;
+        loadViewAll(viewAllActiveTab, viewAllCurrentPage);
+    });
+
+    // Export buttons
+    $('#exportPDF').on('click',  () => ExportManager.exportPDF(activeTab));
+    $('#exportXLSX').on('click', () => ExportManager.exportXLSX(activeTab));
 
 
     // =========================================================
-    //  INITIALIZATION
+    //  INITIALISATION
     // =========================================================
 
     setDefaultDateRange();
-    loadTab(DEFAULT_TAB);
+    loadTab(Analytics.defaultTab);
+
 });
 </script>
