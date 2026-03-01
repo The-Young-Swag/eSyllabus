@@ -247,15 +247,23 @@ $(document).ready(function () {
     });
 
     // Secret key input — validate on 6 chars
-    $(document).on('input', '#modalSecretKey', function () {
-        const key = $(this).val();
-        if (key.length === 6) {
-            validateSecretKey(key);
-        } else {
-            $("#verifiedStudentContainer").hide().empty();
-            setSecretKeyStatus('muted', 'fa-info-circle', 'Enter 6-digit key');
-        }
-    });
+$(document).on('input', '#modalSecretKey', function () {
+    let raw = $(this).val().replace(/\D/g, '').substring(0, 8);
+
+    // Auto-format as MM/DD/YYYY while typing
+    let formatted = raw;
+    if (raw.length > 4) formatted = raw.slice(0,2) + '/' + raw.slice(2,4) + '/' + raw.slice(4);
+    else if (raw.length > 2) formatted = raw.slice(0,2) + '/' + raw.slice(2);
+
+    $(this).val(formatted);
+
+    if (raw.length === 8) {
+        validateSecretKey(raw);   // compare digits-only against stored secretKey
+    } else {
+        $("#verifiedStudentContainer").hide().empty();
+        setSecretKeyStatus('muted', 'fa-info-circle', 'Enter birth date (MM/DD/YYYY)');
+    }
+});
 
     // =========================================================================
     // USER VALIDATION
@@ -363,13 +371,13 @@ $(document).ready(function () {
                 <div class="badge bg-warning fs-6 p-2">
                     <i class="fas fa-user-shield me-2"></i>Duplicate ID Found
                 </div>
-                <p class="text-muted mt-2 small">Enter your birth date to confirm identity (MMDDYY)</p>
+                <p class="text-muted mt-2 small">Enter your birth date (MM/DD/YYYY)</p>
             </div>
             <div class="card bg-light p-3 border-0">
                 <div class="input-group mb-2">
-                    <input type="password" id="modalSecretKey"
-                           class="form-control text-center fw-bold fs-4"
-                           maxlength="6" placeholder="••••••" autocomplete="off">
+    <input type="text" id="modalSecretKey"
+       class="form-control text-center fw-bold fs-5"
+       maxlength="10" placeholder="MM/DD/YYYY" autocomplete="off">
                     <button class="btn btn-outline-secondary" type="button" id="toggleSecretKey">
                         <i class="fas fa-eye" id="secretIcon"></i>
                     </button>
@@ -390,21 +398,24 @@ $(document).ready(function () {
         );
     }
 
-    function validateSecretKey(key) {
-        const match = duplicateCandidates.find(u => u.secretKey === key);
-        if (match) {
-            selectedUser  = match;
-            currentAction = "checkin";
-            setSecretKeyStatus('success', 'fa-check-circle', 'Identity verified');
-            $("#verifiedStudentContainer").show();
-            $.post(BACKEND, { request: "checkStatusToday", idNumber: selectedUser.id_number }, function (status) {
-                determineAction(selectedUser, status);
-            });
-        } else {
-            setSecretKeyStatus('danger', 'fa-exclamation-circle', 'Invalid key — try again');
-            $("#verifiedStudentContainer").hide().empty();
-        }
+function validateSecretKey(key) {
+    const match = duplicateCandidates.find(u => {
+        if (!u.secretKey) return false;
+        return u.secretKey.replace(/\D/g, '') === key;
+    });
+    if (match) {
+        selectedUser  = match;
+        currentAction = "checkin";
+        setSecretKeyStatus('success', 'fa-check-circle', 'Identity verified');
+        $("#verifiedStudentContainer").show();
+        $.post(BACKEND, { request: "checkStatusToday", idNumber: selectedUser.id_number }, function (status) {
+            determineAction(selectedUser, status);
+        });
+    } else {
+        setSecretKeyStatus('danger', 'fa-exclamation-circle', 'Invalid key — try again');
+        $("#verifiedStudentContainer").hide().empty();
     }
+}
 
     // Tracks the auto-close timer so we can cancel it if the user manually closes
     let successTimer = null;

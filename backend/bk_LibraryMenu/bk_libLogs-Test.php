@@ -104,7 +104,7 @@ function mapStudentToUserRecord(array $student): array
         "college"        => $student["college"]    ?? null,
         "course"         => $student["course"]     ?? null,
         "classification" => "STUDENT",
-        "secretKey"      => $student["secret_key"] ?? null,
+        "secretKey"      => $student["birthDate"] ?? null,
     ];
 }
 

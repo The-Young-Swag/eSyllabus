@@ -9,7 +9,7 @@
       "college": "CET",
       "course": "BSIT",
       "enrollment_status": "ENROLLED",
-      "secret_key": "011603"
+      "birthDate": "01/16/2003"
     },
     {
       "id_number": "2022100114",
@@ -18,7 +18,7 @@
       "college": "CET",
       "course": "BSIT",
       "enrollment_status": "ENROLLED",
-      "secret_key": "120789"
+      "birthDate": "12/07/1989"
     },
     {
       "id_number": "2022100115",
@@ -27,7 +27,7 @@
       "college": "CVM",
       "course": "DVM",
       "enrollment_status": "ENROLLED",
-      "secret_key": null
+      "birthDate": null
     },
     {
       "id_number": "2022100116",
@@ -36,7 +36,7 @@
       "college": "CAS",
       "course": "BSPsych",
       "enrollment_status": "ENROLLED",
-      "secret_key": null
+      "birthDate": null
     },
     {
       "id_number": "2022100117",
@@ -45,7 +45,7 @@
       "college": "CET",
       "course": "BSABE",
       "enrollment_status": "ENROLLED",
-      "secret_key": null
+      "birthDate": null
     }
   ]
 }

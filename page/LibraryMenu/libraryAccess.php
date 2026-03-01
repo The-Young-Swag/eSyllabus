@@ -80,20 +80,22 @@ $(document).ready(function() {
         const userID = btn.data('userid');
         const sectionID = $(`.select-access[data-userid="${userID}"]`).val(); // empty = null
 
-        btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
+btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
+$("#loadingSpinner").fadeIn(200);  // <-- add this line
 
-        $.post("backend/bk_LibraryMenu/bk_libraryAccess.php", {
-            request: 'assignAccess',
-            userID: userID,
-            sectionID: sectionID
-        }, function(resp) {
-            btn.prop('disabled', false).html('<i class="fas fa-save"></i> Save');
-            if(resp === 'SUCCESS') {
-                showToast('Library access updated!', 'success');
-            } else {
-                alert('Failed to update access: ' + resp);
-            }
-        });
+$.post("backend/bk_LibraryMenu/bk_libraryAccess.php", {
+    request: 'assignAccess',
+    userID: userID,
+    sectionID: sectionID
+}, function(resp) {
+    btn.prop('disabled', false).html('<i class="fas fa-save"></i> Save');
+    $("#loadingSpinner").fadeOut(200);
+    if(resp === 'SUCCESS') {
+        showToast('Library access updated!', 'success');
+    } else {
+        alert('Failed to update access: ' + resp);
+    }
+});
     });
 });
 </script>

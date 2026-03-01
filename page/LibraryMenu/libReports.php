@@ -451,7 +451,7 @@ $(function () {
     // =========================================================
     //  KPI
     // =========================================================
-    function renderTop3Rows(items, valueKey, labelFn, colorClass) {
+function renderTop3Rows(items, valueKey, labelFn, colorClass, unit = 'visits') {
         if (!items || !items.length) return '<div class="text-muted small fst-italic">No data</div>';
         const medals = ['🥇','🥈','🥉'];
         return items.map((item, i) => `
@@ -460,31 +460,34 @@ $(function () {
                     <span style="font-size:.9rem;flex-shrink:0;">${medals[i] || (i+1)+'.'}</span>
                     <span class="small text-truncate fw-semibold">${escVal(labelFn(item))}</span>
                 </div>
-                <span class="badge rounded-pill ${colorClass} fw-semibold" style="font-size:.72rem;flex-shrink:0;">${Number(item[valueKey]).toLocaleString()}</span>
+               <div class="d-flex flex-column align-items-end" style="flex-shrink:0;">
+    <span class="badge rounded-pill ${colorClass} fw-semibold" style="font-size:.72rem;">${Number(item[valueKey]).toLocaleString()}</span>
+<span class="text-muted" style="font-size:.62rem;">${unit}</span>
+</div>
             </div>`).join('');
     }
 
     function updateKpi(res) {
         // Top 3 Students
-        kpi.topStudents.html(renderTop3Rows(
-            res.top3Students, 'count',
-            s => s.id_number + (s.college ? ' · ' + s.college : ''),
-            'bg-primary-subtle text-primary'
-        ));
+kpi.topStudents.html(renderTop3Rows(
+    res.top3Students, 'count',
+    s => s.id_number + (s.college ? ' · ' + s.college : ''),
+    'bg-primary-subtle text-primary', 'check-ins'
+));
 
         // Top 3 Colleges
-        kpi.topColleges.html(renderTop3Rows(
-            res.top3Colleges, 'count',
-            c => c.name,
-            'bg-success-subtle text-success'
-        ));
+kpi.topColleges.html(renderTop3Rows(
+    res.top3Colleges, 'count',
+    c => c.name,
+    'bg-success-subtle text-success', 'students from this college'
+));
 
         // Top 3 Courses
-        kpi.topCourses.html(renderTop3Rows(
-            res.top3Courses, 'count',
-            c => c.course + (c.college ? ' · ' + c.college : ''),
-            'bg-warning-subtle text-warning'
-        ));
+kpi.topCourses.html(renderTop3Rows(
+    res.top3Courses, 'count',
+    c => c.course + (c.college ? ' · ' + c.college : ''),
+    'bg-warning-subtle text-warning', 'students from this course'
+));
 
         $lastUpdated.html('<i class="fas fa-sync-alt me-1"></i>Last updated: ' + new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }));
     }

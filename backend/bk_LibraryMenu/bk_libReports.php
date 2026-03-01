@@ -533,8 +533,8 @@ function renderUsersTab(array $topByCheckins, array $topByDuration): string
                         <i class="bi bi-arrow-up-right-square me-1"></i>View All
                     </button>
                 </div>
-                <div class="card-body p-0"
-                     id="checkinDetailsCard"
+<div class="card-body p-0" style="min-height:175px;"
+     id="checkinDetailsCard"
                      data-rows="<?= htmlspecialchars(json_encode($flatCheckins), ENT_QUOTES) ?>"
                      data-page="1"
                      data-per-page="3">
@@ -566,8 +566,8 @@ function renderUsersTab(array $topByCheckins, array $topByDuration): string
                 <div class="card-header bg-white border-bottom py-2 px-3">
                     <span class="fw-semibold small">Duration Details</span>
                 </div>
-                <div class="card-body p-0"
-                     id="durationDetailsCard"
+<div class="card-body p-0" style="min-height:175px;"
+     id="durationDetailsCard"
                      data-rows="<?= htmlspecialchars(json_encode($flatDuration), ENT_QUOTES) ?>"
                      data-page="1"
                      data-per-page="3">

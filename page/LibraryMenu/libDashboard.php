@@ -65,7 +65,7 @@
                 <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-3" style="font-size:.72rem;">Today</span>
             </div>
         </div>
-        <div class="card-body p-0">
+        <div class="card-body p-0" style="min-height:285px;">
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0" style="font-size:.875rem;">
                     <thead class="table-light border-bottom">
@@ -235,61 +235,50 @@ $(document).ready(function () {
      * Renders First « / ‹ / 1…N / › / » Last with ellipsis.
      * Also renders "Showing X–Y of Z records" above the nav.
      */
-    function renderPagination(totalRows, totalPages, current, limit, sectionID) {
-        const $wrap = $('#logsPageInfo').empty();
-        if (totalPages <= 1 && totalRows === 0) return;
+function renderPagination(totalRows, totalPages, current, limit, sectionID) {
+    const $wrap = $('#logsPageInfo').empty();
+    if (totalPages <= 1 && totalRows === 0) return;
 
-        // Info line
-        const from = ((current - 1) * limit) + 1;
-        const to   = Math.min(current * limit, totalRows);
-        $wrap.append(`<small class="text-muted">Showing ${from}–${to} of ${totalRows} records</small>`);
+    const from = ((current - 1) * limit) + 1;
+    const to   = Math.min(current * limit, totalRows);
+    $wrap.append(`<small class="text-muted">Showing ${from}–${to} of ${totalRows} records</small>`);
 
-        if (totalPages <= 1) return;
+    if (totalPages <= 1) return;
 
-        // Page window: up to 5 slots centred on current
-        const WINDOW = 5;
-        const start  = Math.max(1, Math.min(current - Math.floor(WINDOW / 2), totalPages - WINDOW + 1));
-        const end    = Math.min(totalPages, start + WINDOW - 1);
+    const $ul     = $('<ul class="pagination pagination-sm mb-0 flex-wrap justify-content-center"></ul>');
+    const isFirst = current === 1;
+    const isLast  = current === totalPages;
 
-        const $ul = $('<ul class="pagination pagination-sm mb-0 flex-wrap justify-content-center"></ul>');
+    const addItem = (label, page, disabled, active) => {
+        const $li = $(`<li class="page-item ${disabled ? 'disabled' : ''} ${active ? 'active' : ''}"></li>`);
+        const $a  = $(`<a class="page-link" href="#">${label}</a>`);
+        if (!disabled) $a.data('page', page);
+        $li.append($a);
+        $ul.append($li);
+    };
 
-        const addItem = (label, page, disabled, active) => {
-            const $li = $(`<li class="page-item ${disabled ? 'disabled' : ''} ${active ? 'active' : ''}"></li>`);
-            const $a  = $(`<a class="page-link" href="#">${label}</a>`);
-            if (!disabled) $a.data('page', page);
-            $li.append($a);
-            $ul.append($li);
-        };
+    // «  ‹
+    addItem('«', 1,           isFirst, false);
+    addItem('‹', current - 1, isFirst, false);
 
-        const isFirst = current === 1;
-        const isLast  = current === totalPages;
+    // Up to 5 page numbers centred on current
+    const WINDOW = 5;
+    const start  = Math.max(1, Math.min(current - Math.floor(WINDOW / 2), totalPages - WINDOW + 1));
+    const end    = Math.min(totalPages, start + WINDOW - 1);
+    for (let p = start; p <= end; p++) addItem(p, p, false, p === current);
 
-        addItem('«', 1,           isFirst, false);  // First
-        addItem('‹', current - 1, isFirst, false);  // Prev
+    // ›  »
+    addItem('›', current + 1, isLast, false);
+    addItem('»', totalPages,  isLast, false);
 
-        if (start > 1) {
-            addItem('1', 1, false, false);
-            if (start > 2) addItem('…', null, true, false);
-        }
-        for (let p = start; p <= end; p++) {
-            addItem(p, p, false, p === current);
-        }
-        if (end < totalPages) {
-            if (end < totalPages - 1) addItem('…', null, true, false);
-            addItem(totalPages, totalPages, false, false);
-        }
+    $ul.on('click', '.page-link', function (e) {
+        e.preventDefault();
+        const p = $(this).data('page');
+        if (p) loadLogs(p, sectionID);
+    });
 
-        addItem('›', current + 1, isLast, false);   // Next
-        addItem('»', totalPages,  isLast, false);   // Last
-
-        $ul.on('click', '.page-link', function (e) {
-            e.preventDefault();
-            const p = $(this).data('page');
-            if (p) loadLogs(p, sectionID);
-        });
-
-        $wrap.append($ul);
-    }
+    $wrap.append($ul);
+}
 
 
     // =========================================================
