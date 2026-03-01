@@ -5,14 +5,12 @@
     {
       "employee_number": "TAU0001000",
       "name": "Satoru Gojo",
-      "sex": "Male",
-      "employment_status": "ACTIVE"
+      "sex": "Male"
     },
     {
       "employee_number": "TAU0002000",
       "name": "Shoko Ieiri",
-      "sex": "Female",
-      "employment_status": "ACTIVE"
+      "sex": "Female"
     }
   ]
 }

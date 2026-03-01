@@ -20,10 +20,7 @@ if ($_SERVER["REQUEST_METHOD"] !== "POST") {
 //  UTILITY
 // =============================================================================
 
-/**
- * Encodes $payload as JSON, outputs it, and halts execution.
- */
-function sendResponse(array $payload)
+function sendResponse(array $payload): void
 {
     echo json_encode($payload);
     exit;
@@ -31,69 +28,73 @@ function sendResponse(array $payload)
 
 
 // =============================================================================
-//  DATA SOURCE LOADERS  (swap these out for live API calls when ready)
+//  DATA SOURCE LOADERS
 // =============================================================================
 
 /**
  * Loads the local JSON data source for 'students' or 'employees'.
- * Replace the file_get_contents call here with a real API call when ready.
+ * Supports multiple common root key structures.
+ * Swap file_get_contents for a cURL API call when ready.
  */
 function loadLocalDataSource(string $source): array
 {
-    $filePath     = __DIR__ . "/../../API_requests/{$source}.json";
-    $jsonContents = file_get_contents($filePath);
-    $decoded      = json_decode($jsonContents, true);
+    $filePath = __DIR__ . "/../../API_requests/{$source}.json";
 
-    return $decoded["data"] ?? [];
+    if (!file_exists($filePath)) {
+        return [];
+    }
+
+    $decoded = json_decode(file_get_contents($filePath), true);
+
+    if (!is_array($decoded)) {
+        return [];
+    }
+
+    // Root is already a flat list
+    if (isset($decoded[0])) {
+        return $decoded;
+    }
+
+    // Try common wrapper keys
+    foreach (["data", "employees", "students", "records", "items"] as $key) {
+        if (isset($decoded[$key]) && is_array($decoded[$key])) {
+            return $decoded[$key];
+        }
+    }
+
+    return [];
 }
 
-
-/**
- * Fetches user data from the live API for 'students' or 'employees'.
- * Uncomment this and comment out loadLocalDataSource() above when API is ready.
- */
+// -----------------------------------------------------------------------------
+// To switch to a live API, replace loadLocalDataSource() with:
+//
 // function loadLocalDataSource(string $source): array
 // {
-//     $apiEndpoints = [
+//     $endpoints = [
 //         "students"  => "https://your-school-api.edu/api/students",
 //         "employees" => "https://your-school-api.edu/api/employees",
 //     ];
-//
-//     $apiToken = "YOUR_API_TOKEN_HERE";
-//
-//     $curlHandle = curl_init($apiEndpoints[$source]);
-//
-//     curl_setopt_array($curlHandle, [
+//     $ch = curl_init($endpoints[$source]);
+//     curl_setopt_array($ch, [
 //         CURLOPT_RETURNTRANSFER => true,
-//         CURLOPT_HTTPHEADER     => [
-//             "Content-Type: application/json",
-//             "Authorization: Bearer {$apiToken}",
-//         ],
+//         CURLOPT_HTTPHEADER     => ["Authorization: Bearer YOUR_API_TOKEN"],
 //     ]);
-//
-//     $rawResponse = curl_exec($curlHandle);
-//
-//     if (curl_errno($curlHandle)) {
-//         $curlError = curl_error($curlHandle);
-//         curl_close($curlHandle);
-//         sendResponse(["error" => "API connection failed for {$source}: {$curlError}"]);
+//     $raw = curl_exec($ch);
+//     if (curl_errno($ch)) {
+//         $err = curl_error($ch);
+//         curl_close($ch);
+//         sendResponse(["error" => "API error for {$source}: {$err}"]);
 //     }
-//
-//     curl_close($curlHandle);
-//
-//     $decoded = json_decode($rawResponse, true);
-//
-//     return $decoded["data"] ?? [];
+//     curl_close($ch);
+//     return json_decode($raw, true)["data"] ?? [];
 // }
+// -----------------------------------------------------------------------------
+
 
 // =============================================================================
 //  USER RECORD MAPPERS
 // =============================================================================
 
-/**
- * Maps a raw student JSON record to the standard user record shape.
- * Students carry college, course, and a secret key for duplicate resolution.
- */
 function mapStudentToUserRecord(array $student): array
 {
     return [
@@ -107,18 +108,14 @@ function mapStudentToUserRecord(array $student): array
     ];
 }
 
-/**
- * Maps a raw employee JSON record to the standard user record shape.
- * Employees do not carry college or course — those fields are stored as null.
- */
 function mapEmployeeToUserRecord(array $employee): array
 {
     return [
-        "id_number"      => $employee["employee_number"],
-        "name"           => $employee["name"],
-        "sex"            => $employee["sex"] ?? null,
-        "college"        => null,
-        "course"         => null,
+        "id_number"      => $employee["employee_number"] ?? $employee["id_number"] ?? "",
+        "name"           => $employee["name"]  ?? "",
+        "sex"            => $employee["sex"]   ?? null,
+        "college"        => "",
+        "course"         => "",
         "classification" => "EMPLOYEE",
         "secretKey"      => null,
     ];
@@ -135,64 +132,57 @@ function mapEmployeeToUserRecord(array $employee): array
  * Returns:
  *   totalToday      – Total check-ins for the section today
  *   currentlyInside – Users with no checkout_time (still present)
- *   topColleges     – Top 3 colleges by visit count
- *   topCourses      – Top 3 courses by visit count
+ *   topColleges     – Top 3 colleges by visit count (students only)
+ *   topCourses      – Top 3 courses by visit count (students only)
  */
-function buildKPIData($pdo, int $sectionID, string $today): array
+function buildKPIData(PDO $pdo, int $sectionID, string $today): array
 {
-    $kpi = [
-        "totalToday"      => 0,
-        "currentlyInside" => 0,
-        "topColleges"     => ["-", "-", "-"],
-        "topCourses"      => ["-", "-", "-"],
-    ];
-
     // ── Totals ───────────────────────────────────────────────────────────────
     $stmtTotals = $pdo->prepare("
         SELECT
             COUNT(*) AS totalToday,
             SUM(CASE WHEN checkout_time IS NULL THEN 1 ELSE 0 END) AS currentlyInside
         FROM Library_logs
-        WHERE library = ?
+        WHERE library              = ?
           AND CAST(checkin_time AS DATE) = ?
     ");
     $stmtTotals->execute([$sectionID, $today]);
     $totals = $stmtTotals->fetch(PDO::FETCH_ASSOC);
 
-    $kpi["totalToday"]      = intval($totals["totalToday"]      ?? 0);
-    $kpi["currentlyInside"] = intval($totals["currentlyInside"] ?? 0);
-
     // ── Top colleges ─────────────────────────────────────────────────────────
     $stmtColleges = $pdo->prepare("
         SELECT TOP 3 college, COUNT(*) AS total
         FROM   Library_logs
-        WHERE  library = ?
+        WHERE  library                   = ?
           AND  CONVERT(date, checkin_time) = ?
           AND  college IS NOT NULL
-          AND  college <> ''
+          AND  college                   <> ''
         GROUP  BY college
         ORDER  BY total DESC
     ");
     $stmtColleges->execute([$sectionID, $today]);
-    $collegeNames     = array_column($stmtColleges->fetchAll(PDO::FETCH_ASSOC), "college");
-    $kpi["topColleges"] = array_pad($collegeNames, 3, "-");
+    $colleges = array_column($stmtColleges->fetchAll(PDO::FETCH_ASSOC), "college");
 
     // ── Top courses ──────────────────────────────────────────────────────────
     $stmtCourses = $pdo->prepare("
         SELECT TOP 3 course, COUNT(*) AS total
         FROM   Library_logs
-        WHERE  library = ?
+        WHERE  library                   = ?
           AND  CONVERT(date, checkin_time) = ?
           AND  course IS NOT NULL
-          AND  course <> ''
+          AND  course                    <> ''
         GROUP  BY course
         ORDER  BY total DESC
     ");
     $stmtCourses->execute([$sectionID, $today]);
-    $courseNames     = array_column($stmtCourses->fetchAll(PDO::FETCH_ASSOC), "course");
-    $kpi["topCourses"] = array_pad($courseNames, 3, "-");
+    $courses = array_column($stmtCourses->fetchAll(PDO::FETCH_ASSOC), "course");
 
-    return $kpi;
+    return [
+        "totalToday"      => intval($totals["totalToday"]      ?? 0),
+        "currentlyInside" => intval($totals["currentlyInside"] ?? 0),
+        "topColleges"     => array_pad($colleges, 3, "-"),
+        "topCourses"      => array_pad($courses,  3, "-"),
+    ];
 }
 
 
@@ -206,68 +196,61 @@ function buildKPIData($pdo, int $sectionID, string $today): array
  *   2. Auto-closes any open session in a DIFFERENT section (switch scenario).
  *   3. Inserts a new log entry for this section.
  */
-function performCheckin($pdo, string $idNumber, int $sectionID, string $now, string $today, array $userDetails)
+function performCheckin(PDO $pdo, string $idNumber, int $sectionID, string $now, string $today, array $user): void
 {
-    // Skip if already checked in here
-    $stmtAlreadyHere = $pdo->prepare("
-        SELECT COUNT(*) AS total
-        FROM   Library_logs
+    // Already here — nothing to do
+    $stmtCheck = $pdo->prepare("
+        SELECT COUNT(*) FROM Library_logs
         WHERE  id_number     = ?
           AND  library       = ?
           AND  checkout_time IS NULL
           AND  CAST(checkin_time AS DATE) = ?
     ");
-    $stmtAlreadyHere->execute([$idNumber, $sectionID, $today]);
-    $alreadyCheckedIn = intval($stmtAlreadyHere->fetchColumn());
-
-    if ($alreadyCheckedIn) {
+    $stmtCheck->execute([$idNumber, $sectionID, $today]);
+    if (intval($stmtCheck->fetchColumn()) > 0) {
         return;
     }
 
-    // Close any open sessions in other sections
-    $stmtCloseOtherSections = $pdo->prepare("
+    // Auto-checkout from any other section (switch scenario)
+    $pdo->prepare("
         UPDATE Library_logs
         SET    checkout_time = ?
         WHERE  id_number     = ?
           AND  checkout_time IS NULL
           AND  CAST(checkin_time AS DATE) = ?
           AND  library <> ?
-    ");
-    $stmtCloseOtherSections->execute([$now, $idNumber, $today, $sectionID]);
+    ")->execute([$now, $idNumber, $today, $sectionID]);
 
-    // Insert new check-in record
-    $stmtInsert = $pdo->prepare("
+    // Insert new check-in
+    $pdo->prepare("
         INSERT INTO Library_logs
             (id_number, name, classification, college, course, library, checkin_time, sex)
-        VALUES
-            (?, ?, ?, ?, ?, ?, ?, ?)
-    ");
-    $stmtInsert->execute([
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ")->execute([
         $idNumber,
-        $userDetails["name"],
-        $userDetails["classification"],
-        $userDetails["college"],
-        $userDetails["course"],
+        $user["name"],
+        $user["classification"],
+        $user["college"],
+        $user["course"],
         $sectionID,
         $now,
-        $userDetails["sex"],
+        $user["sex"],
     ]);
 }
 
 /**
  * Closes the user's active session in the specified section.
  */
-function performCheckout($pdo, string $idNumber, int $sectionID, string $now, string $today)
+function performCheckout(PDO $pdo, string $idNumber, int $sectionID, string $now, string $today): void
 {
-    $stmtCheckout = $pdo->prepare("
+    $pdo->prepare("
         UPDATE Library_logs
         SET    checkout_time = ?
         WHERE  id_number     = ?
           AND  library       = ?
           AND  checkout_time IS NULL
           AND  CAST(checkin_time AS DATE) = ?
-    ");
-    $stmtCheckout->execute([$now, $idNumber, $sectionID, $today]);
+    ")->execute([$now, $idNumber, $sectionID, $today]);
 }
 
 
@@ -275,10 +258,7 @@ function performCheckout($pdo, string $idNumber, int $sectionID, string $now, st
 //  HANDLERS
 // =============================================================================
 
-/**
- * Returns all active library sections.
- */
-function handleGetLibraries()
+function handleGetLibraries(): void
 {
     $userID = intval($_POST["userID"] ?? 0);
 
@@ -286,22 +266,21 @@ function handleGetLibraries()
         sendResponse(["error" => "Missing or invalid userID."]);
     }
 
+    // Query ONLY the section assigned to this specific PC login via LibraryAccess.
+    // Returning all sections would cause currentLibraryID to be wrong after an
+    // admin reassigns the PC, making innocent check-ins show "Switch & Check In".
     $libraries = execsqlSRS("
-        SELECT SectionID, SectionName
-        FROM   LibrarySection
-        WHERE  IsActive = 1
-        ORDER  BY SectionID ASC
-    ", "Query", []);
+        SELECT ls.SectionID, ls.SectionName
+        FROM   LibraryAccess  la
+        JOIN   LibrarySection ls ON ls.SectionID = la.SectionID
+        WHERE  la.UserID   = ?
+          AND  ls.IsActive = 1
+    ", "Query", [$userID]);
 
     sendResponse(["success" => true, "data" => $libraries]);
 }
 
-/**
- * Looks up a user by ID number from the local JSON data source.
- * Checks students first, then employees.
- * Returns a single match, a duplicate flag, or an error if not found.
- */
-function handleValidateUser()
+function handleValidateUser(): void
 {
     $idNumber = trim($_POST["idNumber"] ?? "");
 
@@ -314,130 +293,119 @@ function handleValidateUser()
 
     // ── Student lookup ──────────────────────────────────────────────────────
     $matchedStudents = array_values(
-        array_filter($students, fn($student) => $student["id_number"] === $idNumber)
+        array_filter($students, fn($s) => $s["id_number"] === $idNumber)
     );
 
     if (count($matchedStudents) === 1) {
-        sendResponse([
-            "success" => true,
-            "data"    => mapStudentToUserRecord($matchedStudents[0])
-        ]);
+        sendResponse(["success" => true, "data" => mapStudentToUserRecord($matchedStudents[0])]);
     }
 
     if (count($matchedStudents) > 1) {
         sendResponse([
             "duplicate" => true,
-            "matches"   => array_map(fn($student) => mapStudentToUserRecord($student), $matchedStudents)
+            "matches"   => array_map(fn($s) => mapStudentToUserRecord($s), $matchedStudents),
         ]);
     }
 
     // ── Employee lookup ─────────────────────────────────────────────────────
     $matchedEmployees = array_values(
-        array_filter($employees, fn($employee) => $employee["employee_number"] === $idNumber)
+        array_filter($employees, fn($e) => ($e["employee_number"] ?? "") === $idNumber)
     );
 
     if (count($matchedEmployees) === 1) {
-        sendResponse([
-            "success" => true,
-            "data"    => mapEmployeeToUserRecord($matchedEmployees[0])
-        ]);
+        sendResponse(["success" => true, "data" => mapEmployeeToUserRecord($matchedEmployees[0])]);
     }
 
     sendResponse(["error" => "User not found."]);
 }
 
-/**
- * Checks whether a user is currently checked in today,
- * and returns which library section they are in.
- */
-function handleCheckStatusToday()
+function handleCheckStatusToday(): void
 {
     $idNumber = trim($_POST["idNumber"] ?? "");
-    $today    = date("Y-m-d");
 
     if (!$idNumber) {
         sendResponse(["error" => "Identification number is required."]);
     }
 
-    $pdo  = dbconES();
+    $today = date("Y-m-d");
+    $pdo   = dbconES();
+
+    // Only look for an open (not yet checked out) session created TODAY.
+    // Past days and checked-out sessions are intentionally excluded so a user
+    // who forgot to check out yesterday is never treated as "still inside".
     $stmt = $pdo->prepare("
-        SELECT TOP 1 library
-        FROM   Library_logs
-        WHERE  id_number     = ?
-          AND  checkout_time IS NULL
-          AND  CONVERT(date, checkin_time) = ?
-        ORDER  BY checkin_time DESC
+        SELECT TOP 1 ll.library, ls.SectionName
+        FROM   Library_logs  ll
+        LEFT   JOIN LibrarySection ls ON ls.SectionID = ll.library
+        WHERE  ll.id_number                 = ?
+          AND  ll.checkout_time             IS NULL
+          AND  CONVERT(date, ll.checkin_time) = ?
+        ORDER  BY ll.checkin_time DESC
     ");
     $stmt->execute([$idNumber, $today]);
-    $activeLog = $stmt->fetch(PDO::FETCH_ASSOC);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if ($activeLog) {
+    if ($row) {
         sendResponse([
-            "checkedIn" => true,
-            "sectionID" => intval($activeLog["library"])
+            "checkedIn"   => true,
+            "sectionID"   => intval($row["library"]),
+            "sectionName" => $row["SectionName"] ?? "another library",
         ]);
     }
 
     sendResponse(["checkedIn" => false]);
 }
 
-/**
- * Records a check-in or check-out event in Library_logs.
- *
- * Check-in:  auto-closes any open session in a different section first,
- *            then inserts a new log row (skips if already checked in here).
- * Check-out: closes the open session in the given section.
- */
-function handleSaveAttendance()
+function handleSaveAttendance(): void
 {
     $idNumber       = trim($_POST["idNumber"]       ?? "");
     $sectionID      = intval($_POST["sectionID"]    ?? 0);
     $action         = trim($_POST["action"]         ?? "");
     $classification = trim($_POST["classification"] ?? "STUDENT");
     $name           = trim($_POST["name"]           ?? "");
-    $college        = trim($_POST["college"]        ?? "") ?: null;
-    $course         = trim($_POST["course"]         ?? "") ?: null;
+    $college        = trim($_POST["college"]        ?? "");
+    $course         = trim($_POST["course"]         ?? "");
     $sex            = trim($_POST["sex"]            ?? "");
 
     if (!$idNumber || !$sectionID || !$action) {
         sendResponse(["error" => "Missing required attendance data."]);
     }
 
+    if (!in_array($action, ["checkin", "checkout"])) {
+        sendResponse(["error" => "Invalid attendance action: '{$action}'."]);
+    }
+
     $now   = date("Y-m-d H:i:s");
     $today = date("Y-m-d");
     $pdo   = dbconES();
 
-    $userDetails = [
-        "name"           => $name,
-        "classification" => $classification,
-        "college"        => $college,
-        "course"         => $course,
-        "sex"            => $sex,
-    ];
+    $user = compact("name", "classification", "college", "course", "sex");
 
-    if ($action === "checkin") {
+    try {
+        // Keep the write transaction as narrow as possible to prevent deadlocks.
+        // buildKPIData is read-only and runs AFTER commit, not inside the transaction.
         $pdo->beginTransaction();
-        performCheckin($pdo, $idNumber, $sectionID, $now, $today, $userDetails);
-        $kpiData = buildKPIData($pdo, $sectionID, $today);
+        if ($action === "checkin") {
+            performCheckin($pdo, $idNumber, $sectionID, $now, $today, $user);
+        } else {
+            performCheckout($pdo, $idNumber, $sectionID, $now, $today);
+        }
         $pdo->commit();
 
-    } elseif ($action === "checkout") {
-        $pdo->beginTransaction();
-        performCheckout($pdo, $idNumber, $sectionID, $now, $today);
-        $kpiData = buildKPIData($pdo, $sectionID, $today);
-        $pdo->commit();
-
-    } else {
-        sendResponse(["error" => "Invalid attendance action: '{$action}'."]);
+    } catch (Exception $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        sendResponse(["error" => "Database error: " . $e->getMessage()]);
     }
+
+    // Read KPI after the transaction is fully committed
+    $kpiData = buildKPIData($pdo, $sectionID, $today);
 
     sendResponse(["success" => true, "action" => $action, "kpi" => $kpiData]);
 }
 
-/**
- * Returns KPI statistics for a given library section and today's date.
- */
-function handleGetKPI()
+function handleGetKPI(): void
 {
     $sectionID = intval($_POST["sectionID"] ?? 0);
 
@@ -446,8 +414,7 @@ function handleGetKPI()
     }
 
     $pdo     = dbconES();
-    $today   = date("Y-m-d");
-    $kpiData = buildKPIData($pdo, $sectionID, $today);
+    $kpiData = buildKPIData($pdo, $sectionID, date("Y-m-d"));
 
     sendResponse(["success" => true, "data" => $kpiData]);
 }
@@ -459,13 +426,16 @@ function handleGetKPI()
 
 $request = trim($_POST["request"] ?? "");
 
-switch ($request) {
-    case "getLibraries":     handleGetLibraries();     break;
-    case "validateUser":     handleValidateUser();     break;
-    case "checkStatusToday": handleCheckStatusToday(); break;
-    case "saveAttendance":   handleSaveAttendance();   break;
-    case "getKPI":           handleGetKPI();           break;
+$handlers = [
+    "getLibraries"     => "handleGetLibraries",
+    "validateUser"     => "handleValidateUser",
+    "checkStatusToday" => "handleCheckStatusToday",
+    "saveAttendance"   => "handleSaveAttendance",
+    "getKPI"           => "handleGetKPI",
+];
 
-    default:
-        sendResponse(["error" => "Unknown request: '{$request}'."]);
+if (isset($handlers[$request])) {
+    $handlers[$request]();
+} else {
+    sendResponse(["error" => "Unknown request: '{$request}'."]);
 }
