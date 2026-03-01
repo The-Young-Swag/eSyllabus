@@ -78,6 +78,8 @@ function loadDailyLogs()
 
     $totalRows  = (int)$countResult[0]["total"];
     $totalPages = max(1, (int)ceil($totalRows / $limit));
+    $page       = min($page, $totalPages);
+    $offset     = ($page - 1) * $limit;
 
     $logs = execsqlSRS("
         SELECT
@@ -97,38 +99,45 @@ function loadDailyLogs()
     ", "Search", []);
 
     ob_start();
-    foreach ($logs as $log) {
-        $statusBadge = empty($log["checkout_time"])
-            ? "<span class='badge bg-success-subtle text-success rounded-pill px-3'>Active</span>"
-            : "<span class='badge bg-secondary-subtle text-secondary rounded-pill px-3'>Completed</span>";
+    if (empty($logs)) {
+        echo "<tr><td colspan='7' class='text-center text-muted py-4'>No records for today.</td></tr>";
+    } else {
+        foreach ($logs as $log) {
+            $statusBadge = empty($log["checkout_time"])
+                ? "<span class='badge bg-success-subtle text-success rounded-pill px-3'>Active</span>"
+                : "<span class='badge bg-secondary-subtle text-secondary rounded-pill px-3'>Completed</span>";
 
-        echo "<tr>";
-        echo "<td class='px-4 fw-semibold'>"  . htmlspecialchars($log["id_number"])        . "</td>";
-        echo "<td>"                            . htmlspecialchars($log["college"] ?? "—")   . "</td>";
-        echo "<td>"                            . htmlspecialchars($log["course"]  ?? "—")   . "</td>";
-        echo "<td><span class='badge bg-light text-dark border'>"
-             . htmlspecialchars($log["SectionName"] ?? "—")
-             . "</span></td>";
-        echo "<td>" . date('M j, Y g:i A', strtotime($log["checkin_time"])) . "</td>";
-        echo "<td>" . ($log["checkout_time"]
-             ? date('M j, Y g:i A', strtotime($log["checkout_time"]))
-             : "—") . "</td>";
-        echo "<td class='text-center'>$statusBadge</td>";
-        echo "</tr>";
+            echo "<tr>";
+            echo "<td class='px-4 fw-semibold'>"  . htmlspecialchars($log["id_number"])        . "</td>";
+            echo "<td>"                            . htmlspecialchars($log["college"] ?? "—")   . "</td>";
+            echo "<td>"                            . htmlspecialchars($log["course"]  ?? "—")   . "</td>";
+            echo "<td><span class='badge bg-light text-dark border'>"
+                 . htmlspecialchars($log["SectionName"] ?? "—")
+                 . "</span></td>";
+            echo "<td>" . date('M j, Y g:i A', strtotime($log["checkin_time"])) . "</td>";
+            echo "<td>" . ($log["checkout_time"]
+                 ? date('M j, Y g:i A', strtotime($log["checkout_time"]))
+                 : "—") . "</td>";
+            echo "<td class='text-center'>$statusBadge</td>";
+            echo "</tr>";
+        }
     }
     $rowsHtml = ob_get_clean();
 
     echo json_encode([
         "rows"        => $rowsHtml,
+        "totalRows"   => $totalRows,
         "totalPages"  => $totalPages,
         "currentPage" => $page,
+        "limit"       => $limit,
     ]);
 }
 
 
 // ============================================================
-//  MONTHLY TREND — Visit counts for the last 6 months
-//  Optionally filtered by library section.
+//  MONTHLY TREND — Visit counts for a date range
+//  Accepts optional startDate / endDate (YYYY-MM-DD).
+//  Falls back to last 6 months if not provided.
 // ============================================================
 
 function loadMonthlyTrend()
@@ -136,38 +145,46 @@ function loadMonthlyTrend()
     $sectionID     = isset($_POST['sectionID']) && $_POST['sectionID'] !== '' ? (int)$_POST['sectionID'] : null;
     $sectionFilter = $sectionID ? "AND library = $sectionID" : "";
 
-    $rows = execsqlSRS("
-        SELECT
-            FORMAT(checkin_time, 'MMM') AS month,
-            COUNT(*)                    AS total
-        FROM Library_logs
-        WHERE checkin_time >= DATEADD(MONTH, -6, GETDATE())
-          {$sectionFilter}
-        GROUP BY FORMAT(checkin_time, 'MMM'), MONTH(checkin_time)
-        ORDER BY MIN(checkin_time)
-    ", "Search", []);
+    // Date range — validate and sanitise
+    $startDate = !empty($_POST['startDate']) ? $_POST['startDate'] : null;
+    $endDate   = !empty($_POST['endDate'])   ? $_POST['endDate']   : null;
 
-    echo json_encode($rows);
-}
+    // Validate format YYYY-MM-DD
+    $validateDate = fn($d) => $d && preg_match('/^\d{4}-\d{2}-\d{2}$/', $d) ? $d : null;
+    $startDate = $validateDate($startDate);
+    $endDate   = $validateDate($endDate);
 
-
-// ============================================================
-//  DEPARTMENT OVERVIEW — Visit counts per college today
-// ============================================================
-
-function loadDepartmentOverview()
-{
-    $rows = execsqlSRS("
-        SELECT
-            college,
-            COUNT(*) AS total
-        FROM Library_logs
-        WHERE CAST(checkin_time AS DATE) = CAST(GETDATE() AS DATE)
-          AND college IS NOT NULL
-          AND college <> ''
-        GROUP BY college
-        ORDER BY total DESC
-    ", "Search", []);
+    if ($startDate && $endDate) {
+        $dateFilter = "AND CAST(checkin_time AS DATE) BETWEEN '$startDate' AND '$endDate'";
+        // Group by year-month so multi-year ranges work correctly
+        $rows = execsqlSRS("
+            SELECT
+                FORMAT(checkin_time, 'MMM yyyy') AS month,
+                YEAR(checkin_time)               AS yr,
+                MONTH(checkin_time)              AS mo,
+                COUNT(*)                         AS total
+            FROM Library_logs
+            WHERE 1=1
+              {$dateFilter}
+              {$sectionFilter}
+            GROUP BY FORMAT(checkin_time, 'MMM yyyy'), YEAR(checkin_time), MONTH(checkin_time)
+            ORDER BY yr, mo
+        ", "Search", []);
+    } else {
+        // Default: last 6 calendar months
+        $rows = execsqlSRS("
+            SELECT
+                FORMAT(checkin_time, 'MMM yyyy') AS month,
+                YEAR(checkin_time)               AS yr,
+                MONTH(checkin_time)              AS mo,
+                COUNT(*)                         AS total
+            FROM Library_logs
+            WHERE checkin_time >= DATEADD(MONTH, -5, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
+              {$sectionFilter}
+            GROUP BY FORMAT(checkin_time, 'MMM yyyy'), YEAR(checkin_time), MONTH(checkin_time)
+            ORDER BY yr, mo
+        ", "Search", []);
+    }
 
     echo json_encode($rows);
 }
@@ -176,11 +193,6 @@ function loadDepartmentOverview()
 // ============================================================
 //  COLLEGE & COURSE ACTIVITY
 //  Returns colleges → courses → section breakdown for today.
-//  Shape: [
-//    { college, total, courses: [
-//      { course, total, sections: [ { section_name, total }, ... ] }
-//    ]}
-//  ]
 //  Optionally filtered by library section.
 // ============================================================
 
@@ -189,7 +201,6 @@ function loadCollegeCourseActivity()
     $sectionID     = isset($_POST['sectionID']) && $_POST['sectionID'] !== '' ? (int)$_POST['sectionID'] : null;
     $sectionFilter = $sectionID ? "AND l.library = $sectionID" : "";
 
-    // One row per college + course + section
     $rows = execsqlSRS("
         SELECT
             l.college,
@@ -232,7 +243,7 @@ function loadCollegeCourseActivity()
         $grouped[$college]['total'] += $courseTotal;
     }
 
-    // Sort courses within each college by total desc; re-index
+    // Sort courses within each college by total desc; re-index arrays
     $result = [];
     foreach ($grouped as $col) {
         $courses = array_values($col['courses']);
@@ -254,13 +265,13 @@ function loadCollegeCourseActivity()
 $request = $_POST["request"] ?? "";
 
 switch ($request) {
-    case "kpiData":              loadKPI();                    break;
-    case "singleSectionKPI":     getSingleSectionKPI();        break;
-    case "dailyLogs":            loadDailyLogs();              break;
-    case "monthlyTrend":         loadMonthlyTrend();           break;
-    case "departmentOverview":   loadDepartmentOverview();     break;
-    case "collegeCourseActivity": loadCollegeCourseActivity(); break;
+    case "kpiData":               loadKPI();                    break;
+    case "singleSectionKPI":      getSingleSectionKPI();        break;
+    case "dailyLogs":             loadDailyLogs();              break;
+    case "monthlyTrend":          loadMonthlyTrend();           break;
+    case "collegeCourseActivity": loadCollegeCourseActivity();  break;
     default:
         http_response_code(400);
         echo json_encode(["error" => "Invalid request."]);
 }
+?>

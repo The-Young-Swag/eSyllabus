@@ -78,40 +78,49 @@
     </div>
 
     <!-- KPI CARDS -->
-    <div class="row g-3 mb-4">
-        <?php
-        $kpiCards = [
-            ['id' => 'kpiTotalCheckins',  'label' => 'Total Check-Ins Today',     'color' => '#10b981', 'border' => '#047857'],
-            ['id' => 'kpiActiveStudents', 'label' => 'Currently In Attendance',   'color' => '#3b82f6', 'border' => '#1d4ed8'],
-            ['id' => 'topColleges',       'label' => 'Top 3 Colleges Today',      'color' => '#facc15', 'border' => '#ca8a04', 'type' => 'list'],
-            ['id' => 'topCourses',        'label' => 'Top 3 Courses Today',       'color' => '#06b6d4', 'border' => '#0e7490', 'type' => 'list'],
-        ];
-        foreach ($kpiCards as $card): ?>
-            <div class="col-12 col-sm-6 col-lg-3">
-                <div class="card shadow-sm rounded-4 h-100"
-                     style="border-left: 6px solid <?= $card['border'] ?>;
-                            background: linear-gradient(135deg, #ffffff, #f3f4f6);">
-                    <div class="card-body d-flex flex-column justify-content-between">
-                        <small class="fw-semibold text-muted mb-2"><?= $card['label'] ?></small>
-
-                        <?php if (!isset($card['type'])): ?>
-                            <div class="fw-bold" style="color: <?= $card['color'] ?>; font-size: 2rem;"
-                                 id="<?= $card['id'] ?>">—</div>
-                        <?php else: ?>
-                            <div id="<?= $card['id'] ?>" class="small">
-                                <?php for ($i = 1; $i <= 3; $i++): ?>
-                                    <div class="mb-1">
-                                        <span class="fw-bold"><?= $i ?>.</span>
-                                        <span style="color: <?= $card['color'] ?>;">Loading...</span>
-                                    </div>
-                                <?php endfor; ?>
-                            </div>
-                        <?php endif; ?>
-                    </div>
+<!-- KPI CARDS -->
+<div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-lg-3">
+        <div class="card border-0 shadow-sm h-100" style="border-top:3px solid #10b981 !important;">
+            <div class="card-body p-3">
+                <small class="fw-semibold text-muted d-block mb-2">Total Check-Ins Today</small>
+                <div class="fw-bold text-success" style="font-size:2rem;" id="kpiTotalCheckins">—</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+        <div class="card border-0 shadow-sm h-100" style="border-top:3px solid #3b82f6 !important;">
+            <div class="card-body p-3">
+                <small class="fw-semibold text-muted d-block mb-2">Currently In Attendance</small>
+                <div class="fw-bold text-primary" style="font-size:2rem;" id="kpiActiveStudents">—</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+        <div class="card border-0 shadow-sm h-100" style="border-top:3px solid #f59e0b !important;">
+            <div class="card-body p-3">
+                <small class="fw-semibold text-muted d-block mb-2">Top 3 Colleges Today</small>
+                <div id="topColleges" class="small">
+                    <div class="mb-1"><span class="fw-bold">1.</span> <span class="text-warning">Loading...</span></div>
+                    <div class="mb-1"><span class="fw-bold">2.</span> <span class="text-warning">Loading...</span></div>
+                    <div class="mb-1"><span class="fw-bold">3.</span> <span class="text-warning">Loading...</span></div>
                 </div>
             </div>
-        <?php endforeach; ?>
+        </div>
     </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+        <div class="card border-0 shadow-sm h-100" style="border-top:3px solid #06b6d4 !important;">
+            <div class="card-body p-3">
+                <small class="fw-semibold text-muted d-block mb-2">Top 3 Courses Today</small>
+                <div id="topCourses" class="small">
+                    <div class="mb-1"><span class="fw-bold">1.</span> <span class="text-info">Loading...</span></div>
+                    <div class="mb-1"><span class="fw-bold">2.</span> <span class="text-info">Loading...</span></div>
+                    <div class="mb-1"><span class="fw-bold">3.</span> <span class="text-info">Loading...</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 </div>
 

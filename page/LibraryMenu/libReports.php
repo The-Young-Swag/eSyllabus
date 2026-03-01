@@ -60,11 +60,7 @@ $librarySections = execsqlSRS("SELECT SectionID, SectionName FROM LibrarySection
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <div class="col-12 col-md-2">
-                    <button class="btn btn-success btn-sm w-100 fw-semibold" id="generateBtn">
-                        <i class="fas fa-chart-bar me-1"></i>Generate
-                    </button>
-                </div>
+
             </div>
         </div>
     </div>
@@ -72,65 +68,52 @@ $librarySections = execsqlSRS("SELECT SectionID, SectionName FROM LibrarySection
     <!-- KPI CARDS -->
     <div class="row g-3 mb-4">
 
-        <div class="col-6 col-lg-3">
-            <div class="card border-0 shadow-sm h-100" style="border-top:3px solid #10b981 !important;">
-                <div class="card-body py-3 px-3">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <p class="text-muted small mb-1">Total Check-ins</p>
-                            <h3 class="fw-bold mb-0 text-success" id="kpiTotalCheckins">—</h3>
-                        </div>
-                        <div class="rounded-2 bg-success-subtle d-flex align-items-center justify-content-center" style="width:36px;height:36px;flex-shrink:0;">
-                            <i class="bi bi-box-arrow-in-right text-success"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-6 col-lg-3">
+        <!-- Top 3 Students -->
+        <div class="col-12 col-lg-4">
             <div class="card border-0 shadow-sm h-100" style="border-top:3px solid #3b82f6 !important;">
                 <div class="card-body py-3 px-3">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <p class="text-muted small mb-1">Unique Visitors</p>
-                            <h3 class="fw-bold mb-0 text-primary" id="kpiUniqueUsers">—</h3>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <p class="text-muted small fw-semibold mb-0">Top Students</p>
+                        <div class="rounded-2 bg-primary-subtle d-flex align-items-center justify-content-center" style="width:30px;height:30px;flex-shrink:0;">
+                            <i class="bi bi-person-fill text-primary" style="font-size:.8rem;"></i>
                         </div>
-                        <div class="rounded-2 bg-primary-subtle d-flex align-items-center justify-content-center" style="width:36px;height:36px;flex-shrink:0;">
-                            <i class="bi bi-people-fill text-primary"></i>
-                        </div>
+                    </div>
+                    <div id="kpiTopStudents">
+                        <div class="text-muted small fst-italic">Loading…</div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-6 col-lg-3">
+        <!-- Top 3 Colleges -->
+        <div class="col-12 col-lg-4">
+            <div class="card border-0 shadow-sm h-100" style="border-top:3px solid #10b981 !important;">
+                <div class="card-body py-3 px-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <p class="text-muted small fw-semibold mb-0">Top Colleges</p>
+                        <div class="rounded-2 bg-success-subtle d-flex align-items-center justify-content-center" style="width:30px;height:30px;flex-shrink:0;">
+                            <i class="bi bi-building-fill text-success" style="font-size:.8rem;"></i>
+                        </div>
+                    </div>
+                    <div id="kpiTopColleges">
+                        <div class="text-muted small fst-italic">Loading…</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top 3 Courses -->
+        <div class="col-12 col-lg-4">
             <div class="card border-0 shadow-sm h-100" style="border-top:3px solid #f59e0b !important;">
                 <div class="card-body py-3 px-3">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <p class="text-muted small mb-1">Avg. Session</p>
-                            <h3 class="fw-bold mb-0 text-warning" id="kpiAvgDuration">—</h3>
-                        </div>
-                        <div class="rounded-2 bg-warning-subtle d-flex align-items-center justify-content-center" style="width:36px;height:36px;flex-shrink:0;">
-                            <i class="bi bi-clock-history text-warning"></i>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <p class="text-muted small fw-semibold mb-0">Top Courses</p>
+                        <div class="rounded-2 bg-warning-subtle d-flex align-items-center justify-content-center" style="width:30px;height:30px;flex-shrink:0;">
+                            <i class="bi bi-journal-bookmark-fill text-warning" style="font-size:.8rem;"></i>
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-6 col-lg-3">
-            <div class="card border-0 shadow-sm h-100" style="border-top:3px solid #6b7280 !important;">
-                <div class="card-body py-3 px-3">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <p class="text-muted small mb-1 text-truncate" id="kpiEndDateLabel">End-date Count</p>
-                            <h3 class="fw-bold mb-0 text-secondary" id="kpiEndDateCheckins">—</h3>
-                        </div>
-                        <div class="rounded-2 bg-secondary-subtle d-flex align-items-center justify-content-center" style="width:36px;height:36px;flex-shrink:0;">
-                            <i class="bi bi-calendar-day text-secondary"></i>
-                        </div>
+                    <div id="kpiTopCourses">
+                        <div class="text-muted small fst-italic">Loading…</div>
                     </div>
                 </div>
             </div>
@@ -167,7 +150,7 @@ $librarySections = execsqlSRS("SELECT SectionID, SectionName FROM LibrarySection
         <div class="card-body p-4" id="tabContent">
             <div class="text-center py-5 text-muted">
                 <i class="bi bi-bar-chart-line fs-1 d-block mb-3 opacity-25"></i>
-                <p class="mb-0">Select a date range and click <strong>Generate</strong> to view analytics.</p>
+                <p class="mb-0">Select a date range to view analytics.</p>
             </div>
         </div>
     </div>
@@ -232,11 +215,9 @@ $(function () {
     };
 
     const kpi = {
-        totalCheckins:   $('#kpiTotalCheckins'),
-        uniqueUsers:     $('#kpiUniqueUsers'),
-        avgDuration:     $('#kpiAvgDuration'),
-        endDateLabel:    $('#kpiEndDateLabel'),
-        endDateCheckins: $('#kpiEndDateCheckins'),
+        topStudents:  $('#kpiTopStudents'),
+        topColleges:  $('#kpiTopColleges'),
+        topCourses:   $('#kpiTopCourses'),
     };
 
     // =========================================================
@@ -348,7 +329,98 @@ $(function () {
         const byD = flattenUserRanking(res.topDuration, 'minutes', TOP);
         ChartManager.renderBarH('chartTopUserDuration', byD.map(r => r.label), byD.map(r => Math.round(r.value)), Analytics.rankColors.duration.slice(0, byD.length), 'Minutes');
         ChartManager.renderDonut('chartVisitorTypeDonut', Object.keys(res.classificationDistribution), Object.values(res.classificationDistribution), Analytics.donutColorsVisitorType, 'Visitors');
+        // Paginate inline tables using data-rows JSON embedded by backend
+        paginateInlineTable('checkinDetailsCard', 'checkinDetailsTbody', 'checkinDetailsPager', renderCheckinRow);
+        paginateInlineTable('durationDetailsCard', 'durationDetailsTbody', 'durationDetailsPager', renderDurationRow);
     }
+
+    /** Render a single check-in detail row from JSON data */
+    function renderCheckinRow(r) {
+        return `<tr>
+            <td class="ps-3 fw-semibold">${escVal(r.display_label)}</td>
+            <td class="text-muted">${escVal(r.college || '—')}</td>
+            <td class="text-muted">${escVal(r.course || '—')}</td>
+            <td><span class="badge bg-secondary-subtle text-secondary rounded-pill" style="font-size:.68rem;">${escVal(r.type)}</span></td>
+            <td class="text-muted">${escVal(r.library || '—')}</td>
+            <td class="text-end fw-semibold text-primary">${Number(r.count).toLocaleString()}</td>
+            <td class="text-end text-muted pe-3">${escVal(r.last_checkin)}</td>
+        </tr>`;
+    }
+
+    /** Render a single duration detail row from JSON data */
+    function renderDurationRow(r) {
+        return `<tr>
+            <td class="ps-3 fw-semibold">${escVal(r.display_label)}</td>
+            <td class="text-muted">${escVal(r.college || '—')}</td>
+            <td><span class="badge bg-secondary-subtle text-secondary rounded-pill" style="font-size:.68rem;">${escVal(r.type)}</span></td>
+            <td class="text-end fw-semibold text-success pe-3">${Math.round(r.minutes).toLocaleString()}</td>
+        </tr>`;
+    }
+
+    function escVal(v) { return $('<div>').text(v ?? '').html(); }
+
+
+    /**
+     * Reads rows from data-rows JSON on cardId, renders into tbodyId,
+     * and builds a First/‹/pages/›/Last paginator in pagerId.
+     * Page size is read from data-per-page attribute (default 3).
+     */
+    function paginateInlineTable(cardId, tbodyId, pagerId, rowRenderer) {
+        const $card  = $('#' + cardId);
+        const $tbody = $('#' + tbodyId);
+        const $pager = $('#' + pagerId);
+        if (!$card.length || !$tbody.length) return;
+
+        let rows = [];
+        try { rows = JSON.parse($card.attr('data-rows') || '[]'); } catch(e) { return; }
+        if (!rows.length) { $tbody.html('<tr><td colspan="9" class="text-center text-muted py-3">No data</td></tr>'); return; }
+
+        const pageSize  = parseInt($card.attr('data-per-page') || '3', 10);
+        const totalPages = Math.ceil(rows.length / pageSize);
+        let current = 1;
+
+        function showPage(p) {
+            current = Math.max(1, Math.min(p, totalPages));
+            const slice = rows.slice((current - 1) * pageSize, current * pageSize);
+            $tbody.html(slice.map(rowRenderer).join(''));
+            if (totalPages <= 1) { $pager.empty(); return; }
+            renderPagerNav();
+        }
+
+        function renderPagerNav() {
+            const WINDOW = 5;
+            const start  = Math.max(1, Math.min(current - Math.floor(WINDOW / 2), totalPages - WINDOW + 1));
+            const end    = Math.min(totalPages, start + WINDOW - 1);
+            const isFirst = current === 1, isLast = current === totalPages;
+
+            const li = (label, page, disabled, active) =>
+                `<li class="page-item ${disabled ? 'disabled' : ''} ${active ? 'active' : ''}">` +
+                `<a class="page-link" href="#" data-p="${page}">${label}</a></li>`;
+
+            let items = '';
+            items += li('«', 1,           isFirst, false);
+            items += li('‹', current - 1, isFirst, false);
+            if (start > 1) { items += li('1', 1, false, false); if (start > 2) items += li('…', 0, true, false); }
+            for (let p = start; p <= end; p++) items += li(p, p, false, p === current);
+            if (end < totalPages) { if (end < totalPages - 1) items += li('…', 0, true, false); items += li(totalPages, totalPages, false, false); }
+            items += li('›', current + 1, isLast, false);
+            items += li('»', totalPages,  isLast, false);
+
+            const from = (current - 1) * pageSize + 1, to = Math.min(current * pageSize, rows.length);
+            $pager.html(
+                `<small class="text-muted d-block text-center mb-1" style="font-size:.7rem;">Showing ${from}–${to} of ${rows.length}</small>` +
+                `<ul class="pagination pagination-sm mb-0 justify-content-center flex-wrap">${items}</ul>`
+            );
+            $pager.find('.page-link').off('click').on('click', function (e) {
+                e.preventDefault();
+                const p = parseInt($(this).data('p'), 10);
+                if (!isNaN(p) && p > 0) showPage(p);
+            });
+        }
+
+        showPage(1);
+    }
+
     function initCollegesTab(res) {
         const cN = Object.keys(res.top3CollegesCheckin), dN = Object.keys(res.top3CollegesDuration);
         ChartManager.renderDonut('chartCollegeCheckin', cN, cN.map(n => res.top3CollegesCheckin[n].count), cN.map(resolveCollegeColor), 'Visitors');
@@ -379,14 +451,41 @@ $(function () {
     // =========================================================
     //  KPI
     // =========================================================
+    function renderTop3Rows(items, valueKey, labelFn, colorClass) {
+        if (!items || !items.length) return '<div class="text-muted small fst-italic">No data</div>';
+        const medals = ['🥇','🥈','🥉'];
+        return items.map((item, i) => `
+            <div class="d-flex align-items-center justify-content-between gap-2 py-1 ${i < items.length - 1 ? 'border-bottom' : ''}">
+                <div class="d-flex align-items-center gap-2 min-w-0">
+                    <span style="font-size:.9rem;flex-shrink:0;">${medals[i] || (i+1)+'.'}</span>
+                    <span class="small text-truncate fw-semibold">${escVal(labelFn(item))}</span>
+                </div>
+                <span class="badge rounded-pill ${colorClass} fw-semibold" style="font-size:.72rem;flex-shrink:0;">${Number(item[valueKey]).toLocaleString()}</span>
+            </div>`).join('');
+    }
+
     function updateKpi(res) {
-        const endDate = filters.endDate.val();
-        const label   = endDate ? new Date(endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
-        kpi.totalCheckins.text(res.totalVisits.toLocaleString());
-        kpi.uniqueUsers.text((res.uniqueUsers ?? '—').toLocaleString());
-        kpi.avgDuration.text(res.avgDuration + ' min');
-        kpi.endDateLabel.text('Check-ins on ' + label);
-        kpi.endDateCheckins.text(res.endDateCheckins.toLocaleString());
+        // Top 3 Students
+        kpi.topStudents.html(renderTop3Rows(
+            res.top3Students, 'count',
+            s => s.id_number + (s.college ? ' · ' + s.college : ''),
+            'bg-primary-subtle text-primary'
+        ));
+
+        // Top 3 Colleges
+        kpi.topColleges.html(renderTop3Rows(
+            res.top3Colleges, 'count',
+            c => c.name,
+            'bg-success-subtle text-success'
+        ));
+
+        // Top 3 Courses
+        kpi.topCourses.html(renderTop3Rows(
+            res.top3Courses, 'count',
+            c => c.course + (c.college ? ' · ' + c.college : ''),
+            'bg-warning-subtle text-warning'
+        ));
+
         $lastUpdated.html('<i class="fas fa-sync-alt me-1"></i>Last updated: ' + new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }));
     }
 
@@ -842,8 +941,9 @@ $(function () {
     //  EVENT BINDINGS
     // =========================================================
     $tabButtons.on('click', function (e) { e.preventDefault(); loadTab($(this).data('tab')); });
-    $('#generateBtn').on('click', function () { if (!hasDateRange()) { alert('Please select both a start and end date.'); return; } loadTab(activeTab); });
+
     $('#refreshBtn').on('click', function () { if (hasDateRange()) loadTab(activeTab); });
+    // Auto-generate on any filter change when both dates are set
     $.each(filters, function (k, $el) { $el.on('change', function () { if (hasDateRange()) loadTab(activeTab); }); });
     $(document).on('click', '.view-all-btn', function () { viewAllTab = $(this).data('tab'); viewAllPage = 1; loadViewAll(viewAllTab, viewAllPage); });
 
@@ -851,6 +951,7 @@ $(function () {
     //  INIT
     // =========================================================
     setDefaultDateRange();
-    loadTab(Analytics.defaultTab);
+    // Auto-load immediately since we always have dates set by setDefaultDateRange
+    if (hasDateRange()) loadTab(Analytics.defaultTab);
 });
 </script>

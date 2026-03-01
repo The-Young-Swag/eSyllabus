@@ -184,6 +184,72 @@ function aggregateCollegeDistribution(array $logs): array
     return $out;
 }
 
+// ── KPI TOP-3 BUILDER ────────────────────────────────────────────────────────
+
+/**
+ * Returns flat top-3 arrays for KPI cards:
+ *   top3Students  – top 3 students by check-in count [{id_number, name, college, course, count}]
+ *   top3Colleges  – top 3 colleges by unique student visitors [{name, count}]
+ *   top3Courses   – top 3 courses by unique student visitors [{college, course, count}]
+ */
+function buildKpiTop3(array $logs): array
+{
+    // ── Students ─────────────────────────────────────────────────────────────
+    $stuLogs = array_filter($logs, fn($l) => strtolower($l['classification'] ?? '') === 'student');
+    $stuCnt = $stuMeta = [];
+    foreach ($stuLogs as $l) {
+        $id = $l['id_number'];
+        $stuCnt[$id] = ($stuCnt[$id] ?? 0) + 1;
+        if (!isset($stuMeta[$id])) {
+            $stuMeta[$id] = [
+                'id_number' => $id,
+                'name'      => $l['name'] ?? '',
+                'college'   => $l['college'] ?? '',
+                'course'    => $l['course'] ?? '',
+            ];
+        }
+    }
+    arsort($stuCnt);
+    $top3Students = []; $i = 0;
+    foreach ($stuCnt as $id => $c) {
+        if ($i >= 3) break;
+        $top3Students[] = array_merge($stuMeta[$id], ['count' => $c]);
+        $i++;
+    }
+
+    // ── Colleges ─────────────────────────────────────────────────────────────
+    $uniqCol = $colCnt = [];
+    foreach ($stuLogs as $l) {
+        $col = $l['college'] ?: 'Unknown'; $id = $l['id_number'];
+        if (!isset($uniqCol[$col][$id])) { $uniqCol[$col][$id] = true; $colCnt[$col] = ($colCnt[$col] ?? 0) + 1; }
+    }
+    arsort($colCnt);
+    $top3Colleges = []; $i = 0;
+    foreach ($colCnt as $col => $c) {
+        if ($i >= 3) break;
+        $top3Colleges[] = ['name' => $col, 'count' => $c];
+        $i++;
+    }
+
+    // ── Courses ──────────────────────────────────────────────────────────────
+    $uniqCrs = $crsCnt = [];
+    foreach ($stuLogs as $l) {
+        $col = $l['college'] ?: 'Unknown'; $crs = $l['course'] ?: 'Unknown'; $id = $l['id_number'];
+        $key = "{$col}|{$crs}";
+        if (!isset($uniqCrs[$key][$id])) { $uniqCrs[$key][$id] = true; $crsCnt[$key] = ($crsCnt[$key] ?? 0) + 1; }
+    }
+    arsort($crsCnt);
+    $top3Courses = []; $i = 0;
+    foreach ($crsCnt as $key => $c) {
+        if ($i >= 3) break;
+        [$col, $crs] = explode('|', $key, 2);
+        $top3Courses[] = ['college' => $col, 'course' => $crs, 'count' => $c];
+        $i++;
+    }
+
+    return compact('top3Students', 'top3Colleges', 'top3Courses');
+}
+
 // ── VIEW ALL BUILDERS ────────────────────────────────────────────────────────
 
 function buildViewAllUsers(array $logs, int $offset, int $limit): array
@@ -426,6 +492,39 @@ function renderUsersTab(array $topByCheckins, array $topByDuration): string
         </div>
 
         <!-- BOTTOM: detail tables -->
+        <?php
+        // Flatten & sort check-in rows globally by count desc
+        $flatCheckins = [];
+        foreach ($topByCheckins as $cls => $users) {
+            foreach ($users as $u) {
+                $flatCheckins[] = [
+                    'display_label' => $u['display_label'],
+                    'college'       => $u['college'] ?: '—',
+                    'course'        => $u['course']  ?: '—',
+                    'type'          => $cls,
+                    'library'       => $u['library'] ?? '—',
+                    'count'         => $u['count'],
+                    'last_checkin'  => date('M j', strtotime($u['last_checkin'])),
+                ];
+            }
+        }
+        usort($flatCheckins, fn($a, $b) => $b['count'] <=> $a['count']);
+
+        // Flatten & sort duration rows globally by minutes desc
+        $flatDuration = [];
+        foreach ($topByDuration as $cls => $users) {
+            foreach ($users as $u) {
+                $flatDuration[] = [
+                    'display_label' => $u['display_label'],
+                    'college'       => $u['college'] ?: '—',
+                    'type'          => $cls,
+                    'minutes'       => (int)round($u['minutes']),
+                ];
+            }
+        }
+        usort($flatDuration, fn($a, $b) => $b['minutes'] <=> $a['minutes']);
+        ?>
+
         <div class="col-md-7">
             <div class="card border-0 shadow-sm">
                 <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center py-2 px-3">
@@ -434,7 +533,11 @@ function renderUsersTab(array $topByCheckins, array $topByDuration): string
                         <i class="bi bi-arrow-up-right-square me-1"></i>View All
                     </button>
                 </div>
-                <div class="card-body p-0">
+                <div class="card-body p-0"
+                     id="checkinDetailsCard"
+                     data-rows="<?= htmlspecialchars(json_encode($flatCheckins), ENT_QUOTES) ?>"
+                     data-page="1"
+                     data-per-page="3">
                     <div class="table-responsive">
                         <table class="table table-sm table-hover align-middle mb-0">
                             <thead class="table-light">
@@ -448,23 +551,12 @@ function renderUsersTab(array $topByCheckins, array $topByDuration): string
                                     <th class="text-end pe-3 small">Last Visit</th>
                                 </tr>
                             </thead>
-                            <tbody class="small">
-                            <?php foreach ($topByCheckins as $cls => $users): ?>
-                                <?php foreach ($users as $u): ?>
-                                <tr>
-                                    <td class="ps-3 fw-semibold"><?= safe($u['display_label']) ?></td>
-                                    <td class="text-muted"><?= safe($u['college'] ?: '—') ?></td>
-                                    <td class="text-muted"><?= safe($u['course'] ?: '—') ?></td>
-                                    <td><span class="badge bg-secondary-subtle text-secondary rounded-pill" style="font-size:.68rem;"><?= safe($cls) ?></span></td>
-                                    <td class="text-muted"><?= safe($u['library'] ?? '—') ?></td>
-                                    <td class="text-end fw-semibold text-primary"><?= number_format($u['count']) ?></td>
-                                    <td class="text-end text-muted pe-3"><?= date('M j', strtotime($u['last_checkin'])) ?></td>
-                                </tr>
-                                <?php endforeach; ?>
-                            <?php endforeach; ?>
-                            </tbody>
+                            <tbody id="checkinDetailsTbody" class="small"></tbody>
                         </table>
                     </div>
+                </div>
+                <div class="card-footer bg-white border-top py-2 px-3">
+                    <div class="d-flex flex-column align-items-center gap-1" id="checkinDetailsPager"></div>
                 </div>
             </div>
         </div>
@@ -474,7 +566,11 @@ function renderUsersTab(array $topByCheckins, array $topByDuration): string
                 <div class="card-header bg-white border-bottom py-2 px-3">
                     <span class="fw-semibold small">Duration Details</span>
                 </div>
-                <div class="card-body p-0">
+                <div class="card-body p-0"
+                     id="durationDetailsCard"
+                     data-rows="<?= htmlspecialchars(json_encode($flatDuration), ENT_QUOTES) ?>"
+                     data-page="1"
+                     data-per-page="3">
                     <div class="table-responsive">
                         <table class="table table-sm table-hover align-middle mb-0">
                             <thead class="table-light">
@@ -485,20 +581,12 @@ function renderUsersTab(array $topByCheckins, array $topByDuration): string
                                     <th class="text-end pe-3 small">Minutes</th>
                                 </tr>
                             </thead>
-                            <tbody class="small">
-                            <?php foreach ($topByDuration as $cls => $users): ?>
-                                <?php foreach ($users as $u): ?>
-                                <tr>
-                                    <td class="ps-3 fw-semibold"><?= safe($u['display_label']) ?></td>
-                                    <td class="text-muted"><?= safe($u['college'] ?: '—') ?></td>
-                                    <td><span class="badge bg-secondary-subtle text-secondary rounded-pill" style="font-size:.68rem;"><?= safe($cls) ?></span></td>
-                                    <td class="text-end fw-semibold text-success pe-3"><?= number_format(round($u['minutes'])) ?></td>
-                                </tr>
-                                <?php endforeach; ?>
-                            <?php endforeach; ?>
-                            </tbody>
+                            <tbody id="durationDetailsTbody" class="small"></tbody>
                         </table>
                     </div>
+                </div>
+                <div class="card-footer bg-white border-top py-2 px-3">
+                    <div class="d-flex flex-column align-items-center gap-1" id="durationDetailsPager"></div>
                 </div>
             </div>
         </div>
@@ -802,6 +890,7 @@ switch ($requestedAction) {
         $colDist = aggregateCollegeDistribution($logs);
         $crsData = aggregateTopCoursesByCollege($logs);
         $sexData = aggregateSexDistribution($logs);
+        $kpi3    = buildKpiTop3($logs);
 
         $html = match($requestedTab) {
             'users'        => renderUsersTab($uData['topCheckins'], $uData['topDuration']),
@@ -818,6 +907,9 @@ switch ($requestedAction) {
             'avgDuration'                => $kpis['avgDuration'],
             'uniqueUsers'                => $kpis['uniqueUsers'],
             'endDateCheckins'            => $kpis['endDateCheckins'],
+            'top3Students'               => $kpi3['top3Students'],
+            'top3Colleges'               => $kpi3['top3Colleges'],
+            'top3Courses'                => $kpi3['top3Courses'],
             'topCheckins'                => $uData['topCheckins'],
             'topDuration'                => $uData['topDuration'],
             'classificationDistribution' => $clsDist,
