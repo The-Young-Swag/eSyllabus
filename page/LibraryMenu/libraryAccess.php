@@ -15,7 +15,11 @@ $users = execsqlSRS("SELECT
 $sections = execsqlSRS("SELECT SectionID, SectionName FROM LibrarySection WHERE IsActive = 1 ORDER BY SectionName", "Search", []);
 
 // Get current library access
-$accessRows = execsqlSRS("SELECT UserID, SectionID FROM LibraryAccess", "Search", []);
+$accessRows = execsqlSRS("
+    SELECT UserID, SectionID
+    FROM LibraryAccess
+    WHERE IsActive = 1
+", "Search", []);
 $userAccess = [];
 foreach ($accessRows as $ar) {
     $userAccess[$ar['UserID']] = $ar['SectionID'];

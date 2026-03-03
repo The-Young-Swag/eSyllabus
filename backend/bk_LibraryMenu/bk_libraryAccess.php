@@ -6,37 +6,74 @@ $request = $_POST['request'] ?? '';
 switch ($request) {
 
     case 'assignAccess':
-        $userID = $_POST['userID'] ?? '';
-        $sectionID = $_POST['sectionID'] ?? null; // can be null for no access
 
-        if (empty($userID)) {
+        $userID = $_POST['userID'] ?? '';
+        $sectionID = $_POST['sectionID'] ?? '';
+
+        if ($userID === '') {
             echo "MISSING_USER";
             exit;
         }
 
         try {
-            if (empty($sectionID)) {
-                // Remove access if null
-                execsqlSRS("DELETE FROM LibraryAccess WHERE UserID = ?", "Delete", [$userID]);
-            } else {
-                // Check if already exists
-                $existing = execsqlSRS(
-                    "SELECT COUNT(*) AS cnt FROM LibraryAccess WHERE UserID = ?",
-                    "Search",
-                    [$userID]
-                );
 
-                if ($existing[0]['cnt'] > 0) {
-                    // Update SectionID and timestamp
+            // Check if row exists
+            $existing = execsqlSRS(
+                "SELECT AccessID FROM LibraryAccess WHERE UserID = ?",
+                "Search",
+                [$userID]
+            );
+
+            $hasRecord = !empty($existing);
+
+            // ==========================
+            // REMOVE ACCESS
+            // ==========================
+            if ($sectionID === '') {
+
+                if ($hasRecord) {
                     execsqlSRS(
-                        "UPDATE LibraryAccess SET SectionID = ?, AccessGrantedDate = GETDATE() WHERE UserID = ?",
+                        "UPDATE LibraryAccess
+                         SET SectionID = NULL,
+                             IsActive = 0
+                         WHERE UserID = ?",
+                        "Update",
+                        [$userID]
+                    );
+                } else {
+                    // Optional: insert inactive record
+                    execsqlSRS(
+                        "INSERT INTO LibraryAccess 
+                         (UserID, SectionID, AccessGrantedDate, IsActive)
+                         VALUES (?, NULL, GETDATE(), 0)",
+                        "Insert",
+                        [$userID]
+                    );
+                }
+
+            } else {
+
+                // ==========================
+                // ASSIGN / REASSIGN ACCESS
+                // ==========================
+                if ($hasRecord) {
+
+                    execsqlSRS(
+                        "UPDATE LibraryAccess
+                         SET SectionID = ?,
+                             AccessGrantedDate = GETDATE(),
+                             IsActive = 1
+                         WHERE UserID = ?",
                         "Update",
                         [$sectionID, $userID]
                     );
+
                 } else {
-                    // Insert new access
+
                     execsqlSRS(
-                        "INSERT INTO LibraryAccess (UserID, SectionID, AccessGrantedDate) VALUES (?, ?, GETDATE())",
+                        "INSERT INTO LibraryAccess
+                         (UserID, SectionID, AccessGrantedDate, IsActive)
+                         VALUES (?, ?, GETDATE(), 1)",
                         "Insert",
                         [$userID, $sectionID]
                     );
@@ -44,6 +81,7 @@ switch ($request) {
             }
 
             echo "SUCCESS";
+
         } catch (Exception $e) {
             echo "ERROR: " . $e->getMessage();
         }
@@ -54,4 +92,3 @@ switch ($request) {
         echo "INVALID_REQUEST";
         break;
 }
-?>

@@ -572,6 +572,7 @@ $(document).on('change', '#UpdatePrvRole', function(e) {
 
 
 
+
 //RIVZ
 // Load menus function
 function loadMenus(type) {
@@ -605,18 +606,63 @@ function postJSON(url, data, onSuccess, onFail) {
 
 
 /**
+ * Core reusable AJAX engine
+ */
+function ajax({
+    url,
+    data = {},
+    method = "POST",
+    dataType = "html", // "html" or "json"
+    beforeSend,
+    onSuccess,
+    onError,
+    target = null,
+    loadingHtml = null
+}) {
+    if (target && loadingHtml) {
+        $(target).html(loadingHtml);
+    }
+
+    $.ajax({
+        url,
+        method,
+        data,
+        dataType,
+        beforeSend: function () {
+            if (typeof beforeSend === "function") beforeSend();
+        },
+        success: function (response) {
+            if (target && dataType === "html") {
+                $(target).html(response);
+            }
+            if (typeof onSuccess === "function") {
+                onSuccess(response);
+            }
+        },
+        error: function (xhr, status, error) {
+            console.error("AJAX error:", error);
+            if (typeof onError === "function") {
+                onError(xhr, status, error);
+            }
+        }
+    });
+}
+
+
+
+/**
  * Loads data into HTML table
- * @param {string} url - PHP file URL (e.g., "backend/bk_menumanagement.php")
- * @param {string} request - Request type (e.g., "viewMenus")
- * @param {string} target - Table selector (e.g., "#tblviewMenus")
+ * @param {string} backendurl - PHP file URL (e.g., "backend/bk_menumanagement.php")
+ * @param {string} backendrequest - Request type (e.g., "viewMenus")
+ * @param {string} tabletarget - Table selector (e.g., "#tblviewMenus")
  * 
  * Usage: loadTable("backend/bk_menumanagement.php", "viewMenus", "#tblviewMenus")
  */
 function loadTable(url, request, target) {
-    $.post(url, { request: request }, function(response) {
-        $(target).html(response);
-    }).fail(function(xhr, status, error) {
-        console.error("AJAX error:", error);
+    ajax({
+        url,
+        data: { request },
+        target
     });
 }
 
@@ -664,6 +710,8 @@ function refreshSidebarForRole(roleID) {
         console.error("Sidebar refresh failed");
     });
 }
+
+
 
 
 /**
@@ -763,10 +811,12 @@ function saveData(saveURL, saveRequest, formData, updateRowCallback) {
 
                 if (data.success) {
 
+                    // Update ONLY the edited row
                     if (typeof updateRowCallback === "function") {
                         updateRowCallback(data);
                     }
 
+                    // Update sidebar live
                     if (typeof updateSidebarMenu === "function") {
                         updateSidebarMenu();
                     }
@@ -794,7 +844,6 @@ function saveData(saveURL, saveRequest, formData, updateRowCallback) {
             alert("Server error. Please try again.");
         });
 }
-
 function updateMenuRow(data) {
 
     const row = $("button.btnEditMenu[data-id='" + data.menID + "']")
@@ -809,13 +858,17 @@ function updateMenuRow(data) {
     row.find("td:eq(6)").text(data.arrangement);
     row.find("td:eq(7)").text(data.icon);
 
+    // Update toggle switch state
     const checkbox = row.find(".toggleMenuStatus");
     checkbox.prop("checked", data.menuStatus == 0);
 }
 
 
+// Add this to your custom reusable functions
+
 /**
  * Updates sidebar menu in real-time after menu changes
+ * Similar to privilege management updates
  * @param {number} RID - Role ID (optional, uses current user's RID if not provided)
  */
 function updateSidebarMenu(RID = null) {
@@ -832,14 +885,20 @@ function updateSidebarMenu(RID = null) {
             request: "getSidebarMenu",
             RID: currentRID
         },
+
         beforeSend: function () {
+            //Show spinner smoothly
             $spinner.css("display", "flex").hide().fadeIn(200);
         },
+
         success: function (html) {
+
             const $sidebar = $("#sidebarMenuContainer");
 
+            // Reset and replace sidebar content
             $sidebar.empty().html(html);
 
+            // Small delay ensures DOM is ready
             setTimeout(function () {
                 $sidebar.Treeview({
                     accordion: false
@@ -850,14 +909,19 @@ function updateSidebarMenu(RID = null) {
                 }
             }, 30);
         },
+
         complete: function () {
+            // Always hide spinner (success or error)
             $spinner.fadeOut(200);
         },
+
         error: function () {
             console.log("Sidebar update failed");
         }
     });
 }
+
+
 
 
 /**
@@ -888,40 +952,35 @@ function showToast(message, type = "success") {
     $("body").append(toastHtml);
     $(`#${toastId}`).toast({ delay: 2000 }).toast("show");
     
+    // Remove after animation
     setTimeout(() => $(`#${toastId}`).remove(), 2500);
 }
 
 
-/**
- * Loads privilege table with loading/error states
- * @param {string} url - PHP file URL
- * @param {string} request - Request type
- * @param {string} target - Table body selector
- * @param {string|number} roleID - Role ID (optional)
- * 
- * Usage: loadPrivTable("backend/bk_privilegemanagement.php", "showAllRolesAndMenus", "#privilegeTableBody")
- */
-function loadPrivTable(url, request, target, roleID = "") {
-    $(target).html(`
-        <tr>
-            <td colspan="4" class="text-center py-4">
-                <div class="spinner-border spinner-border-sm text-success mr-2"></div>
-                Loading...
-            </td>
-        </tr>
-    `);
 
-    $.post(url, { request: request, RID: roleID }, function(response) {
-        $(target).html(response);
-    }).fail(function(xhr, status, error) {
-        console.error("AJAX error:", error);
-        $(target).html(`
+//USED IN PRIVILEGE MENU
+function loadPrivTable(url, request, target, roleID = "") {
+    ajax({
+        url,
+        data: { request, RID: roleID },
+        target,
+        loadingHtml: `
             <tr>
-                <td colspan="4" class="text-center text-danger py-4">
-                    Error loading data
+                <td colspan="4" class="text-center py-4">
+                    <div class="spinner-border spinner-border-sm text-success mr-2"></div>
+                    Loading...
                 </td>
             </tr>
-        `);
+        `,
+        onError: function () {
+            $(target).html(`
+                <tr>
+                    <td colspan="4" class="text-center text-danger py-4">
+                        Error loading data
+                    </td>
+                </tr>
+            `);
+        }
     });
 }
 
@@ -1012,20 +1071,23 @@ function setupMenuEvents() {
                 alert("Network error");
             });
     });
+	
+	function fetchSingleMenuRow(menuID) {
 
-    function fetchSingleMenuRow(menuID) {
-        $.post("backend/bk_menumanagement.php", {
-            request: "getSingleMenuRow",
-            menID: menuID
-        }, function(html) {
-            if ($("#tableAllMenus tr[data-id='" + menuID + "']").length) {
-                $("#tableAllMenus tr[data-id='" + menuID + "']").replaceWith(html);
-            } else {
-                $("#tableAllMenus").append(html);
-            }
-            updateSidebarMenu();
-        });
-    }
+    $.post("backend/bk_menumanagement.php", {
+        request: "getSingleMenuRow",
+        menID: menuID
+    }, function(html) {
+
+        if ($("#tableAllMenus tr[data-id='" + menuID + "']").length) {
+            $("#tableAllMenus tr[data-id='" + menuID + "']").replaceWith(html);
+        } else {
+            $("#tableAllMenus").append(html);
+        }
+
+        updateSidebarMenu();
+    });
+}
 
     // Add Menu AJAX
     $(document).off('click.menu', '#btnaddmenu').on('click.menu', '#btnaddmenu', function(e) {
@@ -1060,9 +1122,11 @@ function setupMenuEvents() {
                     if (data.success) {
                         $('#menuAddmodal').modal('hide');
 
+                        // Clear form
                         $("#m_menu, #m_desc, #m_code, #m_link, #m_icon").val("");
                         $("#m_mother, #m_arrange, #m_status").val("0");
 
+                        // Live update table and sidebar
                         if (typeof loadMenus === "function") {
                             loadMenus('all');
                             loadMenus('deleted');
@@ -1107,7 +1171,7 @@ $(document).on("click", "#btnSaveMenu", function (event) {
     };
 
     saveData("backend/bk_menumanagement.php", "updateMenu", formData, function (json) {
-        loadMenus("all");
+        loadMenus("all"); // or update specific row
     });
 });
 
@@ -1153,6 +1217,7 @@ $(document).off('click.menu', '#btnUpdateMenu')
 
                 if (data.success) {
 
+                    // ✅ UPDATE ONLY THAT ROW
                     const row = $("button.btnEditMenu[data-id='" + data.menID + "']")
                                 .closest("tr");
 
@@ -1194,7 +1259,35 @@ $(document).off('click.menu', '#btnUpdateMenu')
 });
 
 
+// Refresh sidebar for users with the given role
+function refreshSidebarForRole(roleID) {
+    $.ajax({
+        url: "backend/bk_privilegemanagement.php",
+        method: "POST",
+        data: { 
+            request: "RefreshSidebar",
+            RID: roleID
+        },
+        success: function(response) {
+            console.log("Sidebar refresh triggered for role: " + roleID);
+            
+            // If current user has this role, refresh their sidebar
+            if (UserInfo["RID"] == roleID) {
+                refreshCurrentUserSidebar();
+            }
+        },
+        error: function() {
+            console.log("Sidebar refresh failed");
+        }
+    });
+}
+
+
+
+
+
 //USED IN PRIVILEGE MENU
+// Update helper function to setup highlighting
 function setupMenuHighlighting() {
     const currentPath = window.location.pathname.toLowerCase();
     $("#sidebarMenuContainer .nav-link").each(function() {
@@ -1208,6 +1301,22 @@ function setupMenuHighlighting() {
     });
 }
 
+function showToast(message, type = "success") {
+    const toastId = "toast-" + Date.now();
+    const bgColor = type === "success" ? "bg-success" : type === "warning" ? "bg-warning" : type === "error" ? "bg-danger" : "bg-info";
+    const toastHtml = `
+        <div id="${toastId}" class="toast" style="position: fixed; top: 20px; right: 20px; z-index: 1060;">
+            <div class="toast-header ${bgColor} text-white">
+                <strong class="mr-auto">System</strong>
+                <button type="button" class="ml-2 mb-1 close text-white" data-dismiss="toast">&times;</button>
+            </div>
+            <div class="toast-body">${message}</div>
+        </div>`;
+    $("body").append(toastHtml);
+    $(`#${toastId}`).toast({ delay: 2000 }).toast("show");
+    setTimeout(() => $(`#${toastId}`).remove(), 2500);
+}
+
 
 //USED IN PRIVILEGE MENU
 function loadAllRolesAndMenus() {
@@ -1217,6 +1326,8 @@ function loadAllRolesAndMenus() {
         "#privilegeTableBody"
     );
 }
+
+
 
 
 //  HELPER FUNCTIONS 
@@ -1239,9 +1350,10 @@ function updateRoleRow(data) {
     const $row = $(`tr[data-role-id="${roleID}"]`);
     
     if ($row.length) {
-        $row.find("td:eq(1)").text(data.er_role);
-        $row.find("td:eq(2)").text(data.er_rolecode);
+        $row.find("td:eq(1)").text(data.er_role);      // Role Name
+        $row.find("td:eq(2)").text(data.er_rolecode);  // Role Code
         
+        // Update the toggle switch status (column index changed from 4 to 3)
         const $checkbox = $row.find('.toggleRoleStatus');
         $checkbox.prop('checked', data.er_status == 0);
         
@@ -1260,29 +1372,35 @@ function highlightRow($row) {
 
 // ---------------- Library Report Analytics Functions ----------------
 
+// Show loading in a target container
 function showLoading(target) {
     $(target).html('<div class="text-center py-5">Loading...</div>');
 }
 
+// Show error in a target container
 function showError(target, msg = "Failed to load content.") {
     $(target).html(`<div class="text-danger py-5">${msg}</div>`);
 }
 
+// Fetch HTML content from backend for a given tab
 function fetchTabContent(tabName, url = "backend/bk_LibraryMenu/bk_libReports.php") {
     return $.post(url, { request: tabName });
 }
 
+// Initialize charts for a tab if function exists
 function initChartsIfExists(tabName) {
     if (typeof initTabCharts === "function") {
         initTabCharts(tabName);
     }
 }
 
+// Set the active tab (add active class, remove from others)
 function setActiveTab(tabButtons, clickedTab) {
     tabButtons.removeClass("active");
     clickedTab.addClass("active");
 }
 
+// Load a tab: show loading, fetch content, render, init charts
 function loadTab(tabName, contentTarget, tabButtons) {
     showLoading(contentTarget);
 
@@ -1296,6 +1414,7 @@ function loadTab(tabName, contentTarget, tabButtons) {
             showError(contentTarget);
         });
 }
+
 
 
 async function getStudentInfo(studentNumber) {
@@ -1318,6 +1437,9 @@ async function getStudentInfo(studentNumber) {
 }
 
 
+
+
+
 async function fetchTable(url, request, injectTo) {
     const response = await fetch(url, {
         method: 'POST',
@@ -1331,3 +1453,5 @@ async function fetchTable(url, request, injectTo) {
 function btnClick(url, request, target) {
     loadTable(url, request, target);
 }
+
+
