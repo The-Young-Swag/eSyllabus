@@ -68,69 +68,33 @@ function loadLocalDataSource(string $source): array
 // -----------------------------------------------------------------------------
 // To switch to a live API, replace loadLocalDataSource() with:
 //
-/* function loadLocalDataSource(string $dataSourceType): array
-{
-    $apiEndpoints = [
-        "students"  => "https://your-school-api.edu/api/students",
-        "employees" => "https://your-school-api.edu/api/employees",
-    ];
-
-    // Validate requested data source
-    if (!array_key_exists($dataSourceType, $apiEndpoints)) {
-        return [];
-    }
-
-    $apiUrl        = $apiEndpoints[$dataSourceType];
-    $apiAuthToken  = $_ENV["SCHOOL_API_TOKEN"] ?? null;
-
-    if (!$apiAuthToken) {
-        return [];
-    }
-
-    $curlHandle = curl_init($apiUrl);
-
-    curl_setopt_array($curlHandle, [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT        => 5,
-        CURLOPT_CONNECTTIMEOUT => 3,
-        CURLOPT_HTTPHEADER     => [
-            "Authorization: Bearer {$apiAuthToken}",
-            "Accept: application/json"
-        ],
-    ]);
-
-    $apiResponseBody = curl_exec($curlHandle);
-
-    if ($apiResponseBody === false) {
-        curl_close($curlHandle);
-        return [];
-    }
-
-    $httpStatusCode = curl_getinfo($curlHandle, CURLINFO_HTTP_CODE);
-    curl_close($curlHandle);
-
-    if ($httpStatusCode !== 200) {
-        return [];
-    }
-
-    $decodedResponse = json_decode($apiResponseBody, true);
-
-    if (json_last_error() !== JSON_ERROR_NONE || !is_array($decodedResponse)) {
-        return [];
-    }
-
-    // Support both wrapped and unwrapped API responses
-    if (isset($decodedResponse["data"]) && is_array($decodedResponse["data"])) {
-        return $decodedResponse["data"];
-    }
-
-    return $decodedResponse;
-} */
+// function loadLocalDataSource(string $source): array
+// {
+//     $endpoints = [
+//         "students"  => "https://your-school-api.edu/api/students",
+//         "employees" => "https://your-school-api.edu/api/employees",
+//     ];
+//     $ch = curl_init($endpoints[$source]);
+//     curl_setopt_array($ch, [
+//         CURLOPT_RETURNTRANSFER => true,
+//         CURLOPT_HTTPHEADER     => ["Authorization: Bearer YOUR_API_TOKEN"],
+//     ]);
+//     $raw = curl_exec($ch);
+//     if (curl_errno($ch)) {
+//         $err = curl_error($ch);
+//         curl_close($ch);
+//         sendResponse(["error" => "API error for {$source}: {$err}"]);
+//     }
+//     curl_close($ch);
+//     return json_decode($raw, true)["data"] ?? [];
+// }
 // -----------------------------------------------------------------------------
 
 
 
 //  USER RECORD MAPPERS
+
+
 function mapStudentToUserRecord(array $student): array
 {
     return [
@@ -155,41 +119,6 @@ function mapEmployeeToUserRecord(array $employee): array
         "classification" => "EMPLOYEE",
         "secretKey"      => null,
     ];
-}
-
-
-
-function loadIndexedDataSources(): array
-{
-    static $index = null;
-
-    if ($index !== null) {
-        return $index; // Already built this request
-    }
-
-    $students  = loadLocalDataSource("students");
-    $employees = loadLocalDataSource("employees");
-
-    $index = [
-        "students"  => [],
-        "employees" => []
-    ];
-
-    foreach ($students as $s) {
-        $id = $s["id_number"] ?? null;
-        if ($id) {
-            $index["students"][$id][] = mapStudentToUserRecord($s);
-        }
-    }
-
-    foreach ($employees as $e) {
-        $id = $e["employee_number"] ?? $e["id_number"] ?? null;
-        if ($id) {
-            $index["employees"][$id][] = mapEmployeeToUserRecord($e);
-        }
-    }
-
-    return $index;
 }
 
 
@@ -221,30 +150,30 @@ function buildKPIData(PDO $pdo, int $sectionID, string $today): array
     $totals = $stmtTotals->fetch(PDO::FETCH_ASSOC);
 
     // ── Top colleges ─────────────────────────────────────────────────────────
-$stmtColleges = $pdo->prepare("
-    SELECT TOP 3 college, COUNT(*) AS total
-    FROM   Library_logs
-    WHERE  library                   = ?
-      AND  CONVERT(date, checkin_time) = ?
-      AND  college IS NOT NULL
-      AND  college                   <> ''
-    GROUP  BY college
-    ORDER  BY total DESC, college ASC   -- tiebreaker: alphabetical
-");
+    $stmtColleges = $pdo->prepare("
+        SELECT TOP 3 college, COUNT(*) AS total
+        FROM   Library_logs
+        WHERE  library                   = ?
+          AND  CONVERT(date, checkin_time) = ?
+          AND  college IS NOT NULL
+          AND  college                   <> ''
+        GROUP  BY college
+        ORDER  BY total DESC
+    ");
     $stmtColleges->execute([$sectionID, $today]);
     $colleges = array_column($stmtColleges->fetchAll(PDO::FETCH_ASSOC), "college");
 
     // ── Top courses ──────────────────────────────────────────────────────────
-$stmtCourses = $pdo->prepare("
-    SELECT TOP 3 course, COUNT(*) AS total
-    FROM   Library_logs
-    WHERE  library                   = ?
-      AND  CONVERT(date, checkin_time) = ?
-      AND  course IS NOT NULL
-      AND  course                    <> ''
-    GROUP  BY course
-    ORDER  BY total DESC, course ASC    -- tiebreaker: alphabetical
-");
+    $stmtCourses = $pdo->prepare("
+        SELECT TOP 3 course, COUNT(*) AS total
+        FROM   Library_logs
+        WHERE  library                   = ?
+          AND  CONVERT(date, checkin_time) = ?
+          AND  course IS NOT NULL
+          AND  course                    <> ''
+        GROUP  BY course
+        ORDER  BY total DESC
+    ");
     $stmtCourses->execute([$sectionID, $today]);
     $courses = array_column($stmtCourses->fetchAll(PDO::FETCH_ASSOC), "course");
 
@@ -337,6 +266,9 @@ function handleGetLibraries(): void
         sendResponse(["error" => "Missing or invalid userID."]);
     }
 
+    // Query ONLY the section assigned to this specific PC login via LibraryAccess.
+    // Returning all sections would cause currentLibraryID to be wrong after an
+    // admin reassigns the PC, making innocent check-ins show "Switch & Check In".
     $libraries = execsqlSRS("
         SELECT ls.SectionID, ls.SectionName
         FROM   LibraryAccess  la
@@ -348,16 +280,6 @@ function handleGetLibraries(): void
     sendResponse(["success" => true, "data" => $libraries]);
 }
 
-
-//  ▶ VALIDATE USER  (updated — uses O(1) hash map lookup via loadIndexedDataSources)
-
-//
-//  Before: array_filter() scanned ALL records on every request → O(n)
-//  After:  direct key access on pre-built index              → O(1)
-//
-//  Logic flow is identical to the original; only the lookup mechanism changed.
-
-
 function handleValidateUser(): void
 {
     $idNumber = trim($_POST["idNumber"] ?? "");
@@ -366,27 +288,34 @@ function handleValidateUser(): void
         sendResponse(["error" => "Identification number is required."]);
     }
 
-    // Single call builds (or retrieves from cache) both indexes at once
-    $index    = loadIndexedDataSources();
-    $sMatches = $index["students"][$idNumber]  ?? [];   // O(1)
-    $eMatches = $index["employees"][$idNumber] ?? [];   // O(1)
+    $students  = loadLocalDataSource("students");
+    $employees = loadLocalDataSource("employees");
 
-    // ── Student: unique ──────────────────────────────────────────────────────
-    if (count($sMatches) === 1) {
-        sendResponse(["success" => true, "data" => $sMatches[0]]);
+    // ── Student lookup ──────────────────────────────────────────────────────
+    $matchedStudents = array_values(
+        array_filter($students, fn($s) => $s["id_number"] === $idNumber)
+    );
+
+    if (count($matchedStudents) === 1) {
+        sendResponse(["success" => true, "data" => mapStudentToUserRecord($matchedStudents[0])]);
     }
 
-    // ── Student: duplicate ID → secret-key verification flow ────────────────
-    if (count($sMatches) > 1) {
-        sendResponse(["duplicate" => true, "matches" => $sMatches]);
+    if (count($matchedStudents) > 1) {
+        sendResponse([
+            "duplicate" => true,
+            "matches"   => array_map(fn($s) => mapStudentToUserRecord($s), $matchedStudents),
+        ]);
     }
 
-    // ── Employee ─────────────────────────────────────────────────────────────
-    if (count($eMatches) >= 1) {
-        sendResponse(["success" => true, "data" => $eMatches[0]]);
+    // ── Employee lookup ─────────────────────────────────────────────────────
+    $matchedEmployees = array_values(
+        array_filter($employees, fn($e) => ($e["employee_number"] ?? "") === $idNumber)
+    );
+
+    if (count($matchedEmployees) === 1) {
+        sendResponse(["success" => true, "data" => mapEmployeeToUserRecord($matchedEmployees[0])]);
     }
 
-    // ── Not found → walk-in guest (handled on frontend) ──────────────────────
     sendResponse(["error" => "User not found."]);
 }
 
@@ -401,6 +330,9 @@ function handleCheckStatusToday(): void
     $today = date("Y-m-d");
     $pdo   = dbconES();
 
+    // Only look for an open (not yet checked out) session created TODAY.
+    // Past days and checked-out sessions are intentionally excluded so a user
+    // who forgot to check out yesterday is never treated as "still inside".
     $stmt = $pdo->prepare("
         SELECT TOP 1 ll.library, ls.SectionName
         FROM   Library_logs  ll
@@ -450,6 +382,8 @@ function handleSaveAttendance(): void
     $user = compact("name", "classification", "college", "course", "sex");
 
     try {
+        // Keep the write transaction as narrow as possible to prevent deadlocks.
+        // buildKPIData is read-only and runs AFTER commit, not inside the transaction.
         $pdo->beginTransaction();
         if ($action === "checkin") {
             performCheckin($pdo, $idNumber, $sectionID, $now, $today, $user);
@@ -465,6 +399,7 @@ function handleSaveAttendance(): void
         sendResponse(["error" => "Database error: " . $e->getMessage()]);
     }
 
+    // Read KPI after the transaction is fully committed
     $kpiData = buildKPIData($pdo, $sectionID, $today);
 
     sendResponse(["success" => true, "action" => $action, "kpi" => $kpiData]);

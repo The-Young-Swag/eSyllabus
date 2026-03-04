@@ -1,125 +1,197 @@
 <div class="container-fluid py-4">
 
-    <!-- HEADER -->
-    <div class="card shadow-sm mb-4 border-0 rounded-4">
-        <div class="card-body d-flex flex-column flex-md-row justify-content-between align-items-md-center">
-            <div>
-                <h4 class="fw-bold mb-1">Library Attendance Dashboard</h4>
-                <small class="text-muted">Real-time monitoring of today's attendance activity</small>
-            </div>
-            <div class="mt-3 mt-md-0 text-md-end">
-                <small class="text-muted">Current Date & Time</small>
-                <div class="fw-bold text-danger fs-5" id="kpiCurrentTime"></div>
-            </div>
+<style>
+  @keyframes ldot {
+    0%,100% { opacity:1; }
+    50%      { opacity:.35; }
+  }
+  #toggleIdVisibility:hover { color:#064e3b !important; }
+  #logForm button[type=submit]:hover {
+    background:#047857 !important;
+    box-shadow:0 5px 18px rgba(6,78,59,.25) !important;
+  }
+</style>
+
+<div class="px-1">
+
+  <!-- ═══ HEADER ═══════════════════════════════════════════════ -->
+  <div class="card border-0 rounded-4 mb-3" style="box-shadow:0 1px 6px rgba(0,0,0,.07);">
+    <div class="card-body py-3 px-4">
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+
+        <div>
+          <div class="d-flex align-items-center mb-1" style="gap:9px;">
+            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;
+                         background:#10b981;flex-shrink:0;
+                         animation:ldot 2.2s ease-in-out infinite;"></span>
+            <span class="fw-bold text-dark" style="font-size:1rem;letter-spacing:-.2px;">Library Attendance Dashboard</span>
+          </div>
+          <div class="text-muted" style="font-size:.76rem;padding-left:17px;">Real-time monitoring of today's attendance activity</div>
         </div>
+
+<!-- Time badge -->
+<div class="px-4 py-3 d-flex flex-column"
+     style="background:linear-gradient(135deg,#f0fdf9,#e6faf4);
+            border:1px solid #a7f3d0;
+            border-radius:16px;
+            min-width:280px;
+            box-shadow:0 2px 12px rgba(6,78,59,.08),inset 0 1px 0 rgba(255,255,255,.8);">
+  <span class="text-uppercase fw-bold" style="font-size:.6rem;letter-spacing:.12em;color:#6ee7b7;">Current Date &amp; Time</span>
+  <span id="kpiCurrentTime" class="fw-semibold mt-1" style="font-size:1rem;color:#064e3b;letter-spacing:-.2px;">—</span>
+</div>
+
+      </div>
     </div>
+  </div>
 
-    <!-- LOG ATTENDANCE -->
-    <div class="card border-0 shadow-lg overflow-hidden rounded-4 mb-4">
-        <div class="card-body py-4 px-4 px-lg-5"
-             style="background: linear-gradient(145deg, #064e3b, #065f46);">
+  <!-- ═══ LOG ATTENDANCE ════════════════════════════════════════ -->
+  <div class="card border-0 rounded-4 mb-3"
+       style="box-shadow:0 2px 16px rgba(6,78,59,.1);border:1.5px solid #6ee7b7 !important;">
+    <div class="card-body p-4"
+         style="background:linear-gradient(150deg,#e8faf3 0%,#f0fdf9 40%,#eaf6f2 100%);
+                border-radius:calc(1rem - 1px);">
 
-            <div class="bg-white rounded-4 shadow-sm p-4 p-lg-5 mx-auto" style="max-width: 1000px;">
-
-                <!-- Header Row -->
-                <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4 flex-wrap">
-                    <div>
-                        <h5 class="fw-bold text-dark mb-1">Library Access</h5>
-                        <small class="text-muted">Secure identification verification</small>
-                    </div>
-                    <div class="mt-3 mt-md-0" style="min-width: 320px;">
-                        <small class="text-muted fw-semibold d-block mb-1">Library Section</small>
-                        <div class="form-control form-control-lg border-0 shadow-sm fw-semibold text-white fs-6 py-2"
-                             style="background: linear-gradient(90deg, #047857, #10b981); border-radius: 0.5rem;">
-                            <span id="currentLibraryDisplay">Main Library</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Form -->
-                <form id="logForm" class="row g-3 align-items-end">
-
-                    <div class="col-12">
-                        <label class="form-label fw-semibold text-dark mb-2">Identification Number</label>
-                        <div class="input-group input-group-lg shadow-sm">
-                            <input type="password"
-                                   class="form-control border-0 py-3"
-                                   id="inputStudentNumber"
-                                   placeholder="Enter or scan identification number"
-                                   autocomplete="off"
-                                   style="font-size: 1.1rem;
-                                          background: linear-gradient(90deg, #e6f4ea, #ffffff);
-                                          border-radius: 0.5rem;
-                                          transition: all 0.2s ease-in-out;">
-                            <button type="button" class="btn btn-light border-0 px-4" id="toggleIdVisibility"
-                                    style="border-radius: 0.5rem;">
-                                <i class="fas fa-eye text-secondary" id="toggleIcon"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="col-12"><hr class="my-3"></div>
-
-                    <div class="col-12">
-                        <div class="d-grid">
-                            <button type="submit"
-                                    class="btn fw-semibold text-white py-3 shadow-sm"
-                                    style="background: linear-gradient(90deg, #047857, #10b981);
-                                           border: none; font-size: 1rem; border-radius: 0.5rem;">
-                                Confirm Access
-                            </button>
-                        </div>
-                    </div>
-
-                </form>
-
-            </div>
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 pb-3 mb-4"
+           style="border-bottom:1px solid #c6ead9;">
+        <div>
+          <div class="fw-bold text-dark mb-1" style="font-size:.96rem;">Library Access</div>
+          <div class="text-muted" style="font-size:.75rem;">Secure identification verification</div>
         </div>
-    </div>
 
-    <!-- KPI CARDS -->
-<!-- KPI CARDS -->
-<div class="row g-3 mb-4">
-    <div class="col-12 col-sm-6 col-lg-3">
-        <div class="card border-0 shadow-sm h-100" style="border-top:3px solid #10b981 !important;">
-            <div class="card-body p-3">
-                <small class="fw-semibold text-muted d-block mb-2">Total Check-Ins Today</small>
-                <div class="fw-bold text-success" style="font-size:2rem;" id="kpiTotalCheckins">—</div>
-            </div>
+<!-- Section badge -->
+<div class="d-flex align-items-center px-3 py-3"
+     style="background:#ffffff;
+            border:1px solid #a7f3d0;
+            border-radius:16px;
+            gap:12px;min-width:280px;
+            box-shadow:0 2px 12px rgba(6,78,59,.08),inset 0 1px 0 rgba(255,255,255,.9);">
+  <div class="d-flex align-items-center justify-content-center flex-shrink-0"
+       style="width:36px;height:36px;
+              border-radius:10px;
+              background:linear-gradient(135deg,#d1fae5,#a7f3d0);
+              color:#047857;font-size:.85rem;
+              box-shadow:0 1px 4px rgba(6,78,59,.12);">
+    <i class="fas fa-book-open"></i>
+  </div>
+  <div style="line-height:1.5;">
+    <div class="text-uppercase fw-bold" style="font-size:.6rem;letter-spacing:.12em;color:#6ee7b7;margin-bottom:1px;">Library Section</div>
+    <div class="fw-bold" style="font-size:.9rem;color:#064e3b;white-space:nowrap;" id="currentLibraryDisplay">Main Library</div>
+  </div>
+</div>
+		
+      </div>
+
+      <form id="logForm" autocomplete="off">
+
+        <label for="inputStudentNumber"
+               class="d-block fw-bold text-uppercase mb-2"
+               style="font-size:.67rem;letter-spacing:.09em;color:#3d8a6e;">Identification Number</label>
+
+        <div style="padding:2px;border-radius:11px;
+                    background:linear-gradient(130deg,#10b981 0%,#3b82f6 55%,#06b6d4 100%);
+                    box-shadow:0 3px 16px rgba(16,185,129,.15);">
+          <div class="d-flex align-items-center bg-white" style="border-radius:9px;overflow:hidden;">
+            <input type="password"
+                   id="inputStudentNumber"
+                   placeholder="Enter or scan identification number"
+                   autocomplete="new-password"
+                   spellcheck="false"
+                   style="flex:1;border:none;outline:none;box-shadow:none;
+                          background:transparent;padding:12px 16px;
+                          font-size:.92rem;color:#0f172a;">
+            <button type="button" id="toggleIdVisibility"
+                    style="background:transparent;border:none;outline:none;
+                           padding:0 14px;color:#94a3b8;cursor:pointer;
+                           line-height:1;transition:color .15s;">
+              <i class="fas fa-eye" id="toggleIcon"></i>
+            </button>
+          </div>
         </div>
+
+        <hr class="my-4" style="border-color:#c6ead9;">
+
+        <button type="submit"
+                class="btn w-100 fw-semibold text-white py-3"
+                style="background:#064e3b;border:none;border-radius:8px;
+                       font-size:.9rem;letter-spacing:.02em;
+                       transition:background .18s,box-shadow .18s;">
+          Confirm Access
+        </button>
+
+      </form>
     </div>
-    <div class="col-12 col-sm-6 col-lg-3">
-        <div class="card border-0 shadow-sm h-100" style="border-top:3px solid #3b82f6 !important;">
-            <div class="card-body p-3">
-                <small class="fw-semibold text-muted d-block mb-2">Currently In Attendance</small>
-                <div class="fw-bold text-primary" style="font-size:2rem;" id="kpiActiveStudents">—</div>
-            </div>
+  </div>
+
+<!-- ═══ KPI CARDS ════════════════════════════════════════════ -->
+<div class="row g-3">
+  <div class="col-12 col-sm-6 col-lg-3">
+    <div class="card border-0 rounded-4 overflow-hidden"
+         style="box-shadow:0 1px 6px rgba(0,0,0,.07);border-top:3px solid #10b981 !important;height:130px;">
+      <div class="card-body d-flex flex-column align-items-center text-center" style="padding:14px 12px;">
+        <div class="text-uppercase fw-bold text-muted" style="font-size:.64rem;letter-spacing:.09em;">Total Check-Ins Today</div>
+        <div class="flex-grow-1 d-flex align-items-center justify-content-center">
+          <div id="kpiTotalCheckins" style="font-size:1.75rem;font-weight:600;color:#10b981;line-height:1;">—</div>
         </div>
+      </div>
     </div>
-    <div class="col-12 col-sm-6 col-lg-3">
-        <div class="card border-0 shadow-sm h-100" style="border-top:3px solid #f59e0b !important;">
-            <div class="card-body p-3">
-                <small class="fw-semibold text-muted d-block mb-2">Top 3 Colleges Today</small>
-                <div id="topColleges" class="small">
-                    <div class="mb-1"><span class="fw-bold">1.</span> <span class="text-warning">Loading...</span></div>
-                    <div class="mb-1"><span class="fw-bold">2.</span> <span class="text-warning">Loading...</span></div>
-                    <div class="mb-1"><span class="fw-bold">3.</span> <span class="text-warning">Loading...</span></div>
-                </div>
-            </div>
+  </div>
+  <div class="col-12 col-sm-6 col-lg-3">
+    <div class="card border-0 rounded-4 overflow-hidden"
+         style="box-shadow:0 1px 6px rgba(0,0,0,.07);border-top:3px solid #3b82f6 !important;height:130px;">
+      <div class="card-body d-flex flex-column align-items-center text-center" style="padding:14px 12px;">
+        <div class="text-uppercase fw-bold text-muted" style="font-size:.64rem;letter-spacing:.09em;">Currently In Attendance</div>
+        <div class="flex-grow-1 d-flex align-items-center justify-content-center">
+          <div id="kpiActiveStudents" style="font-size:1.75rem;font-weight:600;color:#3b82f6;line-height:1;">—</div>
         </div>
+      </div>
     </div>
-    <div class="col-12 col-sm-6 col-lg-3">
-        <div class="card border-0 shadow-sm h-100" style="border-top:3px solid #06b6d4 !important;">
-            <div class="card-body p-3">
-                <small class="fw-semibold text-muted d-block mb-2">Top 3 Courses Today</small>
-                <div id="topCourses" class="small">
-                    <div class="mb-1"><span class="fw-bold">1.</span> <span class="text-info">Loading...</span></div>
-                    <div class="mb-1"><span class="fw-bold">2.</span> <span class="text-info">Loading...</span></div>
-                    <div class="mb-1"><span class="fw-bold">3.</span> <span class="text-info">Loading...</span></div>
-                </div>
-            </div>
+  </div>
+  <div class="col-12 col-sm-6 col-lg-3">
+    <div class="card border-0 rounded-4 overflow-hidden"
+         style="box-shadow:0 1px 6px rgba(0,0,0,.07);border-top:3px solid #f59e0b !important;height:130px;">
+      <div class="card-body d-flex flex-column justify-content-center" style="padding:14px 16px;">
+        <div class="text-uppercase fw-bold text-muted mb-2 text-center" style="font-size:.64rem;letter-spacing:.09em;">Top 3 Colleges Today</div>
+        <div id="topColleges">
+          <div class="d-flex align-items-baseline gap-2 mb-1">
+            <span class="fw-bold text-muted" style="font-size:.67rem;width:14px;flex-shrink:0;">1.</span>
+            <span class="text-warning fw-semibold" style="font-size:.75rem;">Loading...</span>
+          </div>
+          <div class="d-flex align-items-baseline gap-2 mb-1">
+            <span class="fw-bold text-muted" style="font-size:.67rem;width:14px;flex-shrink:0;">2.</span>
+            <span class="text-warning fw-semibold" style="font-size:.75rem;">Loading...</span>
+          </div>
+          <div class="d-flex align-items-baseline gap-2">
+            <span class="fw-bold text-muted" style="font-size:.67rem;width:14px;flex-shrink:0;">3.</span>
+            <span class="text-warning fw-semibold" style="font-size:.75rem;">Loading...</span>
+          </div>
         </div>
+      </div>
     </div>
+  </div>
+  <div class="col-12 col-sm-6 col-lg-3">
+    <div class="card border-0 rounded-4 overflow-hidden"
+         style="box-shadow:0 1px 6px rgba(0,0,0,.07);border-top:3px solid #06b6d4 !important;height:130px;">
+      <div class="card-body d-flex flex-column justify-content-center" style="padding:14px 16px;">
+        <div class="text-uppercase fw-bold text-muted mb-2 text-center" style="font-size:.64rem;letter-spacing:.09em;">Top 3 Courses Today</div>
+        <div id="topCourses">
+          <div class="d-flex align-items-baseline gap-2 mb-1">
+            <span class="fw-bold text-muted" style="font-size:.67rem;width:14px;flex-shrink:0;">1.</span>
+            <span class="text-info fw-semibold" style="font-size:.75rem;">Loading...</span>
+          </div>
+          <div class="d-flex align-items-baseline gap-2 mb-1">
+            <span class="fw-bold text-muted" style="font-size:.67rem;width:14px;flex-shrink:0;">2.</span>
+            <span class="text-info fw-semibold" style="font-size:.75rem;">Loading...</span>
+          </div>
+          <div class="d-flex align-items-baseline gap-2">
+            <span class="fw-bold text-muted" style="font-size:.67rem;width:14px;flex-shrink:0;">3.</span>
+            <span class="text-info fw-semibold" style="font-size:.75rem;">Loading...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div><!-- /row -->
+
 </div>
 
 </div>
