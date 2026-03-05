@@ -205,11 +205,11 @@ $(document).ready(function () {
     // =========================================================================
     // STATE
     // =========================================================================
-    let currentLibraryID   = null;
-    let currentLibraryName = '';
-    let selectedUser       = null;
+    let currentLibraryID    = null;
+    let currentLibraryName  = '';
+    let selectedUser        = null;
     let duplicateCandidates = [];
-    let currentAction      = 'checkin';
+    let currentAction       = 'checkin';
 
     const BACKEND = "backend/bk_LibraryMenu/bk_libLogs-Test.php";
 
@@ -291,8 +291,8 @@ $(document).ready(function () {
 
     // Toggle ID number visibility
     $("#toggleIdVisibility").on('click', function () {
-        const $input = $("#inputStudentNumber");
-        const $icon  = $("#toggleIcon");
+        const $input   = $("#inputStudentNumber");
+        const $icon    = $("#toggleIcon");
         const isHidden = $input.attr("type") === "password";
         $input.attr("type", isHidden ? "text" : "password");
         $icon.toggleClass("fa-eye", !isHidden).toggleClass("fa-eye-slash", isHidden);
@@ -318,27 +318,29 @@ $(document).ready(function () {
         if (selectedUser && currentAction) processAttendance(selectedUser, currentAction);
     });
 
-    // Secret key input — validate on 6 chars
-$(document).on('input', '#modalSecretKey', function () {
-    let raw = $(this).val().replace(/\D/g, '').substring(0, 8);
+    // Secret key input — auto-format and fire once 8 digits are entered
+    $(document).on('input', '#modalSecretKey', function () {
+        let raw = $(this).val().replace(/\D/g, '').substring(0, 8);
 
-    // Auto-format as MM/DD/YYYY while typing
-    let formatted = raw;
-    if (raw.length > 4) formatted = raw.slice(0,2) + '/' + raw.slice(2,4) + '/' + raw.slice(4);
-    else if (raw.length > 2) formatted = raw.slice(0,2) + '/' + raw.slice(2);
+        // Auto-format as MM/DD/YYYY while typing
+        let formatted = raw;
+        if (raw.length > 4) formatted = raw.slice(0,2) + '/' + raw.slice(2,4) + '/' + raw.slice(4);
+        else if (raw.length > 2) formatted = raw.slice(0,2) + '/' + raw.slice(2);
 
-    $(this).val(formatted);
+        $(this).val(formatted);
 
-    if (raw.length === 8) {
-        validateSecretKey(raw);   // compare digits-only against stored secretKey
-    } else {
-        $("#verifiedStudentContainer").hide().empty();
-        setSecretKeyStatus('muted', 'fa-info-circle', 'Enter birth date (MM/DD/YYYY)');
-    }
-});
+        if (raw.length === 8) {
+            validateSecretKey(raw);
+        } else {
+            $("#verifiedStudentContainer").hide().empty();
+            setSecretKeyStatus('muted', 'fa-info-circle', 'Enter birth date (MM/DD/YYYY)');
+        }
+    });
 
     // =========================================================================
     // USER VALIDATION
+    // JS owns: routing, state, action determination
+    // PHP owns: HTML rendering (modal body/footer)
     // =========================================================================
     function validateUser() {
         const idNumber = $("#inputStudentNumber").val().trim();
@@ -347,16 +349,26 @@ $(document).on('input', '#modalSecretKey', function () {
         $.post(BACKEND, { request: "validateUser", idNumber }, function (res) {
 
             if (res.error) {
-                // Not found — treat as walk-in guest
-                selectedUser  = { id_number: idNumber, name: "Guest", classification: "GUEST",
-                                  college: "", course: "", sex: "" };
-                currentAction = "checkin";
-                return showUserModal(selectedUser, "success", "fa-sign-in-alt", "Check In", "Walk-in guest");
+                // Not found — treat as walk-in guest, still check status today
+                selectedUser = {
+                    id_number:      idNumber,
+                    name:           "Guest",
+                    classification: "GUEST",
+                    college:        "",
+                    course:         "",
+                    sex:            ""
+                };
+                $.post(BACKEND, { request: "checkStatusToday", idNumber }, function (status) {
+                    determineAction(selectedUser, status);
+                });
+                return;
             }
 
             if (res.duplicate) {
                 duplicateCandidates = res.matches;
-                return showDuplicateModal();
+                // PHP already built the duplicate modal HTML — just inject it
+                showModal("Identity Verification", res.modalHTML, "");
+                return;
             }
 
             selectedUser = res.data;
@@ -367,133 +379,90 @@ $(document).on('input', '#modalSecretKey', function () {
     }
 
     // =========================================================================
-    // DETERMINE CHECK-IN / CHECK-OUT / SWITCH
+    // DETERMINE ACTION
+    // JS resolves checkin / checkout / switch, then asks PHP to render the modal
     // =========================================================================
     function determineAction(user, status) {
-        let action  = "checkin",       color  = "success";
-        let icon    = "fa-sign-in-alt", btnText = "Check In";
+        let action  = "checkin";
+        let color   = "success";
+        let icon    = "fa-sign-in-alt";
+        let btnText = "Check In";
         let message = "Not checked in yet";
 
         if (status.checkedIn) {
             const sameSection = parseInt(status.sectionID) === parseInt(currentLibraryID);
             if (sameSection) {
-                action = "checkout"; color = "danger"; icon = "fa-sign-out-alt";
-                btnText = "Check Out"; message = "Currently in this library";
+                action  = "checkout";
+                color   = "danger";
+                icon    = "fa-sign-out-alt";
+                btnText = "Check Out";
+                message = "Currently in this library";
             } else {
                 const prevLibrary = status.sectionName || "another library";
-                action  = "switch"; color = "warning"; icon = "fa-random";
+                action  = "switch";
+                color   = "warning";
+                icon    = "fa-random";
                 btnText = "Switch & Check In";
-                message = `You forgot to check out at <strong>${prevLibrary}</strong>. No worries — we’ve automatically checked you out and completed your check-in here.`;
+                message = `You forgot to check out at <strong>${prevLibrary}</strong>. No worries — we've automatically checked you out and completed your check-in here.`;
             }
         }
 
         currentAction = action;
-        showUserModal(user, color, icon, btnText, message);
+
+        // Ask PHP to render the confirmation modal HTML with the resolved values.
+        // JS passes all the data; PHP does the rendering; JS injects the result.
+        $.post(BACKEND, {
+            request:     "buildAttendanceModal",
+            user:        JSON.stringify(user),
+            color:       color,
+            icon:        icon,
+            btnText:     btnText,
+            message:     message,
+            libraryName: currentLibraryName
+        }, function (res) {
+            if (!res.success) return;
+            showModal("Attendance Confirmation", res.body, res.footer);
+        });
     }
 
     // =========================================================================
-    // MODALS
+    // SECRET KEY VERIFICATION  (duplicate ID flow)
+    // JS finds the match from cached candidates, then asks PHP to render modal
     // =========================================================================
-    function showUserModal(user, color, icon, btnText, message) {
-        const isEmployee = user.classification === "EMPLOYEE";
-        const isGuest    = user.classification === "GUEST";
+    function validateSecretKey(key) {
+        const match = duplicateCandidates.find(u => {
+            if (!u.secretKey) return false;
+            return u.secretKey.replace(/\D/g, '') === key;
+        });
 
-        let rows = `
-            <div class="row mb-2"><div class="col-5 fw-semibold">ID</div><div class="col-7">${user.id_number}</div></div>
-            <div class="row mb-2"><div class="col-5 fw-semibold">Name</div><div class="col-7">${user.name}</div></div>
-            <div class="row mb-2"><div class="col-5 fw-semibold">Sex</div><div class="col-7">${user.sex || 'N/A'}</div></div>
-            <div class="row mb-2"><div class="col-5 fw-semibold">Type</div><div class="col-7">${user.classification}</div></div>
-        `;
-
-        // Students also show college & course
-        if (!isEmployee && !isGuest) {
-            rows += `
-                <div class="row mb-2"><div class="col-5 fw-semibold">College</div><div class="col-7">${user.college || 'N/A'}</div></div>
-                <div class="row mb-2"><div class="col-5 fw-semibold">Course</div><div class="col-7">${user.course  || 'N/A'}</div></div>
-            `;
+        if (match) {
+            selectedUser = match;
+            setSecretKeyStatus('success', 'fa-check-circle', 'Identity verified');
+            $("#verifiedStudentContainer").show();
+            $.post(BACKEND, { request: "checkStatusToday", idNumber: selectedUser.id_number }, function (status) {
+                determineAction(selectedUser, status);
+            });
+        } else {
+            setSecretKeyStatus('danger', 'fa-exclamation-circle', 'Invalid key — try again');
+            $("#verifiedStudentContainer").hide().empty();
         }
-
-        const body = `
-            <div class="text-center mb-3">
-                <div class="badge bg-${color} fs-6 p-2">
-                    <i class="fas ${icon} me-2"></i>${btnText} Confirmation
-                </div>
-                <p class="text-muted mt-2 small">${message}</p>
-            </div>
-            <div class="bg-light p-3 rounded">
-                ${rows}
-                <hr>
-                <div class="text-center fw-bold text-primary">Library: ${currentLibraryName}</div>
-            </div>
-        `;
-
-        const footer = `
-            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-            <button type="button" class="btn btn-${color}" id="confirmAttendance">
-                <i class="fas ${icon} me-1"></i>${btnText}
-            </button>
-        `;
-
-        showModal("Attendance Confirmation", body, footer);
-    }
-
-    function showDuplicateModal() {
-        const body = `
-            <div class="text-center mb-3">
-                <div class="badge bg-warning fs-6 p-2">
-                    <i class="fas fa-user-shield me-2"></i>Duplicate ID Found
-                </div>
-                <p class="text-muted mt-2 small">Enter your birth date (MM/DD/YYYY)</p>
-            </div>
-            <div class="card bg-light p-3 border-0">
-                <div class="input-group mb-2">
-    <input type="text" id="modalSecretKey"
-       class="form-control text-center fw-bold fs-5"
-       maxlength="10" placeholder="MM/DD/YYYY" autocomplete="off">
-                    <button class="btn btn-outline-secondary" type="button" id="toggleSecretKey">
-                        <i class="fas fa-eye" id="secretIcon"></i>
-                    </button>
-                </div>
-                <div id="secretKeyStatus" class="small text-muted mt-1">
-                    <i class="fas fa-info-circle me-1"></i>Enter 6-digit key
-                </div>
-            </div>
-            <div id="verifiedStudentContainer" class="mt-3" style="display:none;"></div>
-        `;
-        showModal("Identity Verification", body, "");
     }
 
     function setSecretKeyStatus(type, faIcon, text) {
-        const colorClass = type === 'success' ? 'text-success' : type === 'danger' ? 'text-danger' : 'text-muted';
+        const colorClass = type === 'success' ? 'text-success'
+                         : type === 'danger'  ? 'text-danger'
+                         : 'text-muted';
         $("#secretKeyStatus").html(
             `<span class="${colorClass}"><i class="fas ${faIcon} me-1"></i>${text}</span>`
         );
     }
 
-function validateSecretKey(key) {
-    const match = duplicateCandidates.find(u => {
-        if (!u.secretKey) return false;
-        return u.secretKey.replace(/\D/g, '') === key;
-    });
-    if (match) {
-        selectedUser  = match;
-        currentAction = "checkin";
-        setSecretKeyStatus('success', 'fa-check-circle', 'Identity verified');
-        $("#verifiedStudentContainer").show();
-        $.post(BACKEND, { request: "checkStatusToday", idNumber: selectedUser.id_number }, function (status) {
-            determineAction(selectedUser, status);
-        });
-    } else {
-        setSecretKeyStatus('danger', 'fa-exclamation-circle', 'Invalid key — try again');
-        $("#verifiedStudentContainer").hide().empty();
-    }
-}
-
-    // Tracks the auto-close timer so we can cancel it if the user manually closes
+    // =========================================================================
+    // MODAL HELPER — pure injection, no HTML built here
+    // =========================================================================
     let successTimer = null;
 
     function showModal(title, body, footer = "") {
-        // Cancel any pending auto-close from a previous success modal
         if (successTimer) {
             clearTimeout(successTimer);
             successTimer = null;
@@ -555,7 +524,6 @@ function validateSecretKey(key) {
             sex:            user.sex     || "",
         }, function (res) {
             if (res.error) {
-                // Replace the success modal with the actual error
                 showModal("Error",
                     `<div class="alert alert-danger text-center mb-0">
                         <i class="fas fa-exclamation-circle me-2"></i>${res.error}

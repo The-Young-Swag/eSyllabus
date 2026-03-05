@@ -27,18 +27,95 @@ function sendResponse(array $payload): void
 }
 
 
+/**
+ * Validates that an ID number only contains letters and digits.
+ * Rejects anything suspicious before it touches any data source.
+ */
+function validateIdFormat(string $id): bool
+{
+    return (bool) preg_match('/^[A-Z0-9]+$/i', $id);
+}
+
+
+/**
+ * Returns the date-range boundaries for "today" as two datetime strings.
+ * Used instead of CAST()/CONVERT() on the column so SQL can use an index.
+ *
+ *   checkin_time >= $start  AND  checkin_time < $end
+ *
+ * Returns: [ "YYYY-MM-DD 00:00:00", "YYYY-MM-DD 00:00:00" (next day) ]
+ */
+function getTodayRange(string $today): array
+{
+    $start = $today . " 00:00:00";
+    $end   = date("Y-m-d", strtotime("+1 day", strtotime($today))) . " 00:00:00";
+    return [$start, $end];
+}
+
+
+
+
+
+
 
 //  DATA SOURCE LOADERS
 
 
+// ====================================================================
+// CONFIGURATION — the only section you ever need to touch
+// ====================================================================
+
+// Step 1: Flip to false when your live API is ready
+define("USE_LOCAL_DATA", true);
+
+// API endpoints — update these when your real URLs are known
+define("API_ENDPOINTS", [
+    "students"  => "https://your-school-api.edu/api/students",
+    "employees" => "https://your-school-api.edu/api/employees",
+]);
+
+// ID filter param each endpoint expects  (GET /api/students?id_number=xxx)
+define("API_ID_PARAMS", [
+    "students"  => "id_number",
+    "employees" => "employee_number",
+]);
+
+// ====================================================================
+
+
 /**
- * Loads the local JSON data source for 'students' or 'employees'.
- * Supports multiple common root key structures.
- * Swap file_get_contents for a cURL API call when ready.
+ * Resolves a user by ID — the single entry point for all user lookups.
+ *
+ * This is the core architectural principle:
+ *   Before: load entire dataset → build index → find person  O(n) + memory
+ *   Now:    ask for this person → get this person             O(1) always
+ *
+ * Returns an array of matched records (more than one = duplicate IDs).
+ * Returns an empty array if no match is found.
+ *
+ * Routing (automatic):
+ *   USE_LOCAL_DATA = true  → searches local JSON file
+ *   USE_LOCAL_DATA = false → fetches exactly this person from the API
  */
-function loadLocalDataSource(string $source): array
+function resolveUserById(string $idNumber): array
 {
-    $filePath = __DIR__ . "/../../API_requests/{$source}.json";
+    if (USE_LOCAL_DATA) {
+        return resolveFromLocalJSON($idNumber);
+    }
+
+    return resolveFromAPI($idNumber);
+}
+
+
+/**
+ * Searches the local JSON test file for the given ID.
+ * Used during development — no API needed, no network calls.
+ */
+function resolveFromLocalJSON(string $idNumber): array
+{
+    $isEmployee = str_starts_with(strtoupper($idNumber), "TAU");
+    $source     = $isEmployee ? "employees" : "students";
+    $filePath   = __DIR__ . "/../../API_requests/{$source}.json";
 
     if (!file_exists($filePath)) {
         return [];
@@ -46,99 +123,137 @@ function loadLocalDataSource(string $source): array
 
     $decoded = json_decode(file_get_contents($filePath), true);
 
-    if (!is_array($decoded)) {
+    if (json_last_error() !== JSON_ERROR_NONE || !is_array($decoded)) {
         return [];
     }
 
-    // Root is already a flat list
-    if (isset($decoded[0])) {
-        return $decoded;
+    $records = extractRecordsFromPayload($decoded);
+    $matches = [];
+
+    foreach ($records as $record) {
+        $id = $record["employee_number"] ?? $record["id_number"] ?? null;
+        if ($id === $idNumber) {
+            $matches[] = $isEmployee
+                ? mapEmployeeToUserRecord($record)
+                : mapStudentToUserRecord($record);
+        }
     }
 
-    // Try common wrapper keys
+    return $matches;
+}
+
+
+/**
+ * Fetches exactly this one person from the live API.
+ *
+ *   GET /api/students?id_number=2022100114
+ *   GET /api/employees?employee_number=TAU0001
+ *
+ * O(1) — no dataset loading, no indexing, no iteration on our side.
+ * No caching — each scan fetches exactly one record directly from the API.
+ */
+function resolveFromAPI(string $idNumber): array
+{
+    // ── Fetch from API ───────────────────────────────────────────────────────
+    $isEmployee = str_starts_with(strtoupper($idNumber), "TAU");
+    $source     = $isEmployee ? "employees" : "students";
+    $token      = $_ENV["SCHOOL_API_TOKEN"] ?? null;
+
+    if (!$token) {
+        return [];
+    }
+
+    $url      = API_ENDPOINTS[$source] . "?" . http_build_query([API_ID_PARAMS[$source] => $idNumber]);
+    $response = apiRequest($url, $token);
+
+    if ($response === null) {
+        return [];
+    }
+
+    $records = extractRecordsFromPayload($response);
+    $matches = [];
+
+    foreach ($records as $record) {
+        $matches[] = $isEmployee
+            ? mapEmployeeToUserRecord($record)
+            : mapStudentToUserRecord($record);
+    }
+
+    return $matches;
+}
+
+
+/**
+ * Shared cURL helper. Returns the decoded JSON array, or null on any failure.
+ * Both resolvers use this — cURL setup lives in exactly one place.
+ */
+function apiRequest(string $url, string $token): ?array
+{
+    $curl = curl_init($url);
+
+    curl_setopt_array($curl, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => 5,
+        CURLOPT_CONNECTTIMEOUT => 3,
+        CURLOPT_HTTPHEADER     => [
+            "Authorization: Bearer {$token}",
+            "Accept: application/json",
+        ],
+    ]);
+
+    $responseBody = curl_exec($curl);
+    $httpStatus   = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+    curl_close($curl);
+
+    if ($responseBody === false || $httpStatus !== 200) {
+        return null;
+    }
+
+    $decoded = json_decode($responseBody, true);
+
+    if (json_last_error() !== JSON_ERROR_NONE || !is_array($decoded)) {
+        return null;
+    }
+
+    return $decoded;
+}
+
+
+/**
+ * Handles all JSON wrapper shapes so neither resolver has to repeat this.
+ *
+ *   { "data": [ ... ] }      ← your current API format
+ *   { "students": [ ... ] }
+ *   [ ... ]                  ← flat array, no wrapper
+ */
+function extractRecordsFromPayload(array $payload): array
+{
+    if (isset($payload[0])) {
+        return $payload;
+    }
+
     foreach (["data", "employees", "students", "records", "items"] as $key) {
-        if (isset($decoded[$key]) && is_array($decoded[$key])) {
-            return $decoded[$key];
+        if (isset($payload[$key]) && is_array($payload[$key])) {
+            return $payload[$key];
         }
     }
 
     return [];
 }
 
-// -----------------------------------------------------------------------------
-// To switch to a live API, replace loadLocalDataSource() with:
-//
-/* function loadLocalDataSource(string $dataSourceType): array
-{
-    $apiEndpoints = [
-        "students"  => "https://your-school-api.edu/api/students",
-        "employees" => "https://your-school-api.edu/api/employees",
-    ];
-
-    // Validate requested data source
-    if (!array_key_exists($dataSourceType, $apiEndpoints)) {
-        return [];
-    }
-
-    $apiUrl        = $apiEndpoints[$dataSourceType];
-    $apiAuthToken  = $_ENV["SCHOOL_API_TOKEN"] ?? null;
-
-    if (!$apiAuthToken) {
-        return [];
-    }
-
-    $curlHandle = curl_init($apiUrl);
-
-    curl_setopt_array($curlHandle, [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT        => 5,
-        CURLOPT_CONNECTTIMEOUT => 3,
-        CURLOPT_HTTPHEADER     => [
-            "Authorization: Bearer {$apiAuthToken}",
-            "Accept: application/json"
-        ],
-    ]);
-
-    $apiResponseBody = curl_exec($curlHandle);
-
-    if ($apiResponseBody === false) {
-        curl_close($curlHandle);
-        return [];
-    }
-
-    $httpStatusCode = curl_getinfo($curlHandle, CURLINFO_HTTP_CODE);
-    curl_close($curlHandle);
-
-    if ($httpStatusCode !== 200) {
-        return [];
-    }
-
-    $decodedResponse = json_decode($apiResponseBody, true);
-
-    if (json_last_error() !== JSON_ERROR_NONE || !is_array($decodedResponse)) {
-        return [];
-    }
-
-    // Support both wrapped and unwrapped API responses
-    if (isset($decodedResponse["data"]) && is_array($decodedResponse["data"])) {
-        return $decodedResponse["data"];
-    }
-
-    return $decodedResponse;
-} */
-// -----------------------------------------------------------------------------
-
 
 
 //  USER RECORD MAPPERS
+
+
 function mapStudentToUserRecord(array $student): array
 {
     return [
         "id_number"      => $student["id_number"],
         "name"           => $student["name"],
-        "sex"            => $student["sex"]        ?? null,
-        "college"        => $student["college"]    ?? null,
-        "course"         => $student["course"]     ?? null,
+        "sex"            => $student["sex"]     ?? null,
+        "college"        => $student["college"] ?? null,
+        "course"         => $student["course"]  ?? null,
         "classification" => "STUDENT",
         "secretKey"      => $student["birthDate"] ?? null,
     ];
@@ -148,8 +263,8 @@ function mapEmployeeToUserRecord(array $employee): array
 {
     return [
         "id_number"      => $employee["employee_number"] ?? $employee["id_number"] ?? "",
-        "name"           => $employee["name"]  ?? "",
-        "sex"            => $employee["sex"]   ?? null,
+        "name"           => $employee["name"] ?? "",
+        "sex"            => $employee["sex"]  ?? null,
         "college"        => "",
         "course"         => "",
         "classification" => "EMPLOYEE",
@@ -159,37 +274,113 @@ function mapEmployeeToUserRecord(array $employee): array
 
 
 
-function loadIndexedDataSources(): array
+//  HTML GENERATORS
+//  All modal HTML is built here on the server.
+//  JS receives the HTML string and injects it — no HTML construction in JS.
+
+
+/**
+ * Builds the attendance confirmation modal body and footer.
+ *
+ * Called by handleBuildAttendanceModal() after JS has already:
+ *   - validated the user
+ *   - checked their status today
+ *   - determined the action (checkin / checkout / switch)
+ *
+ * JS stays in charge of state and routing.
+ * PHP stays in charge of rendering.
+ *
+ * $message may contain only <strong> and <em> tags (strip_tags enforced).
+ */
+function buildAttendanceModalHTML(
+    array  $user,
+    string $color,
+    string $icon,
+    string $btnText,
+    string $message,
+    string $libraryName
+): array {
+    $isEmployee = $user["classification"] === "EMPLOYEE";
+    $isGuest    = $user["classification"] === "GUEST";
+
+    $id      = htmlspecialchars($user["id_number"]      ?? "");
+    $name    = htmlspecialchars($user["name"]           ?? "");
+    $sex     = htmlspecialchars($user["sex"]            ?? "N/A");
+    $type    = htmlspecialchars($user["classification"] ?? "");
+    $lib     = htmlspecialchars($libraryName);
+
+    // Allow only safe formatting tags — strip everything else
+    $message = strip_tags($message, "<strong><em>");
+
+    $rows = "
+        <div class='row mb-2'><div class='col-5 fw-semibold'>ID</div><div class='col-7'>{$id}</div></div>
+        <div class='row mb-2'><div class='col-5 fw-semibold'>Name</div><div class='col-7'>{$name}</div></div>
+        <div class='row mb-2'><div class='col-5 fw-semibold'>Sex</div><div class='col-7'>{$sex}</div></div>
+        <div class='row mb-2'><div class='col-5 fw-semibold'>Type</div><div class='col-7'>{$type}</div></div>
+    ";
+
+    if (!$isEmployee && !$isGuest) {
+        $college = htmlspecialchars($user["college"] ?? "N/A");
+        $course  = htmlspecialchars($user["course"]  ?? "N/A");
+        $rows .= "
+            <div class='row mb-2'><div class='col-5 fw-semibold'>College</div><div class='col-7'>{$college}</div></div>
+            <div class='row mb-2'><div class='col-5 fw-semibold'>Course</div><div class='col-7'>{$course}</div></div>
+        ";
+    }
+
+    $body = "
+        <div class='text-center mb-3'>
+            <div class='badge bg-{$color} fs-6 p-2'>
+                <i class='fas {$icon} me-2'></i>{$btnText} Confirmation
+            </div>
+            <p class='text-muted mt-2 small'>{$message}</p>
+        </div>
+        <div class='bg-light p-3 rounded'>
+            {$rows}
+            <hr>
+            <div class='text-center fw-bold text-primary'>Library: {$lib}</div>
+        </div>
+    ";
+
+    $footer = "
+        <button type='button' class='btn btn-outline-secondary' data-bs-dismiss='modal'>Cancel</button>
+        <button type='button' class='btn btn-{$color}' id='confirmAttendance'>
+            <i class='fas {$icon} me-1'></i>{$btnText}
+        </button>
+    ";
+
+    return ["body" => $body, "footer" => $footer];
+}
+
+
+/**
+ * Builds the duplicate ID verification modal body.
+ * Shown when multiple students share the same ID number.
+ */
+function buildDuplicateModalHTML(): string
 {
-    static $index = null;
-
-    if ($index !== null) {
-        return $index; // Already built this request
-    }
-
-    $students  = loadLocalDataSource("students");
-    $employees = loadLocalDataSource("employees");
-
-    $index = [
-        "students"  => [],
-        "employees" => []
-    ];
-
-    foreach ($students as $s) {
-        $id = $s["id_number"] ?? null;
-        if ($id) {
-            $index["students"][$id][] = mapStudentToUserRecord($s);
-        }
-    }
-
-    foreach ($employees as $e) {
-        $id = $e["employee_number"] ?? $e["id_number"] ?? null;
-        if ($id) {
-            $index["employees"][$id][] = mapEmployeeToUserRecord($e);
-        }
-    }
-
-    return $index;
+    return "
+        <div class='text-center mb-3'>
+            <div class='badge bg-warning fs-6 p-2'>
+                <i class='fas fa-user-shield me-2'></i>Duplicate ID Found
+            </div>
+            <p class='text-muted mt-2 small'>Enter your birth date (MM/DD/YYYY)</p>
+        </div>
+        <div class='card bg-light p-3 border-0'>
+            <div class='input-group mb-2'>
+                <input type='text' id='modalSecretKey'
+                    class='form-control text-center fw-bold fs-5'
+                    maxlength='10' placeholder='MM/DD/YYYY' autocomplete='off'>
+                <button class='btn btn-outline-secondary' type='button' id='toggleSecretKey'>
+                    <i class='fas fa-eye' id='secretIcon'></i>
+                </button>
+            </div>
+            <div id='secretKeyStatus' class='small text-muted mt-1'>
+                <i class='fas fa-info-circle me-1'></i>Enter birth date (MM/DD/YYYY)
+            </div>
+        </div>
+        <div id='verifiedStudentContainer' class='mt-3' style='display:none;'></div>
+    ";
 }
 
 
@@ -200,52 +391,60 @@ function loadIndexedDataSources(): array
 /**
  * Builds the KPI payload for a library section on a given date.
  *
+ * Uses checkin_time >= start AND < end instead of CAST()/CONVERT() on the
+ * column — this allows SQL Server to use an index on checkin_time if one exists.
+ *
  * Returns:
  *   totalToday      – Total check-ins for the section today
  *   currentlyInside – Users with no checkout_time (still present)
- *   topColleges     – Top 3 colleges by visit count (students only)
- *   topCourses      – Top 3 courses by visit count (students only)
+ *   topColleges     – Top 3 colleges by visit count
+ *   topCourses      – Top 3 courses by visit count
  */
 function buildKPIData(PDO $pdo, int $sectionID, string $today): array
 {
+    [$start, $end] = getTodayRange($today);
+
     // ── Totals ───────────────────────────────────────────────────────────────
     $stmtTotals = $pdo->prepare("
         SELECT
             COUNT(*) AS totalToday,
             SUM(CASE WHEN checkout_time IS NULL THEN 1 ELSE 0 END) AS currentlyInside
         FROM Library_logs
-        WHERE library              = ?
-          AND CAST(checkin_time AS DATE) = ?
+        WHERE library      = ?
+          AND checkin_time >= ?
+          AND checkin_time  < ?
     ");
-    $stmtTotals->execute([$sectionID, $today]);
+    $stmtTotals->execute([$sectionID, $start, $end]);
     $totals = $stmtTotals->fetch(PDO::FETCH_ASSOC);
 
     // ── Top colleges ─────────────────────────────────────────────────────────
-$stmtColleges = $pdo->prepare("
-    SELECT TOP 3 college, COUNT(*) AS total
-    FROM   Library_logs
-    WHERE  library                   = ?
-      AND  CONVERT(date, checkin_time) = ?
-      AND  college IS NOT NULL
-      AND  college                   <> ''
-    GROUP  BY college
-    ORDER  BY total DESC, college ASC   -- tiebreaker: alphabetical
-");
-    $stmtColleges->execute([$sectionID, $today]);
+    $stmtColleges = $pdo->prepare("
+        SELECT TOP 3 college, COUNT(*) AS total
+        FROM   Library_logs
+        WHERE  library      = ?
+          AND  checkin_time >= ?
+          AND  checkin_time  < ?
+          AND  college IS NOT NULL
+          AND  college <> ''
+        GROUP  BY college
+        ORDER  BY total DESC, college ASC
+    ");
+    $stmtColleges->execute([$sectionID, $start, $end]);
     $colleges = array_column($stmtColleges->fetchAll(PDO::FETCH_ASSOC), "college");
 
     // ── Top courses ──────────────────────────────────────────────────────────
-$stmtCourses = $pdo->prepare("
-    SELECT TOP 3 course, COUNT(*) AS total
-    FROM   Library_logs
-    WHERE  library                   = ?
-      AND  CONVERT(date, checkin_time) = ?
-      AND  course IS NOT NULL
-      AND  course                    <> ''
-    GROUP  BY course
-    ORDER  BY total DESC, course ASC    -- tiebreaker: alphabetical
-");
-    $stmtCourses->execute([$sectionID, $today]);
+    $stmtCourses = $pdo->prepare("
+        SELECT TOP 3 course, COUNT(*) AS total
+        FROM   Library_logs
+        WHERE  library      = ?
+          AND  checkin_time >= ?
+          AND  checkin_time  < ?
+          AND  course IS NOT NULL
+          AND  course <> ''
+        GROUP  BY course
+        ORDER  BY total DESC, course ASC
+    ");
+    $stmtCourses->execute([$sectionID, $start, $end]);
     $courses = array_column($stmtCourses->fetchAll(PDO::FETCH_ASSOC), "course");
 
     return [
@@ -263,21 +462,26 @@ $stmtCourses = $pdo->prepare("
 
 /**
  * Performs the full check-in sequence:
- *   1. Skips silently if the user is already checked in at this section.
+ *   1. Skips silently if the user is already checked in at this section today.
  *   2. Auto-closes any open session in a DIFFERENT section (switch scenario).
  *   3. Inserts a new log entry for this section.
+ *
+ * Uses time range instead of CAST() for index-friendly queries.
  */
 function performCheckin(PDO $pdo, string $idNumber, int $sectionID, string $now, string $today, array $user): void
 {
+    [$start, $end] = getTodayRange($today);
+
     // Already here — nothing to do
     $stmtCheck = $pdo->prepare("
         SELECT COUNT(*) FROM Library_logs
         WHERE  id_number     = ?
           AND  library       = ?
           AND  checkout_time IS NULL
-          AND  CAST(checkin_time AS DATE) = ?
+          AND  checkin_time >= ?
+          AND  checkin_time  < ?
     ");
-    $stmtCheck->execute([$idNumber, $sectionID, $today]);
+    $stmtCheck->execute([$idNumber, $sectionID, $start, $end]);
     if (intval($stmtCheck->fetchColumn()) > 0) {
         return;
     }
@@ -288,9 +492,10 @@ function performCheckin(PDO $pdo, string $idNumber, int $sectionID, string $now,
         SET    checkout_time = ?
         WHERE  id_number     = ?
           AND  checkout_time IS NULL
-          AND  CAST(checkin_time AS DATE) = ?
+          AND  checkin_time >= ?
+          AND  checkin_time  < ?
           AND  library <> ?
-    ")->execute([$now, $idNumber, $today, $sectionID]);
+    ")->execute([$now, $idNumber, $start, $end, $sectionID]);
 
     // Insert new check-in
     $pdo->prepare("
@@ -309,19 +514,24 @@ function performCheckin(PDO $pdo, string $idNumber, int $sectionID, string $now,
     ]);
 }
 
+
 /**
  * Closes the user's active session in the specified section.
+ * Uses time range instead of CAST() for index-friendly queries.
  */
 function performCheckout(PDO $pdo, string $idNumber, int $sectionID, string $now, string $today): void
 {
+    [$start, $end] = getTodayRange($today);
+
     $pdo->prepare("
         UPDATE Library_logs
         SET    checkout_time = ?
         WHERE  id_number     = ?
           AND  library       = ?
           AND  checkout_time IS NULL
-          AND  CAST(checkin_time AS DATE) = ?
-    ")->execute([$now, $idNumber, $sectionID, $today]);
+          AND  checkin_time >= ?
+          AND  checkin_time  < ?
+    ")->execute([$now, $idNumber, $sectionID, $start, $end]);
 }
 
 
@@ -349,15 +559,6 @@ function handleGetLibraries(): void
 }
 
 
-//  ▶ VALIDATE USER  (updated — uses O(1) hash map lookup via loadIndexedDataSources)
-
-//
-//  Before: array_filter() scanned ALL records on every request → O(n)
-//  After:  direct key access on pre-built index              → O(1)
-//
-//  Logic flow is identical to the original; only the lookup mechanism changed.
-
-
 function handleValidateUser(): void
 {
     $idNumber = trim($_POST["idNumber"] ?? "");
@@ -366,29 +567,32 @@ function handleValidateUser(): void
         sendResponse(["error" => "Identification number is required."]);
     }
 
-    // Single call builds (or retrieves from cache) both indexes at once
-    $index    = loadIndexedDataSources();
-    $sMatches = $index["students"][$idNumber]  ?? [];   // O(1)
-    $eMatches = $index["employees"][$idNumber] ?? [];   // O(1)
-
-    // ── Student: unique ──────────────────────────────────────────────────────
-    if (count($sMatches) === 1) {
-        sendResponse(["success" => true, "data" => $sMatches[0]]);
+    // Reject IDs with suspicious characters before touching any data source
+    if (!validateIdFormat($idNumber)) {
+        sendResponse(["error" => "Invalid ID format."]);
     }
 
-    // ── Student: duplicate ID → secret-key verification flow ────────────────
-    if (count($sMatches) > 1) {
-        sendResponse(["duplicate" => true, "matches" => $sMatches]);
+    // Fetch exactly this person — no dataset loading, no indexing
+    $matches = resolveUserById($idNumber);
+
+    // ── No match → walk-in guest (JS handles this path) ──────────────────────
+    if (count($matches) === 0) {
+        sendResponse(["error" => "User not found."]);
     }
 
-    // ── Employee ─────────────────────────────────────────────────────────────
-    if (count($eMatches) >= 1) {
-        sendResponse(["success" => true, "data" => $eMatches[0]]);
+    // ── Unique match ─────────────────────────────────────────────────────────
+    if (count($matches) === 1) {
+        sendResponse(["success" => true, "data" => $matches[0]]);
     }
 
-    // ── Not found → walk-in guest (handled on frontend) ──────────────────────
-    sendResponse(["error" => "User not found."]);
+    // ── Duplicate ID → return duplicate modal HTML for injection ──────────────
+    sendResponse([
+        "duplicate" => true,
+        "matches"   => $matches,
+        "modalHTML" => buildDuplicateModalHTML(),
+    ]);
 }
+
 
 function handleCheckStatusToday(): void
 {
@@ -398,19 +602,22 @@ function handleCheckStatusToday(): void
         sendResponse(["error" => "Identification number is required."]);
     }
 
-    $today = date("Y-m-d");
-    $pdo   = dbconES();
+    $today         = date("Y-m-d");
+    [$start, $end] = getTodayRange($today);
+    $pdo           = dbconES();
 
+    // Uses time range — index-friendly, no CONVERT() on column
     $stmt = $pdo->prepare("
         SELECT TOP 1 ll.library, ls.SectionName
         FROM   Library_logs  ll
         LEFT   JOIN LibrarySection ls ON ls.SectionID = ll.library
-        WHERE  ll.id_number                 = ?
-          AND  ll.checkout_time             IS NULL
-          AND  CONVERT(date, ll.checkin_time) = ?
+        WHERE  ll.id_number      = ?
+          AND  ll.checkout_time  IS NULL
+          AND  ll.checkin_time  >= ?
+          AND  ll.checkin_time   < ?
         ORDER  BY ll.checkin_time DESC
     ");
-    $stmt->execute([$idNumber, $today]);
+    $stmt->execute([$idNumber, $start, $end]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if ($row) {
@@ -423,6 +630,46 @@ function handleCheckStatusToday(): void
 
     sendResponse(["checkedIn" => false]);
 }
+
+
+/**
+ * Called by JS after it has determined the action (checkin/checkout/switch)
+ * and resolved the user. JS sends all the pieces; PHP renders the modal HTML.
+ *
+ * This keeps JS in charge of state/routing and PHP in charge of rendering.
+ *
+ * POST params:
+ *   user        – JSON-encoded user record
+ *   color       – Bootstrap color name (success / danger / warning)
+ *   icon        – FontAwesome class (fa-sign-in-alt / fa-sign-out-alt / fa-random)
+ *   btnText     – Button label
+ *   message     – Status message (only <strong><em> tags allowed)
+ *   libraryName – Current library section name for display
+ */
+function handleBuildAttendanceModal(): void
+{
+    $userJSON    = trim($_POST["user"]        ?? "{}");
+    $color       = trim($_POST["color"]       ?? "success");
+    $icon        = trim($_POST["icon"]        ?? "fa-sign-in-alt");
+    $btnText     = trim($_POST["btnText"]     ?? "Check In");
+    $message     = trim($_POST["message"]     ?? "");
+    $libraryName = trim($_POST["libraryName"] ?? "");
+
+    $user = json_decode($userJSON, true);
+
+    if (!is_array($user) || empty($user)) {
+        sendResponse(["error" => "Invalid user data."]);
+    }
+
+    $modal = buildAttendanceModalHTML($user, $color, $icon, $btnText, $message, $libraryName);
+
+    sendResponse([
+        "success" => true,
+        "body"    => $modal["body"],
+        "footer"  => $modal["footer"],
+    ]);
+}
+
 
 function handleSaveAttendance(): void
 {
@@ -439,6 +686,10 @@ function handleSaveAttendance(): void
         sendResponse(["error" => "Missing required attendance data."]);
     }
 
+    if (!validateIdFormat($idNumber)) {
+        sendResponse(["error" => "Invalid ID format."]);
+    }
+
     if (!in_array($action, ["checkin", "checkout"])) {
         sendResponse(["error" => "Invalid attendance action: '{$action}'."]);
     }
@@ -451,24 +702,29 @@ function handleSaveAttendance(): void
 
     try {
         $pdo->beginTransaction();
+
         if ($action === "checkin") {
             performCheckin($pdo, $idNumber, $sectionID, $now, $today, $user);
         } else {
             performCheckout($pdo, $idNumber, $sectionID, $now, $today);
         }
+
         $pdo->commit();
 
     } catch (Exception $e) {
         if ($pdo->inTransaction()) {
             $pdo->rollBack();
         }
-        sendResponse(["error" => "Database error: " . $e->getMessage()]);
+        // Log internally — never expose raw DB errors to the client
+        error_log("[LibraryLogs] saveAttendance error: " . $e->getMessage());
+        sendResponse(["error" => "A database error occurred. Please try again."]);
     }
 
     $kpiData = buildKPIData($pdo, $sectionID, $today);
 
     sendResponse(["success" => true, "action" => $action, "kpi" => $kpiData]);
 }
+
 
 function handleGetKPI(): void
 {
@@ -491,16 +747,32 @@ function handleGetKPI(): void
 
 $request = trim($_POST["request"] ?? "");
 
-$handlers = [
-    "getLibraries"     => "handleGetLibraries",
-    "validateUser"     => "handleValidateUser",
-    "checkStatusToday" => "handleCheckStatusToday",
-    "saveAttendance"   => "handleSaveAttendance",
-    "getKPI"           => "handleGetKPI",
-];
+switch ($request) {
+    case "getLibraries":
+        handleGetLibraries();
+        break;
 
-if (isset($handlers[$request])) {
-    $handlers[$request]();
-} else {
-    sendResponse(["error" => "Unknown request: '{$request}'."]);
+    case "validateUser":
+        handleValidateUser();
+        break;
+
+    case "checkStatusToday":
+        handleCheckStatusToday();
+        break;
+
+    case "buildAttendanceModal":
+        handleBuildAttendanceModal();
+        break;
+
+    case "saveAttendance":
+        handleSaveAttendance();
+        break;
+
+    case "getKPI":
+        handleGetKPI();
+        break;
+
+    default:
+        sendResponse(["error" => "Unknown request: '{$request}'."]);
+        break;
 }
