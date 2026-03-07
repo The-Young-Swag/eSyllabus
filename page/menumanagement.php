@@ -90,11 +90,8 @@
 <script>
 // SIMPLE MENU MANAGEMENT - CLEAN VERSION (like user management)
 $(document).ready(function() {
-    // Load initial data
     loadMenus('all');
-	loadMenus('deleted'); 
-
-    // Setup event handlers
+    loadMenus('deleted');
     setupMenuEvents();
 });
 

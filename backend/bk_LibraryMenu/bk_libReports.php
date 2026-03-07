@@ -597,7 +597,8 @@ function renderModalPagination(int $totalPages, int $current, int $totalRecords,
 
 // ── TAB HTML RENDERERS ───────────────────────────────────────────────────────
 
-function renderUsersTab(array $topByCheckins, array $topByDuration): string
+// 1. Update the function signature
+function renderUsersTab(array $topByCheckins, array $topByDuration, array $allLogs = []): string
 {
     $flatCheckins = [];
     foreach ($topByCheckins as $cls => $users) {
@@ -735,6 +736,50 @@ function renderUsersTab(array $topByCheckins, array $topByDuration): string
                 </div>
             </div>
         </div>
+		
+<div class="col-12">
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center py-2 px-3">
+            <div>
+                <span class="fw-semibold small">All Visit Logs</span>
+                <p class="text-muted mb-0" style="font-size:.72rem;">
+                    Every check-in within selected date range
+                </p>
+            </div>
+            <button class="btn btn-sm btn-outline-primary py-0 px-2 view-all-btn"
+                    data-tab="users" style="font-size:.75rem;">
+                <i class="bi bi-arrow-up-right-square me-1"></i>View All
+            </button>
+        </div>
+        <div class="card-body p-0"
+             id="allLogsCard"
+             data-rows="<?= htmlspecialchars(json_encode($allLogs), ENT_QUOTES) ?>"
+             data-page="1" data-per-page="10">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-3 small">ID Number</th>
+                            <th class="small">Name</th>
+                            <th class="small">College</th>
+                            <th class="small">Course</th>
+                            <th class="small">Type</th>
+                            <th class="small">Section</th>
+                            <th class="small">Sex</th>
+                            <th class="small">Check-in</th>
+                            <th class="small">Check-out</th>
+                            <th class="text-end pe-3 small">Duration (min)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="allLogsTbody" class="small"></tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card-footer bg-white border-top py-2 px-3">
+            <div class="d-flex flex-column align-items-center gap-1" id="allLogsPager"></div>
+        </div>
+    </div>
+</div>
     </div>
     <?php return ob_get_clean();
 }
@@ -1005,45 +1050,60 @@ switch ($requestedAction) {
         ]);
         break;
 
-    case 'tab':
-    default:
-        $kpis    = computeDashboardKpis($logs, $_POST['endDate'] ?? '');
-        $uData   = aggregateTopUsersByClassification($logs);
-        $clsDist = aggregateClassificationDistribution($logs);
-        $colData = aggregateTopColleges($logs);
-        $colDist = aggregateCollegeDistribution($logs);
-        $crsData = aggregateTopCoursesByCollege($logs);
-        $sexData = aggregateSexDistribution($logs);
-        $kpi3    = buildKpiTop3($logs);
+// ── tab case ─────────────────────────────────────────────────
+case 'tab':
+default:
+    $kpis        = computeDashboardKpis($logs, $_POST['endDate'] ?? '');
+    $uData       = aggregateTopUsersByClassification($logs);
+    $clsDist     = aggregateClassificationDistribution($logs);
+    $colData     = aggregateTopColleges($logs);
+    $crsData     = aggregateTopCoursesByCollege($logs);
+    $sexData     = aggregateSexDistribution($logs);
+    $kpi3        = buildKpiTop3($logs);
 
-        $html = match($requestedTab) {
-            'users'        => renderUsersTab($uData['topCheckins'], $uData['topDuration']),
-            'colleges'     => renderCollegesTab($colData['top3CollegesCheckin'], $colData['top3CollegesDuration']),
-            'courses'      => renderCoursesTab($crsData['topCoursesCheckin'], $crsData['topCoursesDuration']),
-            'demographics' => renderDemographicsTab($sexData, count($logs)),
-        };
+    // Build flat log list (users tab only — skip the work on other tabs)
+// 2. In the tab case — build $allLogsFlat BEFORE the match, then pass it in
+$allLogsFlat = array_map(fn($log) => [
+    'id_number'        => $log['id_number']            ?? '',
+    'name'             => $log['name']                 ?? '',
+    'college'          => $log['college']              ?? '',
+    'course'           => $log['course']               ?? '',
+    'classification'   => $log['classification']       ?? '',
+    'library'          => $log['library_section_name'] ?? '',
+    'sex'              => $log['sex']                  ?? '',
+    'checkin_time'     => $log['checkin_time']         ?? '',
+    'checkout_time'    => $log['checkout_time']        ?? '',
+    'duration_minutes' => calcDurationMinutes($log['checkin_time'], $log['checkout_time'] ?? null),
+], $logs);
 
-        echo json_encode([
-            'status'                     => 'success',
-            'html'                       => $html,
-            'totalVisits'                => $kpis['totalVisits'],
-            'totalDuration'              => $kpis['totalDuration'],
-            'avgDuration'                => $kpis['avgDuration'],
-            'uniqueUsers'                => $kpis['uniqueUsers'],
-            'endDateCheckins'            => $kpis['endDateCheckins'],
-            'top3Students'               => $kpi3['top3Students'],
-            'top3Colleges'               => $kpi3['top3Colleges'],
-            'top3Courses'                => $kpi3['top3Courses'],
-            'topCheckins'                => $uData['topCheckins'],
-            'topDuration'                => $uData['topDuration'],
-            'classificationDistribution' => $clsDist,
-            'top3CollegesCheckin'        => $colData['top3CollegesCheckin'],
-            'top3CollegesDuration'       => $colData['top3CollegesDuration'],
-            'collegeDistribution'        => $colDist,
-            'topCoursesCheckin'          => $crsData['topCoursesCheckin'],
-            'topCoursesDuration'         => $crsData['topCoursesDuration'],
-            'sexDistribution'            => $sexData,
-        ]);
-        break;
+$html = match($requestedTab) {
+    'users'        => renderUsersTab($uData['topCheckins'], $uData['topDuration'], $allLogsFlat),
+    'colleges'     => renderCollegesTab($colData['top3CollegesCheckin'], $colData['top3CollegesDuration']),
+    'courses'      => renderCoursesTab($crsData['topCoursesCheckin'], $crsData['topCoursesDuration']),
+    'demographics' => renderDemographicsTab($sexData, count($logs)),
+};
+
+    echo json_encode([
+        'status'                     => 'success',
+        'html'                       => $html,
+        'totalVisits'                => $kpis['totalVisits'],
+        'totalDuration'              => $kpis['totalDuration'],
+        'avgDuration'                => $kpis['avgDuration'],
+        'uniqueUsers'                => $kpis['uniqueUsers'],
+        'endDateCheckins'            => $kpis['endDateCheckins'],
+        'top3Students'               => $kpi3['top3Students'],
+        'top3Colleges'               => $kpi3['top3Colleges'],
+        'top3Courses'                => $kpi3['top3Courses'],
+        'topCheckins'                => $uData['topCheckins'],
+        'topDuration'                => $uData['topDuration'],
+        'classificationDistribution' => $clsDist,
+        'top3CollegesCheckin'        => $colData['top3CollegesCheckin'],
+        'top3CollegesDuration'       => $colData['top3CollegesDuration'],
+        'topCoursesCheckin'          => $crsData['topCoursesCheckin'],
+        'topCoursesDuration'         => $crsData['topCoursesDuration'],
+        'sexDistribution'            => $sexData,
+        'allLogs'                    => $allLogsFlat,   // ← now correct
+    ]);
+    break;
 }
 ?>
