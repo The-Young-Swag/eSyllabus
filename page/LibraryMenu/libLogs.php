@@ -310,9 +310,9 @@ $(document).ready(function () {
             return;
         }
 
-        $.post("backend/bk_LibraryMenu/bk_libLogs.php", {
-            request: "getLibraries",
-            userID:  UserInfo.UserID
+$.post(BACKEND, {
+    request: "getLibraries",
+    userID:  UserInfo.UserID
         }, function (res) {
             if (!res.success || !res.data?.length) {
                 currentLibraryName = res.error ?? "No Library Access";
@@ -335,7 +335,53 @@ $(document).ready(function () {
     loadLibraries();
 	
 
-	
+// =========================================================================
+// GUEST CHECK-IN
+// =========================================================================
+$("#guestCheckIn").on("click", () => {
+
+    if (!currentLibraryID) return alert("Library section not loaded yet.");
+
+    $.post(
+        BACKEND,
+        {request:"buildGuestModal", libraryName:currentLibraryName},
+        res => {
+            if (!res.success) return alert(res.error || "Failed to load guest form.");
+            showModal("Guest Check-In", res.body, res.footer);
+        }
+    ).fail(xhr => {
+        console.error("Guest modal load failed:", xhr.responseText);
+        alert("Connection error.");
+    });
+
+});
+
+
+// =========================================================================
+// CONFIRM GUEST CHECK-IN
+// =========================================================================
+$(document).on("click", "#confirmGuestCheckIn", function () {
+
+    const name   = $("#guestName").val().trim();
+    const sex    = $("#guestSex").val();
+    const agency = $("#guestAgency").val().trim();
+
+    if (!name)   { alert("Guest name is required.");         return; }
+    if (!sex)    { alert("Please select a sex.");            return; }
+    if (!agency) { alert("Agency / Organization required."); return; }
+
+    const guestUser = {
+        id_number:           "",          // NULL in DB — no ID for guests
+        name:                name,
+        classification:      "GUEST",
+        college:             "",
+        course:              "",
+        sex:                 sex,
+        agency_organization: agency
+    };
+
+    processAttendance(guestUser, "checkin");
+});
 	
     // =========================================================================
     // KPI
@@ -421,41 +467,31 @@ $(document).ready(function () {
     // JS owns: routing, state, action determination
     // PHP owns: HTML rendering (modal body/footer)
     // =========================================================================
-    function validateUser() {
-        const idNumber = $("#inputStudentNumber").val().trim();
-        if (!idNumber) return alert("Please enter an Identification Number.");
+// REPLACE the entire validateUser function
+function validateUser() {
+    const idNumber = $("#inputStudentNumber").val().trim();
+    if (!idNumber) return alert("Please enter an Identification Number.");
 
-        $.post(BACKEND, { request: "validateUser", idNumber }, function (res) {
+    $.post(BACKEND, { request: "validateUser", idNumber }, function (res) {
 
-            if (res.error) {
-                // Not found — treat as walk-in guest, still check status today
-                selectedUser = {
-                    id_number:      idNumber,
-                    name:           "Guest",
-                    classification: "GUEST",
-                    college:        "",
-                    course:         "",
-                    sex:            ""
-                };
-                $.post(BACKEND, { request: "checkStatusToday", idNumber }, function (status) {
-                    determineAction(selectedUser, status);
-                });
-                return;
-            }
+        if (res.error) {
+            alert("No record found for that ID number.");
+            $("#inputStudentNumber").val("").focus();
+            return;
+        }
 
-            if (res.duplicate) {
-                duplicateCandidates = res.matches;
-                // PHP already built the duplicate modal HTML — just inject it
-                showModal("Identity Verification", res.modalHTML, "");
-                return;
-            }
+        if (res.duplicate) {
+            duplicateCandidates = res.matches;
+            showModal("Identity Verification", res.modalHTML, "");
+            return;
+        }
 
-            selectedUser = res.data;
-            $.post(BACKEND, { request: "checkStatusToday", idNumber: selectedUser.id_number }, function (status) {
-                determineAction(selectedUser, status);
-            });
+        selectedUser = res.data;
+        $.post(BACKEND, { request: "checkStatusToday", idNumber: selectedUser.id_number }, function (status) {
+            determineAction(selectedUser, status);
         });
-    }
+    });
+}
 
     // =========================================================================
     // DETERMINE ACTION
@@ -565,8 +601,10 @@ $(document).ready(function () {
     // =========================================================================
     // PROCESS & SAVE ATTENDANCE
     // =========================================================================
-    function processAttendance(user, action) {
-        if (!currentLibraryID || !user.id_number) return;
+
+function processAttendance(user, action) {
+    if (!currentLibraryID) return;
+    if (user.classification !== 'GUEST' && !user.id_number) return;
 
         // Capture name + label NOW — synchronously — before any async work or
         // globals change. Showing the success modal here prevents a race where a
@@ -590,30 +628,31 @@ $(document).ready(function () {
         saveAttendance(user, resolvedAction);
     }
 
-    function saveAttendance(user, action) {
-        $.post(BACKEND, {
-            request:        "saveAttendance",
-            action,
-            idNumber:       user.id_number,
-            sectionID:      currentLibraryID,
-            classification: user.classification || "STUDENT",
-            name:           user.name,
-            college:        user.college || "",
-            course:         user.course  || "",
-            sex:            user.sex     || "",
-        }, function (res) {
-            if (res.error) {
-                showModal("Error",
-                    `<div class="alert alert-danger text-center mb-0">
-                        <i class="fas fa-exclamation-circle me-2"></i>${res.error}
-                     </div>`
-                );
-                return;
-            }
-            loadKPI(currentLibraryID);
-            $("#inputStudentNumber").val("");
-        });
-    }
+function saveAttendance(user, action) {
+    $.post(BACKEND, {
+        request:             "saveAttendance",
+        action,
+        idNumber:            user.id_number,
+        sectionID:           currentLibraryID,
+        classification:      user.classification || "STUDENT",
+        name:                user.name,
+        college:             user.college  || "",
+        course:              user.course   || "",
+        sex:                 user.sex      || "",
+        agency_organization: user.agency_organization || "",
+    }, function (res) {
+        if (res.error) {
+            showModal("Error",
+                `<div class="alert alert-danger text-center mb-0">
+                    <i class="fas fa-exclamation-circle me-2"></i>${res.error}
+                 </div>`
+            );
+            return;
+        }
+        loadKPI(currentLibraryID);
+        $("#inputStudentNumber").val("");
+    });
+}
 
 });
 </script>

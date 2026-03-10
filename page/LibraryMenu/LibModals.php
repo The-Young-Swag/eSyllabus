@@ -2,12 +2,12 @@
 <div class="modal fade" id="dynamicModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-md">
         <div class="modal-content border-0 shadow">
-            <div class="modal-header border-0 pb-0">
-                <div class="w-100 text-center">
+<div class="modal-header border-0 pb-0 position-relative">
+                <div class="w-100 text-center pe-4">
                     <h5 class="modal-title fw-bold" id="dynamicModalTitle"></h5>
                     <small class="text-muted d-block">Please verify the information before proceeding</small>
                 </div>
-                <button type="button" class="btn-close position-absolute end-0 me-3" data-bs-dismiss="modal"></button>
+                <button type="button"class="close" data-bs-dismiss="modal">&times;</button>
             </div>
             <div class="modal-body pt-3" id="dynamicModalBody"></div>
             <div class="modal-footer border-0 pt-0 justify-content-center gap-2" id="dynamicModalFooter"></div>
@@ -24,7 +24,7 @@
                     <h5 class="modal-title fw-bold mb-0" id="viewAllModalTitle">Records</h5>
                     <small class="text-muted" id="viewAllModalSubtitle"></small>
                 </div>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">&times;</button>
             </div>
             <div class="modal-body pt-2 px-0" id="viewAllModalBody"></div>
             <div class="modal-footer border-0 flex-column align-items-center gap-1 pt-0" id="viewAllModalFooter"></div>
@@ -40,7 +40,7 @@
 
             <!-- Header -->
             <div class="modal-header border-0 pb-0 pt-4 px-4">
-                <div class="w-100 text-center">
+                <div class="w-100 text-center pe-4">
                     <div class="d-inline-flex align-items-center justify-content-center rounded-3 bg-primary-subtle mb-2"
                          style="width:44px;height:44px;">
                         <i class="fas fa-file-export text-primary" style="font-size:1.1rem;"></i>
@@ -48,8 +48,8 @@
                     <h6 class="fw-bold mb-0 fs-6">Export Report</h6>
                     <small class="text-muted">Choose sections and format</small>
                 </div>
-                <button type="button" class="btn-close position-absolute end-0 me-3 mt-2"
-                        data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="close""
+                        data-bs-dismiss="modal" aria-label="Close">&times;</button>
             </div>
 
             <!-- Body -->

@@ -312,12 +312,22 @@ function buildAttendanceModalHTML(
     // Allow only safe formatting tags — strip everything else
     $message = strip_tags($message, "<strong><em>");
 
-    $rows = "
-        <div class='row mb-2'><div class='col-5 fw-semibold'>ID</div><div class='col-7'>{$id}</div></div>
-        <div class='row mb-2'><div class='col-5 fw-semibold'>Name</div><div class='col-7'>{$name}</div></div>
-        <div class='row mb-2'><div class='col-5 fw-semibold'>Sex</div><div class='col-7'>{$sex}</div></div>
-        <div class='row mb-2'><div class='col-5 fw-semibold'>Type</div><div class='col-7'>{$type}</div></div>
+$rows = "";
+
+if (!$isGuest) {
+    $rows .= "
+        <div class='row mb-2'>
+            <div class='col-5 fw-semibold'>ID</div>
+            <div class='col-7'>{$id}</div>
+        </div>
     ";
+}
+
+$rows .= "
+    <div class='row mb-2'><div class='col-5 fw-semibold'>Name</div><div class='col-7'>{$name}</div></div>
+    <div class='row mb-2'><div class='col-5 fw-semibold'>Sex</div><div class='col-7'>{$sex}</div></div>
+    <div class='row mb-2'><div class='col-5 fw-semibold'>Type</div><div class='col-7'>{$type}</div></div>
+";
 
     if (!$isEmployee && !$isGuest) {
         $college = htmlspecialchars($user["college"] ?? "N/A");
@@ -327,6 +337,17 @@ function buildAttendanceModalHTML(
             <div class='row mb-2'><div class='col-5 fw-semibold'>Course</div><div class='col-7'>{$course}</div></div>
         ";
     }
+	
+	if ($isGuest) {
+    $agency = htmlspecialchars($user["agency_organization"] ?? "N/A");
+
+    $rows .= "
+        <div class='row mb-2'>
+            <div class='col-5 fw-semibold'>Agency</div>
+            <div class='col-7'>{$agency}</div>
+        </div>
+    ";
+}
 
     $body = "
         <div class='text-center mb-3'>
@@ -350,6 +371,113 @@ function buildAttendanceModalHTML(
     ";
 
     return ["body" => $body, "footer" => $footer];
+}
+
+function handleBuildGuestModal(): void
+{
+    $lib = htmlspecialchars(trim($_POST["libraryName"] ?? ""));
+
+    $body = "
+        <div class='p-3' style='background:#f0fdf9;border:1px solid #d1fae5;border-radius:12px;'>
+
+            <div class='d-flex align-items-center gap-3 pb-3 mb-3 border-bottom'>
+                <div class='d-flex align-items-center justify-content-center flex-shrink-0'
+                     style='width:40px;height:40px;border-radius:10px;background:#d1fae5;color:#047857;'>
+                    <i class='fas fa-book-open' style='font-size:1rem;line-height:1'></i>
+                </div>
+
+                <div class='lh-sm'>
+                    <div class='text-uppercase fw-semibold text-muted'
+                         style='font-size:.65rem;letter-spacing:.08em;'>
+                        Library
+                    </div>
+
+                    <div class='fw-bold' style='font-size:.95rem;color:#064e3b;'>
+                        {$lib}
+                    </div>
+                </div>
+            </div>
+
+            <div class='mb-3'>
+                <label class='form-label small text-uppercase fw-semibold text-muted mb-1'>
+                    Full Name <span class='text-danger'>*</span>
+                </label>
+
+                <input type='text'
+                       id='guestName'
+                       class='form-control'
+                       placeholder='Enter full name'
+                       autocomplete='off'>
+            </div>
+
+            <!-- Sex -->
+            <div class='mb-3'>
+                <label class='d-block fw-bold text-uppercase mb-1'
+                       style='font-size:.65rem;letter-spacing:.09em;color:#3d8a6e;'>
+                    Sex <span class='text-danger'>*</span>
+                </label>
+
+                <select id='guestSex'
+                        class='form-select'
+                        style='border-color:#a7f3d0;border-radius:8px;font-size:.9rem;'>
+
+                    <option value=''>— Select —</option>
+                    <option value='Male'>Male</option>
+                    <option value='Female'>Female</option>
+
+                </select>
+            </div>
+
+            <div class='row g-2'>
+
+                <div class='col-4'>
+                    <label class='form-label small text-uppercase fw-semibold text-muted mb-1'>
+                        Type
+                    </label>
+
+                    <input type='text'
+                           class='form-control text-success fw-semibold bg-light'
+                           value='GUEST'
+                           readonly>
+                </div>
+
+                <div class='col-8'>
+                    <label class='form-label small text-uppercase fw-semibold text-muted mb-1'>
+                        Agency / Organization <span class='text-danger'>*</span>
+                    </label>
+
+                    <input type='text'
+                           id='guestAgency'
+                           class='form-control'
+                           placeholder='Enter agency or organization'
+                           autocomplete='off'>
+                </div>
+
+            </div>
+
+        </div>
+    ";
+
+    $footer = "
+        <button type='button'
+                class='btn btn-light border rounded-pill px-4'
+                data-bs-dismiss='modal'>
+            Cancel
+        </button>
+
+        <button type='button'
+                class='btn btn-success rounded-pill px-4 fw-semibold'
+                id='confirmGuestCheckIn'>
+            <i class='fas fa-sign-in-alt me-2'></i>
+            Check In
+        </button>
+    ";
+
+    sendResponse([
+        "success" => true,
+        "body"    => $body,
+        "footer"  => $footer
+    ]);
 }
 
 
@@ -500,8 +628,8 @@ function performCheckin(PDO $pdo, string $idNumber, int $sectionID, string $now,
     // Insert new check-in
     $pdo->prepare("
         INSERT INTO Library_logs
-            (id_number, name, classification, college, course, library, checkin_time, sex)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        (id_number, name, classification, college, course, library, checkin_time, sex, agency_organization)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     ")->execute([
         $idNumber,
         $user["name"],
@@ -511,9 +639,9 @@ function performCheckin(PDO $pdo, string $idNumber, int $sectionID, string $now,
         $sectionID,
         $now,
         $user["sex"],
+        $user["agency_organization"] ?? "",
     ]);
 }
-
 
 /**
  * Closes the user's active session in the specified section.
@@ -591,6 +719,38 @@ function handleValidateUser(): void
         "matches"   => $matches,
         "modalHTML" => buildDuplicateModalHTML(),
     ]);
+}
+
+//GUEST CHECK IN
+function handleGuestCheckin(): void
+{
+    $name      = trim($_POST["name"] ?? "");
+    $sex       = trim($_POST["sex"] ?? "");
+    $agency    = trim($_POST["agency"] ?? "");
+    $sectionID = intval($_POST["sectionID"] ?? 0);
+
+    if (!$name || !$sex || !$agency || !$sectionID) {
+        sendResponse(["error" => "Missing guest information."]);
+    }
+
+    $pdo = dbconES();
+    $now = date("Y-m-d H:i:s");
+
+    $stmt = $pdo->prepare("
+INSERT INTO Library_logs
+(id_number, name, classification, college, course, library, checkin_time, sex, agency_organization)
+        VALUES (NULL, ?, 'GUEST', ?, ?, ?, ?)
+    ");
+
+    $stmt->execute([
+        $name,
+        $sex,
+        $agency,
+        $sectionID,
+        $now
+    ]);
+
+    sendResponse(["success" => true]);
 }
 
 
@@ -732,20 +892,26 @@ function handleBuildAttendanceModal(): void
 
 function handleSaveAttendance(): void
 {
-    $idNumber       = trim($_POST["idNumber"]       ?? "");
-    $sectionID      = intval($_POST["sectionID"]    ?? 0);
-    $action         = trim($_POST["action"]         ?? "");
-    $classification = trim($_POST["classification"] ?? "STUDENT");
-    $name           = trim($_POST["name"]           ?? "");
-    $college        = trim($_POST["college"]        ?? "");
-    $course         = trim($_POST["course"]         ?? "");
-    $sex            = trim($_POST["sex"]            ?? "");
+    $idNumber       = trim($_POST["idNumber"]            ?? "");
+    $sectionID      = intval($_POST["sectionID"]         ?? 0);
+    $action         = trim($_POST["action"]              ?? "");
+    $classification = trim($_POST["classification"]      ?? "STUDENT");
+    $name           = trim($_POST["name"]                ?? "");
+    $college        = trim($_POST["college"]             ?? "");
+    $course         = trim($_POST["course"]              ?? "");
+    $sex            = trim($_POST["sex"]                 ?? "");
+    $agencyOrg      = trim($_POST["agency_organization"] ?? "");
 
-    if (!$idNumber || !$sectionID || !$action) {
+    // Guests have no id_number — only non-guests require it
+    if ($classification !== "GUEST" && !$idNumber) {
         sendResponse(["error" => "Missing required attendance data."]);
     }
 
-    if (!validateIdFormat($idNumber)) {
+    if (!$sectionID || !$action) {
+        sendResponse(["error" => "Missing required attendance data."]);
+    }
+
+    if ($idNumber && !validateIdFormat($idNumber)) {
         sendResponse(["error" => "Invalid ID format."]);
     }
 
@@ -757,12 +923,22 @@ function handleSaveAttendance(): void
     $today = date("Y-m-d");
     $pdo   = dbconES();
 
-    $user = compact("name", "classification", "college", "course", "sex");
+    $user = [
+        "name"               => $name,
+        "classification"     => $classification,
+        "college"            => $college,
+        "course"             => $course,
+        "sex"                => $sex,
+        "agency_organization"=> $agencyOrg,
+    ];
 
     try {
         $pdo->beginTransaction();
 
-        if ($action === "checkin") {
+        if ($classification === "GUEST") {
+            // Guests: always a fresh INSERT — no duplicate check, no auto-checkout
+            performGuestCheckin($pdo, $sectionID, $now, $user);
+        } elseif ($action === "checkin") {
             performCheckin($pdo, $idNumber, $sectionID, $now, $today, $user);
         } else {
             performCheckout($pdo, $idNumber, $sectionID, $now, $today);
@@ -771,19 +947,33 @@ function handleSaveAttendance(): void
         $pdo->commit();
 
     } catch (Exception $e) {
-        if ($pdo->inTransaction()) {
-            $pdo->rollBack();
-        }
-        // Log internally — never expose raw DB errors to the client
+        if ($pdo->inTransaction()) $pdo->rollBack();
         error_log("[LibraryLogs] saveAttendance error: " . $e->getMessage());
         sendResponse(["error" => "A database error occurred. Please try again."]);
     }
 
     $kpiData = buildKPIData($pdo, $sectionID, $today);
-
     sendResponse(["success" => true, "action" => $action, "kpi" => $kpiData]);
 }
 
+/**
+ * Inserts a new guest visit. Every guest scan is a fresh record.
+ * id_number is NULL — guests have no institutional ID.
+ */
+function performGuestCheckin(PDO $pdo, int $sectionID, string $now, array $user): void
+{
+    $pdo->prepare("
+        INSERT INTO Library_logs
+        (id_number, name, classification, college, course, library, checkin_time, sex, agency_organization)
+        VALUES ('0', ?, 'GUEST', '', '', ?, ?, ?, ?)
+    ")->execute([
+        $user["name"],
+        $sectionID,
+        $now,
+        $user["sex"],
+        $user["agency_organization"],
+    ]);
+}
 
 function handleGetKPI(): void
 {
@@ -804,6 +994,8 @@ function handleGetKPI(): void
 //  DISPATCH
 
 
+//  DISPATCH
+
 $request = trim($_POST["request"] ?? "");
 
 switch ($request) {
@@ -821,6 +1013,10 @@ switch ($request) {
 
     case "buildAttendanceModal":
         handleBuildAttendanceModal();
+        break;
+
+    case "buildGuestModal":
+        handleBuildGuestModal();
         break;
 
     case "saveAttendance":
