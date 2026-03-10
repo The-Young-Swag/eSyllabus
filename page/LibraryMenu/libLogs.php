@@ -133,20 +133,20 @@
                      transition:background .18s,box-shadow .18s,transform .15s;">
         <i class="fas fa-user-clock me-2"></i>Check In as Guest
       </button>
-      <div id="guestNudge" class="position-absolute"
-           style="left:calc(100% + 12px);top:50%;transform:translateY(-50%);
-                  background:#fff;border:1.5px solid #a7f3d0;border-radius:12px;
-                  padding:6px 14px;font-size:.75rem;color:#047857;font-weight:600;
-                  white-space:nowrap;box-shadow:0 4px 14px rgba(6,78,59,.12);
-                  opacity:0;pointer-events:none;transition:opacity .4s ease;z-index:10;">
-        <span style="position:absolute;left:-8px;top:50%;transform:translateY(-50%);
-                     border-top:7px solid transparent;border-bottom:7px solid transparent;
-                     border-right:8px solid #a7f3d0;"></span>
-        <span style="position:absolute;left:-6px;top:50%;transform:translateY(-50%);
-                     border-top:6px solid transparent;border-bottom:6px solid transparent;
-                     border-right:7px solid #fff;"></span>
-        👋 Not a student / just visiting?
-      </div>
+<div id="guestNudge" class="position-absolute" 
+     style="right:calc(100% + 12px);top:50%;transform:translateY(-50%);
+            background:#fff;border:1.5px solid #a7f3d0;border-radius:12px;
+            padding:6px 14px;font-size:.75rem;color:#047857;font-weight:600;
+            white-space:nowrap;box-shadow:0 4px 14px rgba(6,78,59,.12);
+            opacity:0;pointer-events:none;transition:opacity .4s ease;z-index:10;">
+  <span style="position:absolute;right:-8px;top:50%;transform:translateY(-50%);
+               border-top:7px solid transparent;border-bottom:7px solid transparent;
+               border-left:8px solid #a7f3d0;"></span>
+  <span style="position:absolute;right:-6px;top:50%;transform:translateY(-50%);
+               border-top:6px solid transparent;border-bottom:6px solid transparent;
+               border-left:7px solid #fff;"></span>
+  👋 Not a student / just visiting?
+</div>
     </div>
 
     <!-- CHECK OUT -->
@@ -241,30 +241,14 @@
 <?php include 'LibModals.php'; ?>
 
 <script>
-(function () {
-  const nudge = document.getElementById('guestNudge');
-  const btn   = document.getElementById('guestCheckIn');
+(() => {
+  const n=document.getElementById('guestNudge'),b=document.getElementById('guestCheckIn');
 
-  btn.addEventListener('mouseenter', () => {
-    btn.style.background  = '#d1fae5';
-    btn.style.boxShadow   = '0 4px 14px rgba(6,78,59,.15)';
-    btn.style.transform   = 'translateY(-1px)';
-  });
-  btn.addEventListener('mouseleave', () => {
-    btn.style.background  = '#f0fdf9';
-    btn.style.boxShadow   = '';
-    btn.style.transform   = '';
-  });
+  b.onmouseenter=()=>{b.style.background='#d1fae5';b.style.boxShadow='0 4px 14px rgba(6,78,59,.15)';b.style.transform='translateY(-1px)';};
+  b.onmouseleave=()=>{b.style.background='#f0fdf9';b.style.boxShadow='';b.style.transform='';};
 
-  function showNudge () {
-    nudge.style.opacity = '1';
-    setTimeout(() => { nudge.style.opacity = '0'; }, 1800);
-  }
-
-  setTimeout(() => {
-    showNudge();
-    setInterval(showNudge, 3000);
-  }, 10000);
+  const show=()=>{n.style.opacity='1';setTimeout(()=>{n.style.opacity='0'},1800)};
+  setTimeout(()=>{show();setInterval(show,3000)},10000);
 })();
 
 $(document).ready(function () {
@@ -370,14 +354,11 @@ $(document).on("input", "#guestSearchInput", function () {
     $("#guestNoResults").toggle($("#guestCheckoutList .guest-row:visible").length === 0);
 });
 
-// =========================================================================
-// GUEST CHECK-OUT — confirm single guest checkout
-// =========================================================================
-$(document).on("click", ".btn-guest-checkout", function () {
-    const logID    = $(this).data("logid");
-    const guestName = $(this).data("name");
-
-    if (!logID) return;
+// ─── Guest Checkout Handler ──────────────────────────────
+$(document).on("click",".btn-guest-checkout",function(){
+    const logID=$(this).data("logid"),
+          guestName=$(this).data("name");
+    if(!logID) return;
 
     showModal("Success",
         `<div class="alert alert-danger text-center mb-0">
@@ -385,17 +366,19 @@ $(document).on("click", ".btn-guest-checkout", function () {
             <strong>${guestName}</strong> successfully checked out.
          </div>`
     );
-    successTimer = setTimeout(() => {
-        successTimer = null;
-        $("#dynamicModal").modal("hide");
-    }, 2000);
 
-    $.post(BACKEND, { request: "guestCheckout", logID, sectionID: currentLibraryID },
-        res => {
-            if (res.error) {
+    let checkoutTimer=setTimeout(()=>{
+        checkoutTimer=null;
+        $("#dynamicModal").modal("hide");
+    },2000);
+
+    $.post(BACKEND,
+        {request:"guestCheckout",logID,sectionID:currentLibraryID},
+        response=>{
+            if(response.error){
                 showModal("Error",
                     `<div class="alert alert-danger text-center mb-0">
-                        <i class="fas fa-exclamation-circle me-2"></i>${res.error}
+                        <i class="fas fa-exclamation-circle me-2"></i>${response.error}
                      </div>`
                 );
                 return;
@@ -405,30 +388,27 @@ $(document).on("click", ".btn-guest-checkout", function () {
     );
 });
 
-// =========================================================================
-// CONFIRM GUEST CHECK-IN
-// =========================================================================
-$(document).on("click", "#confirmGuestCheckIn", function () {
+// ─── Guest Check-In Handler ──────────────────────────────
+$(document).on("click","#confirmGuestCheckIn",function(){
+    const guestName=$("#guestName").val().trim(),
+          guestSex=$("#guestSex").val(),
+          guestAgency=$("#guestAgency").val().trim();
 
-    const name   = $("#guestName").val().trim();
-    const sex    = $("#guestSex").val();
-    const agency = $("#guestAgency").val().trim();
+    if(!guestName){ alert("Guest name is required."); return; }
+    if(!guestSex){ alert("Please select a sex."); return; }
+    if(!guestAgency){ alert("Agency / Organization required."); return; }
 
-    if (!name)   { alert("Guest name is required.");         return; }
-    if (!sex)    { alert("Please select a sex.");            return; }
-    if (!agency) { alert("Agency / Organization required."); return; }
-
-    const guestUser = {
-        id_number:           "",          // NULL in DB — no ID for guests
-        name:                name,
-        classification:      "GUEST",
-        college:             "",
-        course:              "",
-        sex:                 sex,
-        agency_organization: agency
+    const guestUser={
+        id_number:"",
+        name:guestName,
+        classification:"GUEST",
+        college:"",
+        course:"",
+        sex:guestSex,
+        agency_organization:guestAgency
     };
 
-    processAttendance(guestUser, "checkin");
+    processAttendance(guestUser,"checkin");
 });
 	
     // =========================================================================
@@ -515,7 +495,6 @@ $(document).on("click", "#confirmGuestCheckIn", function () {
     // JS owns: routing, state, action determination
     // PHP owns: HTML rendering (modal body/footer)
     // =========================================================================
-// REPLACE the entire validateUser function
 function validateUser() {
     const idNumber = $("#inputStudentNumber").val().trim();
     if (!idNumber) return alert("Please enter an Identification Number.");
@@ -541,52 +520,29 @@ function validateUser() {
     });
 }
 
-    // =========================================================================
-    // DETERMINE ACTION
-    // JS resolves checkin / checkout / switch, then asks PHP to render the modal
-    // =========================================================================
-    function determineAction(user, status) {
-        let action  = "checkin";
-        let color   = "success";
-        let icon    = "fa-sign-in-alt";
-        let btnText = "Check In";
-        let message = "Not checked in yet";
+function determineAction(user,status){
+    let action="checkin",color="success",icon="fa-sign-in-alt",btnText="Check In",message="Not checked in yet";
 
-        if (status.checkedIn) {
-            const sameSection = parseInt(status.sectionID) === parseInt(currentLibraryID);
-            if (sameSection) {
-                action  = "checkout";
-                color   = "danger";
-                icon    = "fa-sign-out-alt";
-                btnText = "Check Out";
-                message = "Currently in this library";
-            } else {
-                const prevLibrary = status.sectionName || "another library";
-                action  = "switch";
-                color   = "warning";
-                icon    = "fa-random";
-                btnText = "Switch & Check In";
-                message = `You forgot to check out at <strong>${prevLibrary}</strong>. No worries — we've automatically checked you out and completed your check-in here.`;
-            }
+    if(status.checkedIn){
+        const sameSection=Number(status.sectionID)===Number(currentLibraryID);
+        if(sameSection){
+            action="checkout"; color="danger"; icon="fa-sign-out-alt"; btnText="Check Out"; message="Currently in this library";
+        } else {
+            const prevLibrary=status.sectionName||"another library";
+            action="switch"; color="warning"; icon="fa-random"; btnText="Switch & Check In";
+            message=`You forgot to check out at <strong>${prevLibrary}</strong>. No worries — we've automatically checked you out and completed your check-in here.`;
         }
-
-        currentAction = action;
-
-        // Ask PHP to render the confirmation modal HTML with the resolved values.
-        // JS passes all the data; PHP does the rendering; JS injects the result.
-        $.post(BACKEND, {
-            request:     "buildAttendanceModal",
-            user:        JSON.stringify(user),
-            color:       color,
-            icon:        icon,
-            btnText:     btnText,
-            message:     message,
-            libraryName: currentLibraryName
-        }, function (res) {
-            if (!res.success) return;
-            showModal("Attendance Confirmation", res.body, res.footer);
-        });
     }
+
+    currentAction=action;
+
+    $.post(BACKEND,{
+        request:"buildAttendanceModal",
+        user:JSON.stringify(user),
+        color,icon,btnText,message,
+        libraryName:currentLibraryName
+    },res=>res.success && showModal("Attendance Confirmation",res.body,res.footer));
+}
 
     // =========================================================================
     // SECRET KEY VERIFICATION  (duplicate ID flow)
