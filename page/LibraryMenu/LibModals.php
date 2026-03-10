@@ -24,7 +24,7 @@
                     <h5 class="modal-title fw-bold mb-0" id="viewAllModalTitle">Records</h5>
                     <small class="text-muted" id="viewAllModalSubtitle"></small>
                 </div>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">&times;</button>
+                <button type="button"class="close" data-bs-dismiss="modal">&times;</button>
             </div>
             <div class="modal-body pt-2 px-0" id="viewAllModalBody"></div>
             <div class="modal-footer border-0 flex-column align-items-center gap-1 pt-0" id="viewAllModalFooter"></div>

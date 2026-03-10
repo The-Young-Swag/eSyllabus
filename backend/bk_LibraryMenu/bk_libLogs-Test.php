@@ -1,11 +1,8 @@
 <?php
-
-
 //  Library Logs Backend
 //  Handles: user validation, attendance logging, KPI reporting
 //  Database: Library_logs (id, id_number, name, college, course, library,
 //            checkin_time, checkout_time, sex, classification)
-
 
 include "../../db/dbconnection.php";
 date_default_timezone_set("Asia/Manila");
@@ -16,14 +13,12 @@ if ($_SERVER["REQUEST_METHOD"] !== "POST") {
 }
 
 
-
 //  UTILITY
 function sendResponse(array $payload): void
 {
     echo json_encode($payload);
     exit;
 }
-
 
 /**
  * Validates that an ID number only contains letters and digits.
@@ -52,8 +47,6 @@ function getTodayRange(string $today): array
 
 
 //  DATA SOURCE LOADERS
-
-
 // ====================================================================
 // CONFIGURATION — the only section you ever need to touch
 // ====================================================================
@@ -75,18 +68,10 @@ define("API_ID_PARAMS", [
 
 
 /**
- * Resolves a user by ID — the single entry point for all user lookups.
- *
- * This is the core architectural principle:
- *   Before: load entire dataset → build index → find person  O(n) + memory
- *   Now:    ask for this person → get this person             O(1) always
- *
- * Returns an array of matched records (more than one = duplicate IDs).
- * Returns an empty array if no match is found.
- *
- * Routing (automatic):
- *   USE_LOCAL_DATA = true  → searches local JSON file
- *   USE_LOCAL_DATA = false → fetches exactly this person from the API
+ * Resolves a user by ID — single entry point for all lookups.
+ * Optimized: direct lookup O(1) vs full dataset scan O(n).
+ * Returns an array of matches (duplicates possible) or empty if none.
+ * Automatically uses local JSON or API based on USE_LOCAL_DATA flag.
  */
 function resolveUserById(string $idNumber): array
 {
@@ -96,7 +81,6 @@ function resolveUserById(string $idNumber): array
 
     return resolveFromAPI($idNumber);
 }
-
 
 /**
  * Searches the local JSON test file for the given ID.
@@ -126,7 +110,6 @@ function resolveFromLocalJSON(string $idNumber): array
 
     return $matches;
 }
-
 
 /**
  * Fetches exactly this one person from the live API.
@@ -163,7 +146,6 @@ function resolveFromAPI(string $idNumber): array
     return $matches;
 }
 
-
 /**
  * Shared cURL helper. Returns the decoded JSON array, or null on any failure.
  * Both resolvers use this — cURL setup lives in exactly one place.
@@ -194,7 +176,6 @@ function apiRequest(string $url,string $token): ?array
     return $decoded;
 }
 
-
 /**
  * Handles all JSON wrapper shapes so neither resolver has to repeat this.
  *
@@ -217,11 +198,7 @@ function extractRecordsFromPayload(array $payload): array
     return [];
 }
 
-
-
 //  USER RECORD MAPPERS
-
-
 function mapStudentToUserRecord(array $student): array
 {
     return [
@@ -248,8 +225,6 @@ function mapEmployeeToUserRecord(array $employee): array
     ];
 }
 
-
-
 //  HTML GENERATORS
 //  All modal HTML is built here on the server.
 //  JS receives the HTML string and injects it — no HTML construction in JS.
@@ -257,7 +232,7 @@ function mapEmployeeToUserRecord(array $employee): array
 /**
  * Builds the attendance confirmation modal body and footer.
  *
- * Called by handleBuildAttendanceModal() after JS has already:
+ * Called by BuildAttendanceModal() after JS has already:
  *   - validated the user
  *   - checked their status today
  *   - determined the action (checkin / checkout / switch)
@@ -288,9 +263,7 @@ function buildAttendanceModalHTML(
     $lib  = $e($libraryName);
 
     $message = strip_tags($message,"<strong><em>");
-
     $row = fn($k,$v)=>"<div class='row mb-2'><div class='col-5 fw-semibold'>{$k}</div><div class='col-7'>{$v}</div></div>";
-
     $rows="";
 
     if(!$isGuest) $rows .= $row("ID",$id);
@@ -331,84 +304,115 @@ function buildAttendanceModalHTML(
     return ["body"=>$body,"footer"=>$footer];
 }
 
-function handleBuildGuestModal(): void
+function GuestCheckInModal(): void
 {
     $lib = htmlspecialchars(trim($_POST["libraryName"] ?? ""));
 
-    $body = "
-    <div class='p-3' style='background:#f0fdf9;border:1px solid #d1fae5;border-radius:12px;'>
+    $labelStyle = "font-size:.65rem;letter-spacing:.12em;color:#6b7280;";
+    $inputStyle = "border-radius:12px;height:40px;font-size:.9rem;border-color:#d1d5db;";
+    $selectStyle = "height:44px;border-radius:12px;font-size:.9rem;border-color:#d1d5db;";
 
-        <div class='d-flex align-items-center gap-3 pb-3 mb-3 border-bottom'>
-            <div class='d-flex align-items-center justify-content-center flex-shrink-0'
-                 style='width:40px;height:40px;border-radius:10px;background:#d1fae5;color:#047857;'>
-                <i class='fas fa-book-open' style='font-size:1rem;line-height:1'></i>
+$body = <<<HTML
+<div style='background:#ecfdf5;border:1px solid #d1fae5;border-radius:16px;padding:22px;'>
+    <div class='d-flex align-items-center justify-content-between mb-4 pb-3'
+         style='border-bottom:1px solid #d1fae5;'>
+        <div class='d-flex align-items-center gap-3'>
+            <div class='d-flex align-items-center justify-content-center'
+                 style='width:44px;height:44px;border-radius:14px;background:#d1fae5;color:#047857;font-size:1.05rem;'>
+                <i class='fas fa-book-open'></i>
             </div>
-
+            &nbsp;&nbsp;
             <div class='lh-sm'>
-                <div class='text-uppercase fw-semibold text-muted'
-                     style='font-size:.65rem;letter-spacing:.08em;'>Library</div>
-                <div class='fw-bold' style='font-size:.95rem;color:#064e3b;'>{$lib}</div>
+                <div class='text-uppercase fw-semibold' style='$labelStyle'>
+                    Library
+                </div>
+                <div class='fw-semibold' style='font-size:1.05rem;color:#064e3b;'>
+                    {$lib}
+                </div>
             </div>
         </div>
+        <span class='badge rounded-pill'
+              style='background:#d1fae5;color:#047857;font-size:.75rem;padding:7px 14px;font-weight:600;'>
+            Guest Check-In
+        </span>
+    </div>
 
-        <div class='mb-3'>
-            <label class='form-label small text-uppercase fw-semibold text-muted mb-1'>
-                Full Name <span class='text-danger'>*</span>
+    <div class='mb-3'>
+        <label class='text-uppercase fw-semibold mb-1' style='$labelStyle'>
+            Full Name
+        </label>
+
+        <input type='text'
+               id='guestName'
+               class='form-control'
+               placeholder='Enter full name'
+               autocomplete='off'
+               style='$inputStyle'>
+    </div>
+
+    <div class='row g-3'>
+        <div class='col-6'>
+            <label class='text-uppercase fw-semibold mb-1' style='$labelStyle'>
+                Sex
             </label>
-
-            <input type='text'
-                   id='guestName'
-                   class='form-control'
-                   placeholder='Enter full name'
-                   autocomplete='off'>
-        </div>
-
-        <div class='mb-3'>
-            <label class='d-block fw-bold text-uppercase mb-1'
-                   style='font-size:.65rem;letter-spacing:.09em;color:#3d8a6e;'>
-                Sex <span class='text-danger'>*</span>
-            </label>
-
-            <select id='guestSex' class='form-select'
-                    style='border-color:#a7f3d0;border-radius:8px;font-size:.9rem;'>
-                <option value=''>— Select —</option>
+            <select id='guestSex'
+                    class='form-select w-100'
+                    style='$selectStyle'>
+                <option value=''>Select</option>
                 <option value='Male'>Male</option>
                 <option value='Female'>Female</option>
             </select>
         </div>
 
-        <div class='row g-2'>
 
-            <div class='col-4'>
-                <label class='form-label small text-uppercase fw-semibold text-muted mb-1'>Type</label>
-                <input type='text' class='form-control text-success fw-semibold bg-light' value='GUEST' readonly>
-            </div>
-
-            <div class='col-8'>
-                <label class='form-label small text-uppercase fw-semibold text-muted mb-1'>
-                    Agency / Organization <span class='text-danger'>*</span>
-                </label>
-
-                <input type='text'
-                       id='guestAgency'
-                       class='form-control'
-                       placeholder='Enter agency or organization'
-                       autocomplete='off'>
-            </div>
-
+        <div class='col-6'>
+            <label class='text-uppercase fw-semibold mb-1' style='$labelStyle'>
+                Type
+            </label>
+            <input type='text'
+                   class='form-control w-100 fw-semibold text-success'
+                   value='GUEST'
+                   readonly
+                   style='height:44px;border-radius:12px;font-size:.9rem;background:#dcfce7;border:1px solid #86efac;text-align:center;letter-spacing:.05em;'>
         </div>
+    </div>
 
-    </div>";
 
-    $footer = "
-    <button type='button' class='btn btn-light border rounded-pill px-4' data-bs-dismiss='modal'>Cancel</button>
-    <button type='button' class='btn btn-success rounded-pill px-4 fw-semibold' id='confirmGuestCheckIn'>
-        <i class='fas fa-sign-in-alt me-2'></i>Check In
-    </button>";
+    <div class='mt-3'>
+        <label class='text-uppercase fw-semibold mb-1' style='$labelStyle'>
+            Agency / Organization
+        </label>
+        <input type='text'
+               id='guestAgency'
+               class='form-control'
+               placeholder='Enter agency or organization'
+               autocomplete='off'
+               style='$inputStyle'>
+    </div>
 
-    sendResponse(["success"=>true,"body"=>$body,"footer"=>$footer]);
+</div>
+HTML;
+
+$footer = <<<HTML
+<button type='button'
+        class='btn btn-light border rounded-pill px-4'
+        data-bs-dismiss='modal'>
+    Cancel
+</button>
+
+<button type='button'
+        class='btn btn-success rounded-pill px-4 fw-semibold'
+        id='confirmGuestCheckIn'>
+    <i class='fas fa-sign-in-alt me-2'></i>Check In
+</button>
+HTML;
+
+    sendResponse([
+        "success" => true,
+        "body" => $body,
+        "footer" => $footer
+    ]);
 }
-
 
 /**
  * Builds the duplicate ID verification modal body.
@@ -441,9 +445,7 @@ function buildDuplicateModalHTML(): string
 }
 
 
-
 //  KPI BUILDER
-
 
 /**
  * Builds the KPI payload for a library section on a given date.
@@ -511,8 +513,6 @@ function buildKPIData(PDO $pdo, int $sectionID, string $today): array
         "topCourses"      => array_pad($courses,  3, "-"),
     ];
 }
-
-
 
 //  ATTENDANCE HELPERS
 
@@ -592,7 +592,7 @@ function performCheckout(PDO $pdo, string $idNumber, int $sectionID, string $now
 
 //  HANDLERS
 
-function handleGetLibraries(): void
+function GetLibraries(): void
 {
     $uid = intval($_POST["userID"] ?? 0);
     if (!$uid) sendResponse(["error"=>"Missing or invalid userID."]);
@@ -607,7 +607,7 @@ function handleGetLibraries(): void
     sendResponse(["success"=>true,"data"=>$libraries]);
 }
 
-function handleValidateUser(): void
+function ValidateUser(): void
 {
     $id = trim($_POST["idNumber"] ?? "");
     if (!$id) sendResponse(["error"=>"Identification number is required."]);
@@ -633,11 +633,9 @@ function handleGuestCheckin(): void
     $sex       = trim($_POST["sex"] ?? "");
     $agency    = trim($_POST["agency"] ?? "");
     $sectionID = intval($_POST["sectionID"] ?? 0);
-
     if (!$name || !$sex || !$agency || !$sectionID) {
         sendResponse(["error" => "Missing guest information."]);
     }
-
     $pdo = dbconES();
     $now = date("Y-m-d H:i:s");
 
@@ -646,7 +644,6 @@ INSERT INTO Library_logs
 (id_number, name, classification, college, course, library, checkin_time, sex, agency_organization)
         VALUES (NULL, ?, 'GUEST', ?, ?, ?, ?)
     ");
-
     $stmt->execute([
         $name,
         $sex,
@@ -663,7 +660,7 @@ INSERT INTO Library_logs
 // Finds the user's latest active session today (checkout_time IS NULL) using an index-friendly time range.
 // If found → user is currently checked in; otherwise → user is not checked in today.
 
-function handleCheckStatusToday(): void
+function CheckStatusToday(): void
 {
     $id = trim($_POST["idNumber"] ?? "");
     if (!$id) sendResponse(["error"=>"Identification number is required."]);
@@ -709,7 +706,7 @@ function handleCheckStatusToday(): void
  *   message     – Status message (only <strong><em> tags allowed)
  *   libraryName – Current library section name for display
  */
-function handleBuildAttendanceModal(): void
+function AttendanceModal(): void
 {
     $userJSON    = trim($_POST["user"]        ?? "{}");
     $color       = trim($_POST["color"]       ?? "success");
@@ -734,7 +731,7 @@ function handleBuildAttendanceModal(): void
 }
 
 
-function handleSaveAttendance(): void
+function SaveAttendance(): void
 {
     $id  = trim($_POST["idNumber"] ?? "");
     $sid = intval($_POST["sectionID"] ?? 0);
@@ -803,129 +800,132 @@ function performGuestCheckin(PDO $pdo, int $sectionID, string $now, array $user)
     ]);
 }
 
+function GuestCheckoutModal(): void {
+    $sectionID=intval($_POST["sectionID"]??0);
+    $lib=htmlspecialchars(trim($_POST["libraryName"]??""));
+    if(!$sectionID) sendResponse(["error"=>"Missing section ID."]);
 
-function handleBuildGuestCheckoutModal(): void
-{
-    $sectionID = intval($_POST["sectionID"] ?? 0);
-    $lib       = htmlspecialchars(trim($_POST["libraryName"] ?? ""));
-
-    if (!$sectionID) sendResponse(["error"=>"Missing section ID."]);
-
-    [$start,$end] = getTodayRange(date("Y-m-d"));
-    $pdo = dbconES();
-
-    $stmt = $pdo->prepare("
+    [$start,$end]=getTodayRange(date("Y-m-d"));
+    $stmt=dbconES()->prepare("
         SELECT id,name,sex,agency_organization,checkin_time
         FROM Library_logs
-        WHERE library=?
-          AND classification='GUEST'
-          AND checkout_time IS NULL
-          AND checkin_time>=?
-          AND checkin_time<?
+        WHERE library=? AND classification='GUEST' AND checkout_time IS NULL
+          AND checkin_time>=? AND checkin_time<?
         ORDER BY checkin_time DESC
     ");
     $stmt->execute([$sectionID,$start,$end]);
-    $guests = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $guests=$stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $rows="";
-    foreach ($guests as $g) {
+    foreach($guests as $guest){
+    
+        $id=intval($guest["id"]);
+        $name=htmlspecialchars($guest["name"]??"");
+        $sex=htmlspecialchars($guest["sex"]??"");
+        $org=htmlspecialchars($guest["agency_organization"]??"");
+        $time=date("h:i A",strtotime($guest["checkin_time"]));
 
-        $id   = intval($g["id"]);
-        $name = htmlspecialchars($g["name"] ?? "");
-        $sex  = htmlspecialchars($g["sex"] ?? "");
-        $org  = htmlspecialchars($g["agency_organization"] ?? "");
-        $time = date("h:i A",strtotime($g["checkin_time"]));
+        $rows.="
+    <div class='guest-row d-flex align-items-center gap-3 px-3 py-3 mb-2'
+         data-name='{$name}'
+         style='background:#ffffff;border:1px solid #fca5a5;border-radius:14px;'>
 
-        $rows .= "
-        <div class='guest-row d-flex align-items-center gap-3 px-3 py-2 rounded-3 mb-2'
-             data-name='{$name}'
-             style='background:#fff;border:1px solid #e5e7eb;transition:background .15s;'>
-
-            <div class='d-flex align-items-center justify-content-center flex-shrink-0'
-                 style='width:36px;height:36px;border-radius:50%;
-                        background:#fee2e2;color:#dc2626;font-size:.8rem;'>
-                <i class='fas fa-user'></i>
-            </div>
-
-            <div class='flex-grow-1 lh-sm' style='min-width:0;'>
-                <div class='fw-semibold text-dark' style='font-size:.88rem;'>{$name}</div>
-                <div class='text-muted' style='font-size:.73rem;'>
-                    {$sex} &nbsp;·&nbsp; {$org} &nbsp;·&nbsp; In since {$time}
-                </div>
-            </div>
-
-            <button type='button'
-                    class='btn btn-sm fw-semibold flex-shrink-0 btn-guest-checkout'
-                    data-logid='{$id}'
-                    data-name='{$name}'
-                    style='background:#dc2626;color:#fff;border:none;border-radius:8px;
-                           font-size:.75rem;padding:5px 14px;white-space:nowrap;'>
-                <i class='fas fa-sign-out-alt me-1'></i>Check Out
-            </button>
-        </div>";
-    }
-
-    $count = count($guests);
-
-    $emptyState = !$count ? "
-        <div class='text-center text-muted py-4' style='font-size:.85rem;'>
-            <i class='fas fa-users-slash mb-2 d-block' style='font-size:1.5rem;opacity:.35;'></i>
-            No guests currently checked in.
+        <div class='d-flex align-items-center justify-content-center flex-shrink-0'
+             style='width:42px;height:42px;border-radius:50%;background:#fee2e2;color:#dc2626;font-size:.9rem;'>
+            <i class='fas fa-user'></i>
         </div>
-    " : "";
+        &nbsp;&nbsp;
 
-    $body = "
-    <div style='background:#f0fdf9;border:1px solid #d1fae5;border-radius:12px;padding:16px 20px 20px;'>
+        <div class='flex-grow-1' style='min-width:0;'>
+            <div class='fw-semibold text-dark'
+                 style='font-size:.92rem;letter-spacing:.01em;'>
+                {$name}
+            </div>
 
-        <div class='d-flex align-items-center gap-2 mb-3 pb-3' style='border-bottom:1px solid #c6ead9;'>
-            <div class='d-flex align-items-center justify-content-center flex-shrink-0'
-                 style='width:32px;height:32px;border-radius:8px;
-                        background:linear-gradient(135deg,#d1fae5,#a7f3d0);color:#047857;font-size:.8rem;'>
-                <i class='fas fa-book-open'></i>
-            </div>
-            <div>
-                <div style='font-size:.6rem;letter-spacing:.1em;color:#6ee7b7;font-weight:700;text-transform:uppercase;'>Library</div>
-                <div style='font-size:.88rem;font-weight:700;color:#064e3b;'>{$lib}</div>
-            </div>
-            <div class='ms-auto'>
-                <span class='badge'
-                      style='background:#fee2e2;color:#dc2626;font-size:.7rem;'>
-                    {$count} guest" . ($count!==1?"s":"") . " inside
+            <div class='d-flex align-items-center flex-wrap gap-2 text-muted'
+                 style='font-size:.75rem;'>
+                <span>{$sex}</span>&nbsp;
+                <span style='opacity:.35;'>•</span>&nbsp;
+                <span class='text-truncate' style='max-width:170px;'>{$org}</span>&nbsp;
+                <span style='opacity:.35;'>•</span>&nbsp;
+                <span class='text-danger fw-semibold'>
+                    <i class='fas fa-clock me-1' style='font-size:.65rem;'></i>
+                    {$time}
                 </span>
             </div>
         </div>
 
-        <div class='mb-3 position-relative'>
-            <i class='fas fa-search position-absolute'
-               style='left:11px;top:50%;transform:translateY(-50%);color:#9ca3af;font-size:.8rem;'></i>
-            <input type='text' id='guestSearchInput' class='form-control'
-                   placeholder='Search by name...'
-                   style='padding-left:32px;border-color:#a7f3d0;border-radius:8px;font-size:.88rem;'>
-        </div>
+        <button type='button'
+                class='btn btn-sm btn-outline-danger rounded-pill px-3 btn-guest-checkout'
+                data-logid='{$id}'
+                data-name='{$name}'
+                style='font-size:.75rem;height:32px;'>
+            <i class='fas fa-sign-out-alt me-1'></i>Out
+        </button>
+    </div>";
+    }
 
-        <div id='guestCheckoutList' style='max-height:280px;overflow-y:auto;'>
-            {$rows}
-            {$emptyState}
-            <div id='guestNoResults' class='text-center text-muted py-3'
-                 style='font-size:.85rem;display:none;'>
-                No guests match your search.
+    $count=count($guests);
+    $emptyState=!$count? "<div class='text-center text-muted py-4' style='font-size:.85rem;'>
+        <i class='fas fa-users-slash mb-2 d-block' style='font-size:1.5rem;opacity:.35;'></i>
+        No guests currently checked in.
+    </div>":"";
+
+    $body="
+    <div style='background:#fef2f2;border:1px solid #fca5a5;border-radius:16px;padding:22px;'>
+    <div class='d-flex align-items-center justify-content-between mb-4 pb-3'
+         style='border-bottom:1px solid #fca5a5;'>
+        <div class='d-flex align-items-center gap-3'>
+            <div class='d-flex align-items-center justify-content-center'
+                 style='width:44px;height:44px;border-radius:14px;background:#fca5a5;color:#b91c1c;font-size:1.05rem;'>
+                <i class='fas fa-book-open'></i>
+            </div>
+            &nbsp;&nbsp;
+            <div class='lh-sm'>
+                <div class='text-uppercase fw-semibold'
+                     style='font-size:.65rem;letter-spacing:.14em;color:#6b7280;'>
+                    Library
+                </div>
+                <div class='fw-semibold'
+                     style='font-size:1.05rem;color:#991b1b;'>
+                    {$lib}
+                </div>
             </div>
         </div>
 
+        <span class='badge rounded-pill'
+              style='background:#fee2e2;color:#dc2626;font-size:.75rem;padding:7px 14px;font-weight:600;'>
+            {$count} guest".($count!==1?"s":"")."
+        </span>
+    </div>
+
+    <div class='mb-4 position-relative'>
+        <i class='fas fa-search position-absolute'
+           style='left:14px;top:50%;transform:translateY(-50%);color:#9ca3af;font-size:.85rem;'></i>
+        <input type='text'
+               id='guestSearchInput'
+               class='form-control'
+               placeholder='Search guest name'
+               style='padding-left:36px;border-radius:12px;height:40px;font-size:.9rem;border-color:#fca5a5;'>
+    </div>
+
+    <div id='guestCheckoutList'
+         style='max-height:300px;overflow-y:auto;padding-right:2px;'>
+        {$rows}
+        {$emptyState}
+        <div id='guestNoResults'
+             class='text-center text-muted py-3'
+             style='font-size:.85rem;display:none;'>
+            No guests match your search.
+        </div>
+    </div>
+
     </div>";
-
-    $footer = "
-        <button type='button' class='btn btn-light border rounded-pill px-4' data-bs-dismiss='modal'>
-            Close
-        </button>
-    ";
-
+    $footer="<button type='button' class='btn btn-light border rounded-pill px-4' data-bs-dismiss='modal'>Close</button>";
     sendResponse(["success"=>true,"body"=>$body,"footer"=>$footer]);
 }
 
-
-
-function handleGuestCheckout(): void
+function GuestCheckout(): void
 {
     $logID     = intval($_POST["logID"]     ?? 0);
     $sectionID = intval($_POST["sectionID"] ?? 0);
@@ -935,7 +935,6 @@ function handleGuestCheckout(): void
     }
 
     $pdo = dbconES();
-
     $pdo->prepare("
         UPDATE Library_logs
         SET    checkout_time = ?
@@ -944,7 +943,6 @@ function handleGuestCheckout(): void
           AND  classification = 'GUEST'
           AND  checkout_time  IS NULL
     ")->execute([date("Y-m-d H:i:s"), $logID, $sectionID]);
-
     sendResponse([
         "success" => true,
         "kpi"     => buildKPIData($pdo, $sectionID, date("Y-m-d"))
@@ -952,59 +950,57 @@ function handleGuestCheckout(): void
 }
 
 
-function handleGetKPI(): void
+function GetKPI(): void
 {
     $sectionID = intval($_POST["sectionID"] ?? 0);
 
     if (!$sectionID) {
         sendResponse(["error" => "Missing or invalid sectionID."]);
     }
-
     $pdo     = dbconES();
     $kpiData = buildKPIData($pdo, $sectionID, date("Y-m-d"));
-
     sendResponse(["success" => true, "data" => $kpiData]);
 }
-
 
 //  DISPATCH
 $request = trim($_POST["request"] ?? "");
 
 switch ($request) {
     case "getLibraries":
-        handleGetLibraries();
+        GetLibraries();
         break;
 
     case "validateUser":
-        handleValidateUser();
+        ValidateUser();
         break;
 
     case "checkStatusToday":
-        handleCheckStatusToday();
+        CheckStatusToday();
         break;
 
-    case "buildAttendanceModal":
-        handleBuildAttendanceModal();
+    case "AttendanceModal":
+        AttendanceModal();
         break;
 
-    case "buildGuestModal":
-        handleBuildGuestModal();
+    case "GuestModal":
+        GuestCheckInModal();
+        
         break;
 
     case "saveAttendance":
-        handleSaveAttendance();
+        SaveAttendance();
         break;
 
-	case "buildGuestCheckoutModal":
-		handleBuildGuestCheckoutModal();
+	case "GuestCheckoutModal":
+		GuestCheckoutModal();
 		break;
 
 	case "guestCheckout":
-		handleGuestCheckout();
+		GuestCheckout();
 		break;
 	
     case "getKPI":
-        handleGetKPI();
+        GetKPI();
         break;
 
     default:

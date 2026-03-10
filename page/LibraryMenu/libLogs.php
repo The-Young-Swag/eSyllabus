@@ -80,13 +80,10 @@
 </div>
 		
       </div>
-
       <form id="logForm" autocomplete="off">
-
         <label for="inputStudentNumber"
                class="d-block fw-bold text-uppercase mb-2"
                style="font-size:.67rem;letter-spacing:.09em;color:#3d8a6e;">Identification Number</label>
-
         <div style="padding:2px;border-radius:11px;
                     background:linear-gradient(130deg,#10b981 0%,#3b82f6 55%,#06b6d4 100%);
                     box-shadow:0 3px 16px rgba(16,185,129,.15);">
@@ -109,7 +106,6 @@
         </div>
 
         <hr class="my-4" style="border-color:#c6ead9;">
-
         <button type="submit"
                 class="btn w-100 fw-semibold text-white py-3"
                 style="background:#064e3b;border:none;border-radius:8px;
@@ -117,7 +113,6 @@
                        transition:background .18s,box-shadow .18s;">
           Confirm Access
         </button>
-
       </form>
 	  
 <!-- ═══ GUEST CHECK-IN / CHECK-OUT BUTTONS ═══ -->
@@ -131,7 +126,7 @@
               style="background:#f0fdf9;color:#047857;border:1.5px solid #6ee7b7;
                      font-size:.82rem;letter-spacing:.02em;
                      transition:background .18s,box-shadow .18s,transform .15s;">
-        <i class="fas fa-user-clock me-2"></i>Check In as Guest
+        <i class="fas fa-user-clock me-2"></i>&nbsp;&nbsp;Check In as Guest
       </button>
 <div id="guestNudge" class="position-absolute" 
      style="right:calc(100% + 12px);top:50%;transform:translateY(-50%);
@@ -148,14 +143,13 @@
   👋 Not a student / just visiting?
 </div>
     </div>
-
     <!-- CHECK OUT -->
     <button type="button" id="guestCheckOut"
             class="btn rounded-pill fw-semibold px-4 py-2"
             style="background:#fff5f5;color:#dc2626;border:1.5px solid #fca5a5;
                    font-size:.82rem;letter-spacing:.02em;
                    transition:background .18s,box-shadow .18s,transform .15s;">
-      <i class="fas fa-sign-out-alt me-2"></i>Check Out as Guest
+      <i class="fas fa-sign-out-alt me-2"></i>&nbsp;&nbsp;Check Out as Guest
     </button>
 
   </div>
@@ -315,7 +309,7 @@ $.post(BACKEND, {
 // =========================================================================
 $("#guestCheckIn").on("click", () => {
     if (!currentLibraryID) return alert("Library section not loaded yet.");
-    $.post(BACKEND, { request: "buildGuestModal", libraryName: currentLibraryName },
+    $.post(BACKEND, { request: "GuestModal", libraryName: currentLibraryName },
         res => {
             if (!res.success) return alert(res.error || "Failed to load guest form.");
             showModal("Guest Check-In", res.body, res.footer);
@@ -335,7 +329,7 @@ $("#guestCheckOut").on("mouseenter", function () {
 // =========================================================================
 $("#guestCheckOut").on("click", () => {
     if (!currentLibraryID) return alert("Library section not loaded yet.");
-    $.post(BACKEND, { request: "buildGuestCheckoutModal", sectionID: currentLibraryID, libraryName: currentLibraryName },
+    $.post(BACKEND, { request: "GuestCheckoutModal", sectionID: currentLibraryID, libraryName: currentLibraryName },
         res => {
             if (!res.success) return alert(res.error || "Failed to load guest list.");
             showModal("Guest Check-Out", res.body, res.footer);
@@ -537,7 +531,7 @@ function determineAction(user,status){
     currentAction=action;
 
     $.post(BACKEND,{
-        request:"buildAttendanceModal",
+        request:"AttendanceModal",
         user:JSON.stringify(user),
         color,icon,btnText,message,
         libraryName:currentLibraryName
