@@ -53,11 +53,6 @@ function getTodayRange(string $today): array
 }
 
 
-
-
-
-
-
 //  DATA SOURCE LOADERS
 
 
@@ -975,6 +970,160 @@ function performGuestCheckin(PDO $pdo, int $sectionID, string $now, array $user)
     ]);
 }
 
+
+function handleBuildGuestCheckoutModal(): void
+{
+    $sectionID = intval($_POST["sectionID"] ?? 0);
+    $lib       = htmlspecialchars(trim($_POST["libraryName"] ?? ""));
+
+    if (!$sectionID) sendResponse(["error"=>"Missing section ID."]);
+
+    [$start,$end] = getTodayRange(date("Y-m-d"));
+    $pdo = dbconES();
+
+    $stmt = $pdo->prepare("
+        SELECT id,name,sex,agency_organization,checkin_time
+        FROM Library_logs
+        WHERE library=?
+          AND classification='GUEST'
+          AND checkout_time IS NULL
+          AND checkin_time>=?
+          AND checkin_time<?
+        ORDER BY checkin_time DESC
+    ");
+    $stmt->execute([$sectionID,$start,$end]);
+    $guests = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $rows="";
+    foreach ($guests as $g) {
+
+        $id   = intval($g["id"]);
+        $name = htmlspecialchars($g["name"] ?? "");
+        $sex  = htmlspecialchars($g["sex"] ?? "");
+        $org  = htmlspecialchars($g["agency_organization"] ?? "");
+        $time = date("h:i A",strtotime($g["checkin_time"]));
+
+        $rows .= "
+        <div class='guest-row d-flex align-items-center gap-3 px-3 py-2 rounded-3 mb-2'
+             data-name='{$name}'
+             style='background:#fff;border:1px solid #e5e7eb;transition:background .15s;'>
+
+            <div class='d-flex align-items-center justify-content-center flex-shrink-0'
+                 style='width:36px;height:36px;border-radius:50%;
+                        background:#fee2e2;color:#dc2626;font-size:.8rem;'>
+                <i class='fas fa-user'></i>
+            </div>
+
+            <div class='flex-grow-1 lh-sm' style='min-width:0;'>
+                <div class='fw-semibold text-dark' style='font-size:.88rem;'>{$name}</div>
+                <div class='text-muted' style='font-size:.73rem;'>
+                    {$sex} &nbsp;·&nbsp; {$org} &nbsp;·&nbsp; In since {$time}
+                </div>
+            </div>
+
+            <button type='button'
+                    class='btn btn-sm fw-semibold flex-shrink-0 btn-guest-checkout'
+                    data-logid='{$id}'
+                    data-name='{$name}'
+                    style='background:#dc2626;color:#fff;border:none;border-radius:8px;
+                           font-size:.75rem;padding:5px 14px;white-space:nowrap;'>
+                <i class='fas fa-sign-out-alt me-1'></i>Check Out
+            </button>
+        </div>";
+    }
+
+    $count = count($guests);
+
+    $emptyState = !$count ? "
+        <div class='text-center text-muted py-4' style='font-size:.85rem;'>
+            <i class='fas fa-users-slash mb-2 d-block' style='font-size:1.5rem;opacity:.35;'></i>
+            No guests currently checked in.
+        </div>
+    " : "";
+
+    $body = "
+    <div style='background:#f0fdf9;border:1px solid #d1fae5;border-radius:12px;padding:16px 20px 20px;'>
+
+        <div class='d-flex align-items-center gap-2 mb-3 pb-3' style='border-bottom:1px solid #c6ead9;'>
+            <div class='d-flex align-items-center justify-content-center flex-shrink-0'
+                 style='width:32px;height:32px;border-radius:8px;
+                        background:linear-gradient(135deg,#d1fae5,#a7f3d0);color:#047857;font-size:.8rem;'>
+                <i class='fas fa-book-open'></i>
+            </div>
+            <div>
+                <div style='font-size:.6rem;letter-spacing:.1em;color:#6ee7b7;font-weight:700;text-transform:uppercase;'>Library</div>
+                <div style='font-size:.88rem;font-weight:700;color:#064e3b;'>{$lib}</div>
+            </div>
+            <div class='ms-auto'>
+                <span class='badge'
+                      style='background:#fee2e2;color:#dc2626;font-size:.7rem;'>
+                    {$count} guest" . ($count!==1?"s":"") . " inside
+                </span>
+            </div>
+        </div>
+
+        <div class='mb-3 position-relative'>
+            <i class='fas fa-search position-absolute'
+               style='left:11px;top:50%;transform:translateY(-50%);color:#9ca3af;font-size:.8rem;'></i>
+            <input type='text' id='guestSearchInput' class='form-control'
+                   placeholder='Search by name...'
+                   style='padding-left:32px;border-color:#a7f3d0;border-radius:8px;font-size:.88rem;'>
+        </div>
+
+        <div id='guestCheckoutList' style='max-height:280px;overflow-y:auto;'>
+            {$rows}
+            {$emptyState}
+            <div id='guestNoResults' class='text-center text-muted py-3'
+                 style='font-size:.85rem;display:none;'>
+                No guests match your search.
+            </div>
+        </div>
+
+    </div>";
+
+    $footer = "
+        <button type='button' class='btn btn-light border rounded-pill px-4' data-bs-dismiss='modal'>
+            Close
+        </button>
+    ";
+
+    sendResponse(["success"=>true,"body"=>$body,"footer"=>$footer]);
+}
+
+
+
+function handleGuestCheckout(): void
+{
+    $logID     = intval($_POST["logID"] ?? 0);
+    $sectionID = intval($_POST["sectionID"] ?? 0);
+
+    if (!$logID || !$sectionID)
+        sendResponse(["error"=>"Missing log ID or section ID."]);
+
+    $pdo = dbconES();
+
+    $stmt = $pdo->prepare("
+        UPDATE Library_logs
+        SET checkout_time=?
+        WHERE id=?
+          AND library=?
+          AND classification='GUEST'
+          AND checkout_time IS NULL
+    ");
+
+    $stmt->execute([date("Y-m-d H:i:s"),$logID,$sectionID]);
+
+    if (!$stmt->rowCount())
+        sendResponse(["error"=>"Guest record not found or already checked out."]);
+
+    sendResponse([
+        "success"=>true,
+        "kpi"=>buildKPIData($pdo,$sectionID,date("Y-m-d"))
+    ]);
+}
+
+
+
 function handleGetKPI(): void
 {
     $sectionID = intval($_POST["sectionID"] ?? 0);
@@ -1023,6 +1172,14 @@ switch ($request) {
         handleSaveAttendance();
         break;
 
+	case "buildGuestCheckoutModal":
+		handleBuildGuestCheckoutModal();
+		break;
+
+	case "guestCheckout":
+		handleGuestCheckout();
+		break;
+	
     case "getKPI":
         handleGetKPI();
         break;

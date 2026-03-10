@@ -120,52 +120,43 @@
 
       </form>
 	  
-<!-- ═══ GUEST CHECK-IN BUTTON ═══ -->
+<!-- ═══ GUEST CHECK-IN / CHECK-OUT BUTTONS ═══ -->
 <div class="text-center mt-3">
+  <div class="d-inline-flex gap-2 position-relative">
 
-  <div class="d-inline-block position-relative">
-
-    <button type="button"
-            id="guestCheckIn"
-            class="btn rounded-pill fw-semibold px-4 py-2"
-            style="background:#f0fdf9;
-                   color:#047857;
-                   border:1.5px solid #6ee7b7;
-                   font-size:.82rem;
-                   letter-spacing:.02em;
-                   transition:background .18s,box-shadow .18s,transform .15s;">
-      <i class="fas fa-user-clock me-2"></i>Check In as Guest
-    </button>
-
-    <!-- Speech-bubble nudge — RIGHT of button, tail points LEFT -->
-    <div id="guestNudge"
-         class="position-absolute"
-         style="left:calc(100% + 12px);
-                top:50%;
-                transform:translateY(-50%);
-                background:#fff;
-                border:1.5px solid #a7f3d0;
-                border-radius:12px;
-                padding:6px 14px;
-                font-size:.75rem;
-                color:#047857;
-                font-weight:600;
-                white-space:nowrap;
-                box-shadow:0 4px 14px rgba(6,78,59,.12);
-                opacity:0;
-                pointer-events:none;
-                transition:opacity .4s ease;
-                z-index:10;">
-      <span style="position:absolute;left:-8px;top:50%;transform:translateY(-50%);
-                   border-top:7px solid transparent;
-                   border-bottom:7px solid transparent;
-                   border-right:8px solid #a7f3d0;"></span>
-      <span style="position:absolute;left:-6px;top:50%;transform:translateY(-50%);
-                   border-top:6px solid transparent;
-                   border-bottom:6px solid transparent;
-                   border-right:7px solid #fff;"></span>
-      👋 Not a student / just visiting?
+    <!-- CHECK IN -->
+    <div class="d-inline-block position-relative">
+      <button type="button" id="guestCheckIn"
+              class="btn rounded-pill fw-semibold px-4 py-2"
+              style="background:#f0fdf9;color:#047857;border:1.5px solid #6ee7b7;
+                     font-size:.82rem;letter-spacing:.02em;
+                     transition:background .18s,box-shadow .18s,transform .15s;">
+        <i class="fas fa-user-clock me-2"></i>Check In as Guest
+      </button>
+      <div id="guestNudge" class="position-absolute"
+           style="left:calc(100% + 12px);top:50%;transform:translateY(-50%);
+                  background:#fff;border:1.5px solid #a7f3d0;border-radius:12px;
+                  padding:6px 14px;font-size:.75rem;color:#047857;font-weight:600;
+                  white-space:nowrap;box-shadow:0 4px 14px rgba(6,78,59,.12);
+                  opacity:0;pointer-events:none;transition:opacity .4s ease;z-index:10;">
+        <span style="position:absolute;left:-8px;top:50%;transform:translateY(-50%);
+                     border-top:7px solid transparent;border-bottom:7px solid transparent;
+                     border-right:8px solid #a7f3d0;"></span>
+        <span style="position:absolute;left:-6px;top:50%;transform:translateY(-50%);
+                     border-top:6px solid transparent;border-bottom:6px solid transparent;
+                     border-right:7px solid #fff;"></span>
+        👋 Not a student / just visiting?
+      </div>
     </div>
+
+    <!-- CHECK OUT -->
+    <button type="button" id="guestCheckOut"
+            class="btn rounded-pill fw-semibold px-4 py-2"
+            style="background:#fff5f5;color:#dc2626;border:1.5px solid #fca5a5;
+                   font-size:.82rem;letter-spacing:.02em;
+                   transition:background .18s,box-shadow .18s,transform .15s;">
+      <i class="fas fa-sign-out-alt me-2"></i>Check Out as Guest
+    </button>
 
   </div>
 </div>
@@ -339,23 +330,80 @@ $.post(BACKEND, {
 // GUEST CHECK-IN
 // =========================================================================
 $("#guestCheckIn").on("click", () => {
-
     if (!currentLibraryID) return alert("Library section not loaded yet.");
-
-    $.post(
-        BACKEND,
-        {request:"buildGuestModal", libraryName:currentLibraryName},
+    $.post(BACKEND, { request: "buildGuestModal", libraryName: currentLibraryName },
         res => {
             if (!res.success) return alert(res.error || "Failed to load guest form.");
             showModal("Guest Check-In", res.body, res.footer);
         }
-    ).fail(xhr => {
-        console.error("Guest modal load failed:", xhr.responseText);
-        alert("Connection error.");
-    });
-
+    ).fail(xhr => { console.error(xhr.responseText); alert("Connection error."); });
 });
 
+// Hover styles for checkout button
+$("#guestCheckOut").on("mouseenter", function () {
+    $(this).css({ background: "#fee2e2", boxShadow: "0 4px 14px rgba(220,38,38,.15)", transform: "translateY(-1px)" });
+}).on("mouseleave", function () {
+    $(this).css({ background: "#fff5f5", boxShadow: "", transform: "" });
+});
+
+// =========================================================================
+// GUEST CHECK-OUT — load active guests list
+// =========================================================================
+$("#guestCheckOut").on("click", () => {
+    if (!currentLibraryID) return alert("Library section not loaded yet.");
+    $.post(BACKEND, { request: "buildGuestCheckoutModal", sectionID: currentLibraryID, libraryName: currentLibraryName },
+        res => {
+            if (!res.success) return alert(res.error || "Failed to load guest list.");
+            showModal("Guest Check-Out", res.body, res.footer);
+        }
+    ).fail(xhr => { console.error(xhr.responseText); alert("Connection error."); });
+});
+
+// =========================================================================
+// GUEST CHECK-OUT — search filter (live)
+// =========================================================================
+$(document).on("input", "#guestSearchInput", function () {
+    const q = $(this).val().toLowerCase();
+    $("#guestCheckoutList .guest-row").each(function () {
+        $(this).toggle($(this).data("name").toLowerCase().includes(q));
+    });
+    $("#guestNoResults").toggle($("#guestCheckoutList .guest-row:visible").length === 0);
+});
+
+// =========================================================================
+// GUEST CHECK-OUT — confirm single guest checkout
+// =========================================================================
+$(document).on("click", ".btn-guest-checkout", function () {
+    const logID    = $(this).data("logid");
+    const guestName = $(this).data("name");
+
+    if (!logID) return;
+
+    showModal("Success",
+        `<div class="alert alert-danger text-center mb-0">
+            <i class="fas fa-sign-out-alt me-2"></i>
+            <strong>${guestName}</strong> successfully checked out.
+         </div>`
+    );
+    successTimer = setTimeout(() => {
+        successTimer = null;
+        $("#dynamicModal").modal("hide");
+    }, 2000);
+
+    $.post(BACKEND, { request: "guestCheckout", logID, sectionID: currentLibraryID },
+        res => {
+            if (res.error) {
+                showModal("Error",
+                    `<div class="alert alert-danger text-center mb-0">
+                        <i class="fas fa-exclamation-circle me-2"></i>${res.error}
+                     </div>`
+                );
+                return;
+            }
+            loadKPI(currentLibraryID);
+        }
+    );
+});
 
 // =========================================================================
 // CONFIRM GUEST CHECK-IN
