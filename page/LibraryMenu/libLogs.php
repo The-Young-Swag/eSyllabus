@@ -119,6 +119,56 @@
         </button>
 
       </form>
+	  
+<!-- ═══ GUEST CHECK-IN BUTTON ═══ -->
+<div class="text-center mt-3">
+
+  <div class="d-inline-block position-relative">
+
+    <button type="button"
+            id="guestCheckIn"
+            class="btn rounded-pill fw-semibold px-4 py-2"
+            style="background:#f0fdf9;
+                   color:#047857;
+                   border:1.5px solid #6ee7b7;
+                   font-size:.82rem;
+                   letter-spacing:.02em;
+                   transition:background .18s,box-shadow .18s,transform .15s;">
+      <i class="fas fa-user-clock me-2"></i>Check In as Guest
+    </button>
+
+    <!-- Speech-bubble nudge — RIGHT of button, tail points LEFT -->
+    <div id="guestNudge"
+         class="position-absolute"
+         style="left:calc(100% + 12px);
+                top:50%;
+                transform:translateY(-50%);
+                background:#fff;
+                border:1.5px solid #a7f3d0;
+                border-radius:12px;
+                padding:6px 14px;
+                font-size:.75rem;
+                color:#047857;
+                font-weight:600;
+                white-space:nowrap;
+                box-shadow:0 4px 14px rgba(6,78,59,.12);
+                opacity:0;
+                pointer-events:none;
+                transition:opacity .4s ease;
+                z-index:10;">
+      <span style="position:absolute;left:-8px;top:50%;transform:translateY(-50%);
+                   border-top:7px solid transparent;
+                   border-bottom:7px solid transparent;
+                   border-right:8px solid #a7f3d0;"></span>
+      <span style="position:absolute;left:-6px;top:50%;transform:translateY(-50%);
+                   border-top:6px solid transparent;
+                   border-bottom:6px solid transparent;
+                   border-right:7px solid #fff;"></span>
+      👋 Not a student / just visiting?
+    </div>
+
+  </div>
+</div>
     </div>
   </div>
 
@@ -200,6 +250,32 @@
 <?php include 'LibModals.php'; ?>
 
 <script>
+(function () {
+  const nudge = document.getElementById('guestNudge');
+  const btn   = document.getElementById('guestCheckIn');
+
+  btn.addEventListener('mouseenter', () => {
+    btn.style.background  = '#d1fae5';
+    btn.style.boxShadow   = '0 4px 14px rgba(6,78,59,.15)';
+    btn.style.transform   = 'translateY(-1px)';
+  });
+  btn.addEventListener('mouseleave', () => {
+    btn.style.background  = '#f0fdf9';
+    btn.style.boxShadow   = '';
+    btn.style.transform   = '';
+  });
+
+  function showNudge () {
+    nudge.style.opacity = '1';
+    setTimeout(() => { nudge.style.opacity = '0'; }, 1800);
+  }
+
+  setTimeout(() => {
+    showNudge();
+    setInterval(showNudge, 3000);
+  }, 10000);
+})();
+
 $(document).ready(function () {
 
     // =========================================================================
@@ -257,7 +333,10 @@ $(document).ready(function () {
         });
     }
     loadLibraries();
+	
 
+	
+	
     // =========================================================================
     // KPI
     // =========================================================================

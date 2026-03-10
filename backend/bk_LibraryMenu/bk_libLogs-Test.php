@@ -33,7 +33,7 @@ function sendResponse(array $payload): void
  */
 function validateIdFormat(string $id): bool
 {
-    return (bool) preg_match('/^[A-Z0-9]+$/i', $id);
+    return (bool) preg_match('/^[A-Z0-9-]+$/i', $id);
 }
 
 
@@ -593,6 +593,65 @@ function handleValidateUser(): void
     ]);
 }
 
+
+// ────────────────────────────────────────────────────────────────
+// CHECK-IN / CHECK-OUT ALGORITHM
+/*
+    Purpose:
+    --------
+    Determines whether a user is currently checked in at a library section 
+    and what action (check-in, check-out, or switch) should be performed 
+    when the user attempts to log attendance.
+
+    Logical Flow:
+    -------------
+    1. Input:
+       - `id_number` : The unique identifier of the user (student or employee).
+       - `currentLibraryID` : The library section where the scan is occurring.
+       - `today` : Current date used to isolate records for this day only.
+
+    2. Define "today" range:
+       - Compute `start` as YYYY-MM-DD 00:00:00.
+       - Compute `end` as the same time on the following day.
+       - This allows the query to use index-friendly range conditions.
+
+    3. Database Query:
+       - Select records from `Library_logs` where:
+           a. `id_number` matches the user.
+           b. `checkout_time IS NULL` → meaning the user has not checked out yet.
+           c. `checkin_time >= start AND checkin_time < end` → only today's check-ins.
+       - Join `LibrarySection` to get human-readable section names.
+       - Order by `checkin_time DESC` to get the **most recent active session**.
+       - Fetch only the first record (TOP 1) to minimize data processing.
+
+    4. Decision Logic:
+       - If a row is returned:
+           - User is currently checked in.
+           - If the library matches `currentLibraryID` → action is CHECK-OUT.
+           - If the library differs → action is SWITCH (auto-checkout previous and check-in here).
+       - If no row is returned:
+           - User is not checked in today → action is CHECK-IN.
+
+    5. Performance Considerations:
+       - The algorithm is designed to be fast and scalable:
+           a. Uses a **time range instead of functions like CAST/CONVERT**, allowing SQL Server/MySQL to leverage indexes.
+           b. Indexed on `(id_number, checkin_time, checkout_time)` → ensures lookup is near O(1) even for large datasets.
+           c. Uses `TOP 1` / `LIMIT 1` → minimizes memory and network overhead.
+           d. Minimal PHP-side processing; database does the filtering and ordering.
+
+    6. Result:
+       - Returns either:
+           a. `checkedIn: true` + `sectionID` and `sectionName` for active session.
+           b. `checkedIn: false` if no active check-in exists today.
+       - JS then decides which modal to show (Check-In, Check-Out, or Switch) based on this status.
+
+    Summary:
+    --------
+    This is a **real-time attendance check algorithm** optimized for large-scale library systems. 
+    It balances correctness (handling same-library check-outs and multi-library switches) 
+    with performance (index-friendly queries, single-row fetch, and minimal PHP logic).
+
+*/
 
 function handleCheckStatusToday(): void
 {

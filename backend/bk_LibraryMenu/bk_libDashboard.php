@@ -102,25 +102,28 @@ function loadDailyLogs()
     if (empty($logs)) {
         echo "<tr><td colspan='7' class='text-center text-muted py-4'>No records for today.</td></tr>";
     } else {
-        foreach ($logs as $log) {
-            $statusBadge = empty($log["checkout_time"])
-                ? "<span class='badge bg-success-subtle text-success rounded-pill px-3'>Active</span>"
-                : "<span class='badge bg-secondary-subtle text-secondary rounded-pill px-3'>Completed</span>";
+foreach ($logs as $index => $log) {
+    // Apply 'table-success' to even rows (0, 2, 4...), leave odd rows default
+    $rowClass = $index % 2 === 0 ? "table-success" : "";
 
-            echo "<tr>";
-            echo "<td class='px-4 fw-semibold'>"  . htmlspecialchars($log["id_number"])        . "</td>";
-            echo "<td>"                            . htmlspecialchars($log["college"] ?? "—")   . "</td>";
-            echo "<td>"                            . htmlspecialchars($log["course"]  ?? "—")   . "</td>";
-            echo "<td><span class='badge bg-light text-dark border'>"
-                 . htmlspecialchars($log["SectionName"] ?? "—")
-                 . "</span></td>";
-            echo "<td>" . date('M j, Y g:i A', strtotime($log["checkin_time"])) . "</td>";
-            echo "<td>" . ($log["checkout_time"]
-                 ? date('M j, Y g:i A', strtotime($log["checkout_time"]))
-                 : "—") . "</td>";
-            echo "<td class='text-center'>$statusBadge</td>";
-            echo "</tr>";
-        }
+    $statusBadge = empty($log["checkout_time"])
+        ? "<span class='badge bg-success-subtle text-success rounded-pill px-3'>Active</span>"
+        : "<span class='badge bg-secondary-subtle text-secondary rounded-pill px-3'>Completed</span>";
+
+    echo "<tr class='$rowClass'>";
+    echo "<td class='px-4 fw-semibold'>"  . htmlspecialchars($log["id_number"])        . "</td>";
+    echo "<td>"                            . htmlspecialchars($log["college"] ?? "—")   . "</td>";
+    echo "<td>"                            . htmlspecialchars($log["course"]  ?? "—")   . "</td>";
+    echo "<td><span class='badge bg-light text-dark border'>"
+         . htmlspecialchars($log["SectionName"] ?? "—")
+         . "</span></td>";
+    echo "<td>" . date('M j, Y g:i A', strtotime($log["checkin_time"])) . "</td>";
+    echo "<td>" . ($log["checkout_time"]
+         ? date('M j, Y g:i A', strtotime($log["checkout_time"]))
+         : "—") . "</td>";
+    echo "<td class='text-center'>$statusBadge</td>";
+    echo "</tr>";
+}
     }
     $rowsHtml = ob_get_clean();
 

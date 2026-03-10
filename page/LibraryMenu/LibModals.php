@@ -69,7 +69,16 @@
 
                 <!-- Individual section checks -->
                 <div class="d-flex flex-column gap-1 ps-2 mb-4" id="exportSectionIndividual">
-
+<label class="d-flex align-items-center gap-3 px-3 py-2 rounded-2 border"
+       style="cursor:pointer;" for="exportChkLogs">
+    <input type="checkbox" class="form-check-input m-0 flex-shrink-0 export-section-check"
+           id="exportChkLogs" value="logs" checked style="width:16px;height:16px;">
+    <span class="d-inline-flex align-items-center justify-content-center rounded-2 bg-secondary-subtle"
+          style="width:22px;height:22px;flex-shrink:0;">
+        <i class="bi bi-journal-text text-secondary" style="font-size:.65rem;"></i>
+    </span>
+    <span class="small text-dark">Logs</span>
+</label>
                     <label class="d-flex align-items-center gap-3 px-3 py-2 rounded-2 border"
                            style="cursor:pointer;" for="exportChkUsers">
                         <input type="checkbox" class="form-check-input m-0 flex-shrink-0 export-section-check"

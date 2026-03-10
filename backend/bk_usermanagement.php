@@ -5,7 +5,7 @@ $request = $_POST["request"] ?? "";
 
 switch ($request) {
 case "addUser":
-    // Your existing add user code with libAccess added
+
     $empID = trim($_POST["empID"] ?? "");
     $email = trim($_POST["email"] ?? "");
     $name = trim($_POST["name"] ?? "");

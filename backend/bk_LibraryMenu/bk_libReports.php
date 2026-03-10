@@ -20,6 +20,8 @@ define('COLLEGE_COLOR_FALLBACK', 'rgba(139,92,246,0.88)');
 
 // ── UTILITY FUNCTIONS ────────────────────────────────────────────────────────
 
+//CALCULATE
+// Returns the duration in minutes between check-in and check-out, or 0 if no check-out time is provided.
 function calcDurationMinutes(string $checkinTime, ?string $checkoutTime): float
 {
     if (!$checkoutTime) return 0;
@@ -492,6 +494,24 @@ function buildViewAllCourses(array $logs, int $offset, int $limit): array
     return ['rows' => array_slice($rows, $offset, $limit), 'total' => count($rows)];
 }
 
+function buildViewAllLogs(array $logs, int $offset, int $limit): array
+{
+    $rows = array_map(fn($log) => [
+        'id_number'      => $log['id_number']            ?? '',
+        'name'           => $log['name']                 ?? '',
+        'college'        => $log['college']              ?? '',
+        'course'         => $log['course']               ?? '',
+        'classification' => $log['classification']       ?? '',
+        'library'        => $log['library_section_name'] ?? '',
+        'sex'            => $log['sex']                  ?? '',
+        'checkin_time'   => $log['checkin_time']         ?? '',
+        'checkout_time'  => $log['checkout_time']        ?? null,
+        'duration'       => calcDurationMinutes($log['checkin_time'], $log['checkout_time'] ?? null),
+    ], $logs);
+
+    return ['rows' => array_slice($rows, $offset, $limit), 'total' => count($rows)];
+}
+
 function buildViewAllDemographics(array $logs, int $offset, int $limit): array
 {
     $rows = array_map(fn($log) => [
@@ -509,6 +529,22 @@ function buildViewAllDemographics(array $logs, int $offset, int $limit): array
 function renderModalTable(string $tab, array $rows): string
 {
     $cols = [
+	'logs' => [
+    'headers' => ['ID Number', 'Name', 'College', 'Course', 'Type', 'Section', 'Sex', 'Check-in', 'Check-out', 'Duration (min)'],
+    'rowFn'   => fn($row) =>
+        '<td class="ps-3 fw-semibold">' . safe($row['id_number'])           . '</td>' .
+        '<td class="text-muted small">' . safe($row['name']           ?: '—') . '</td>' .
+        '<td class="text-muted small">' . safe($row['college']        ?: '—') . '</td>' .
+        '<td class="text-muted small">' . safe($row['course']         ?: '—') . '</td>' .
+        '<td><span class="badge bg-secondary-subtle text-secondary rounded-pill small">'
+            . safe($row['classification'] ?: '—') . '</span></td>' .
+        '<td class="text-muted small">' . safe($row['library']        ?: '—') . '</td>' .
+        '<td class="text-muted small">' . safe($row['sex']            ?: '—') . '</td>' .
+        '<td class="text-muted small">' . ($row['checkin_time']  ? formatDateTime($row['checkin_time'])  : '—') . '</td>' .
+        '<td class="text-muted small">' . ($row['checkout_time'] ? formatDateTime($row['checkout_time']) : '—') . '</td>' .
+        '<td class="text-end pe-3">'    . (isset($row['duration']) ? (int)round($row['duration']) : '—') . '</td>',
+],
+
         'users' => [
             'headers' => ['ID Number', 'Name', 'College', 'Course', 'Type', 'Library Section', 'Check-ins', 'Duration (min)', 'Last Check-in'],
             'rowFn'   => fn($row) =>
@@ -596,9 +632,46 @@ function renderModalPagination(int $totalPages, int $current, int $totalRecords,
 }
 
 // ── TAB HTML RENDERERS ───────────────────────────────────────────────────────
-
+function renderLogsTab(array $allLogsFlat): string
+{
+    ob_start(); ?>
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center py-2 px-3">
+            <div>
+                <span class="fw-semibold small">All Visit Logs</span>
+                <p class="text-muted mb-0" style="font-size:.72rem;">Every check-in within selected date range</p>
+            </div>
+            <button class="btn btn-sm btn-outline-primary py-0 px-2 view-all-btn"
+                    data-tab="logs" style="font-size:.75rem;">
+                <i class="bi bi-arrow-up-right-square me-1"></i>View All
+            </button>
+        </div>
+        <div class="card-body p-0"
+             id="allLogsCard"
+             data-rows="<?= htmlspecialchars(json_encode($allLogsFlat), ENT_QUOTES) ?>"
+             data-per-page="10">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0">
+                    <thead class="table-light"><tr>
+                        <th class="ps-3 small">ID Number</th><th class="small">Name</th>
+                        <th class="small">College</th><th class="small">Course</th>
+                        <th class="small">Type</th><th class="small">Section</th>
+                        <th class="small">Sex</th><th class="small">Check-in</th>
+                        <th class="small">Check-out</th>
+                        <th class="text-end pe-3 small">Duration (min)</th>
+                    </tr></thead>
+                    <tbody id="allLogsTbody" class="small"></tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card-footer bg-white border-top py-2 px-3">
+            <div class="d-flex flex-column align-items-center gap-1" id="allLogsPager"></div>
+        </div>
+    </div>
+    <?php return ob_get_clean();
+}
 // 1. Update the function signature
-function renderUsersTab(array $topByCheckins, array $topByDuration, array $allLogs = []): string
+function renderUsersTab(array $topByCheckins, array $topByDuration): string
 {
     $flatCheckins = [];
     foreach ($topByCheckins as $cls => $users) {
@@ -737,49 +810,7 @@ function renderUsersTab(array $topByCheckins, array $topByDuration, array $allLo
             </div>
         </div>
 		
-<div class="col-12">
-    <div class="card border-0 shadow-sm">
-        <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center py-2 px-3">
-            <div>
-                <span class="fw-semibold small">All Visit Logs</span>
-                <p class="text-muted mb-0" style="font-size:.72rem;">
-                    Every check-in within selected date range
-                </p>
-            </div>
-            <button class="btn btn-sm btn-outline-primary py-0 px-2 view-all-btn"
-                    data-tab="users" style="font-size:.75rem;">
-                <i class="bi bi-arrow-up-right-square me-1"></i>View All
-            </button>
-        </div>
-        <div class="card-body p-0"
-             id="allLogsCard"
-             data-rows="<?= htmlspecialchars(json_encode($allLogs), ENT_QUOTES) ?>"
-             data-page="1" data-per-page="10">
-            <div class="table-responsive">
-                <table class="table table-sm table-hover align-middle mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th class="ps-3 small">ID Number</th>
-                            <th class="small">Name</th>
-                            <th class="small">College</th>
-                            <th class="small">Course</th>
-                            <th class="small">Type</th>
-                            <th class="small">Section</th>
-                            <th class="small">Sex</th>
-                            <th class="small">Check-in</th>
-                            <th class="small">Check-out</th>
-                            <th class="text-end pe-3 small">Duration (min)</th>
-                        </tr>
-                    </thead>
-                    <tbody id="allLogsTbody" class="small"></tbody>
-                </table>
-            </div>
-        </div>
-        <div class="card-footer bg-white border-top py-2 px-3">
-            <div class="d-flex flex-column align-items-center gap-1" id="allLogsPager"></div>
-        </div>
-    </div>
-</div>
+
     </div>
     <?php return ob_get_clean();
 }
@@ -787,6 +818,8 @@ function renderUsersTab(array $topByCheckins, array $topByDuration, array $allLo
 function renderCollegesTab(array $topByCheckins, array $topByDuration): string
 {
     ob_start(); ?>
+
+	
     <div class="row g-4">
         <div class="col-md-6">
             <div class="card border-0 shadow-sm h-100">
@@ -1018,7 +1051,7 @@ $requestedPage    = max(1, (int)($_POST['page'] ?? 1));
 $rowsPerPage      = 10;
 $paginationOffset = ($requestedPage - 1) * $rowsPerPage;
 
-$validTabs = ['users', 'colleges', 'courses', 'demographics'];
+$validTabs = ['logs', 'users', 'colleges', 'courses', 'demographics'];
 if (!in_array($requestedTab, $validTabs)) {
     echo json_encode(['status' => 'error', 'message' => 'Invalid tab.']);
     exit;
@@ -1031,6 +1064,7 @@ switch ($requestedAction) {
 
     case 'viewAll':
         $pageData = match($requestedTab) {
+			'logs'         => buildViewAllLogs($logs, $paginationOffset, $rowsPerPage),
             'users'        => buildViewAllUsers($logs, $paginationOffset, $rowsPerPage),
             'colleges'     => buildViewAllColleges($logs, $paginationOffset, $rowsPerPage),
             'courses'      => buildViewAllCourses($logs, $paginationOffset, $rowsPerPage),
@@ -1077,7 +1111,8 @@ $allLogsFlat = array_map(fn($log) => [
 ], $logs);
 
 $html = match($requestedTab) {
-    'users'        => renderUsersTab($uData['topCheckins'], $uData['topDuration'], $allLogsFlat),
+	'logs'         => renderLogsTab($allLogsFlat),
+    'users'        => renderUsersTab($uData['topCheckins'], $uData['topDuration']),
     'colleges'     => renderCollegesTab($colData['top3CollegesCheckin'], $colData['top3CollegesDuration']),
     'courses'      => renderCoursesTab($crsData['topCoursesCheckin'], $crsData['topCoursesDuration']),
     'demographics' => renderDemographicsTab($sexData, count($logs)),

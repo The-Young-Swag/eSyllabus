@@ -6,7 +6,7 @@ include "../../db/dbconnection.php";
 $librarySections = execsqlSRS("SELECT SectionID, SectionName FROM LibrarySection WHERE IsActive = 1 ORDER BY SectionName", 'Select', []);
 ?>
 
-<div class="container-fluid py-4">
+<div class="container-fluid py-4 px-4">
 
     <!-- HEADER -->
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
@@ -60,7 +60,6 @@ $librarySections = execsqlSRS("SELECT SectionID, SectionName FROM LibrarySection
                         <?php endforeach; ?>
                     </select>
                 </div>
-
             </div>
         </div>
     </div>
@@ -71,7 +70,7 @@ $librarySections = execsqlSRS("SELECT SectionID, SectionName FROM LibrarySection
         <!-- Top 3 Students -->
         <div class="col-12 col-lg-4">
             <div class="card border-0 shadow-sm h-100" style="border-top:3px solid #3b82f6 !important;">
-                <div class="card-body py-3 px-3">
+                <div class="card-body p-3">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <p class="text-muted small fw-semibold mb-0">Top Students</p>
                         <div class="rounded-2 bg-primary-subtle d-flex align-items-center justify-content-center" style="width:30px;height:30px;flex-shrink:0;">
@@ -88,7 +87,7 @@ $librarySections = execsqlSRS("SELECT SectionID, SectionName FROM LibrarySection
         <!-- Top 3 Colleges -->
         <div class="col-12 col-lg-4">
             <div class="card border-0 shadow-sm h-100" style="border-top:3px solid #10b981 !important;">
-                <div class="card-body py-3 px-3">
+                <div class="card-body p-3">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <p class="text-muted small fw-semibold mb-0">Top Colleges</p>
                         <div class="rounded-2 bg-success-subtle d-flex align-items-center justify-content-center" style="width:30px;height:30px;flex-shrink:0;">
@@ -105,7 +104,7 @@ $librarySections = execsqlSRS("SELECT SectionID, SectionName FROM LibrarySection
         <!-- Top 3 Courses -->
         <div class="col-12 col-lg-4">
             <div class="card border-0 shadow-sm h-100" style="border-top:3px solid #f59e0b !important;">
-                <div class="card-body py-3 px-3">
+                <div class="card-body p-3">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <p class="text-muted small fw-semibold mb-0">Top Courses</p>
                         <div class="rounded-2 bg-warning-subtle d-flex align-items-center justify-content-center" style="width:30px;height:30px;flex-shrink:0;">
@@ -123,6 +122,11 @@ $librarySections = execsqlSRS("SELECT SectionID, SectionName FROM LibrarySection
 
     <!-- TABS -->
     <ul class="nav nav-tabs mb-0" id="analyticsTabs">
+        <li class="nav-item">
+            <button class="nav-link d-flex align-items-center gap-2 small fw-semibold" data-tab="logs">
+                <i class="bi bi-journal-text"></i>Logs
+            </button>
+        </li>
         <li class="nav-item">
             <button class="nav-link active d-flex align-items-center gap-2 small fw-semibold" data-tab="users">
                 <i class="bi bi-people-fill"></i>Users
@@ -182,6 +186,7 @@ $(function () {
         defaultDays: 7,
 
         tabLabels: {
+            logs:         'Logs',
             users:        'Users',
             colleges:     'Colleges',
             courses:      'Courses',
@@ -219,9 +224,9 @@ $(function () {
         collegeColorFallback: 'rgba(139,92,246,0.88)',
 
         exportLibraries: {
-            jspdf:     'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
-            autotable: 'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js',
-            xlsx:      'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+            jspdf:     'https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js',
+  autotable: 'https://unpkg.com/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js',
+            exceljs:   'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js',
         },
     };
 
@@ -310,9 +315,9 @@ $(function () {
     }
 
     function resolveCollegeColor(name) {
-        const upper = (name || '').toUpperCase();
-        for (const [abbr, color] of Object.entries(Analytics.collegeColorMap)) {
-            if (upper.includes(abbr)) return color;
+        const upperName = (name || '').toUpperCase();
+        for (const [abbreviation, color] of Object.entries(Analytics.collegeColorMap)) {
+            if (upperName.includes(abbreviation)) return color;
         }
         return Analytics.collegeColorFallback;
     }
@@ -335,15 +340,15 @@ $(function () {
      * Flattens nested { classification -> { userId -> userData } } into a sorted array.
      */
     function flattenUserRanking(source, valueKey, topN) {
-        const rows = [];
+        const entries = [];
 
         for (const userMap of Object.values(source)) {
             for (const user of Object.values(userMap)) {
-                rows.push({ label: user.display_label, value: user[valueKey] ?? 0 });
+                entries.push({ label: user.display_label, value: user[valueKey] ?? 0 });
             }
         }
 
-        return rows.sort((a, b) => b.value - a.value).slice(0, topN);
+        return entries.sort((a, b) => b.value - a.value).slice(0, topN);
     }
 
 
@@ -361,14 +366,14 @@ $(function () {
             }
         },
 
-        _register(id, cfg) {
+        _register(id, config) {
             const canvas = document.getElementById(id);
             if (!canvas) return;
             this.destroy(id);
-            this._instances[id] = new Chart(canvas, cfg);
+            this._instances[id] = new Chart(canvas, config);
         },
 
-        _tooltip() {
+        _tooltipDefaults() {
             return {
                 backgroundColor: 'rgba(15,23,42,0.92)',
                 titleColor:      '#f8fafc',
@@ -395,14 +400,14 @@ $(function () {
                     }],
                 },
                 options: {
-                    indexAxis:              'y',
-                    responsive:             true,
-                    maintainAspectRatio:    false,
-                    animation:              { duration: 500, easing: 'easeOutQuart' },
+                    indexAxis:           'y',
+                    responsive:          true,
+                    maintainAspectRatio: false,
+                    animation:           { duration: 500, easing: 'easeOutQuart' },
                     plugins: {
                         legend:  { display: false },
                         tooltip: {
-                            ...this._tooltip(),
+                            ...this._tooltipDefaults(),
                             callbacks: { label: ctx => `  ${unit}: ${ctx.parsed.x.toLocaleString()}` },
                         },
                     },
@@ -425,25 +430,23 @@ $(function () {
         renderDonut(id, labels, values, colors, centerLabel) {
             const total = values.reduce((sum, val) => sum + val, 0);
 
-            const centerPlugin = {
-                id: `center_${id}`,
-                afterDraw(chart) {
-                    const { ctx, chartArea: ca } = chart;
-                    if (!ca) return;
-
-                    const cx = (ca.left + ca.right) / 2;
-                    const cy = (ca.top + ca.bottom) / 2;
-
-                    ctx.save();
-                    ctx.textAlign    = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.font         = 'bold 22px sans-serif';
-                    ctx.fillStyle    = '#111827';
-                    ctx.fillText(total.toLocaleString(), cx, cy - 10);
-                    ctx.font      = '12px sans-serif';
-                    ctx.fillStyle = '#6b7280';
-                    ctx.fillText(centerLabel, cx, cy + 14);
-                    ctx.restore();
+            const centerTextPlugin = {
+                id: `centerText_${id}`,
+                afterDraw(chartInstance) {
+                    const { ctx: context, chartArea } = chartInstance;
+                    if (!chartArea) return;
+                    const centerX = (chartArea.left + chartArea.right) / 2;
+                    const centerY = (chartArea.top  + chartArea.bottom) / 2;
+                    context.save();
+                    context.textAlign    = 'center';
+                    context.textBaseline = 'middle';
+                    context.font         = 'bold 22px sans-serif';
+                    context.fillStyle    = '#111827';
+                    context.fillText(total.toLocaleString(), centerX, centerY - 10);
+                    context.font      = '12px sans-serif';
+                    context.fillStyle = '#6b7280';
+                    context.fillText(centerLabel, centerX, centerY + 14);
+                    context.restore();
                 },
             };
 
@@ -468,33 +471,33 @@ $(function () {
                         legend: {
                             position: 'bottom',
                             labels: {
-                                color:        '#374151',
-                                font:         { size: 11 },
-                                padding:      12,
+                                color:         '#374151',
+                                font:          { size: 11 },
+                                padding:       12,
                                 usePointStyle: true,
-                                pointStyle:   'circle',
-                                generateLabels: chart => chart.data.labels.map((lbl, i) => ({
-                                    text:        `${lbl} (${(chart.data.datasets[0].data[i] || 0).toLocaleString()})`,
-                                    fillStyle:   chart.data.datasets[0].backgroundColor[i],
-                                    strokeStyle: chart.data.datasets[0].backgroundColor[i],
+                                pointStyle:    'circle',
+                                generateLabels: chartInstance => chartInstance.data.labels.map((label, index) => ({
+                                    text:        `${label} (${(chartInstance.data.datasets[0].data[index] || 0).toLocaleString()})`,
+                                    fillStyle:   chartInstance.data.datasets[0].backgroundColor[index],
+                                    strokeStyle: chartInstance.data.datasets[0].backgroundColor[index],
                                     hidden:      false,
-                                    index:       i,
+                                    index,
                                     pointStyle:  'circle',
                                 })),
                             },
                         },
                         tooltip: {
-                            ...this._tooltip(),
+                            ...this._tooltipDefaults(),
                             callbacks: {
                                 label: ctx => {
-                                    const pct = total > 0 ? ((ctx.parsed / total) * 100).toFixed(1) : 0;
-                                    return ` ${ctx.label}: ${ctx.parsed.toLocaleString()} (${pct}%)`;
+                                    const percentage = total > 0 ? ((ctx.parsed / total) * 100).toFixed(1) : 0;
+                                    return ` ${ctx.label}: ${ctx.parsed.toLocaleString()} (${percentage}%)`;
                                 },
                             },
                         },
                     },
                 },
-                plugins: [centerPlugin],
+                plugins: [centerTextPlugin],
             });
         },
     };
@@ -520,49 +523,51 @@ $(function () {
 
         const pageSize   = parseInt($card.attr('data-per-page') || '10', 10);
         const totalPages = Math.ceil(rows.length / pageSize);
-        let   current    = 1;
+        let   currentPage = 1;
 
         function showPage(page) {
-            current      = Math.max(1, Math.min(page, totalPages));
-            const slice  = rows.slice((current - 1) * pageSize, current * pageSize);
-            $tbody.html(slice.map(rowRenderer).join(''));
+            currentPage    = Math.max(1, Math.min(page, totalPages));
+            const pageRows = rows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+            $tbody.html(pageRows.map(rowRenderer).join(''));
             totalPages > 1 ? renderPagerNav() : $pager.empty();
         }
 
-function renderPagerNav() {
-    const WINDOW  = 5;
-    const start   = Math.max(1, Math.min(current - Math.floor(WINDOW / 2), totalPages - WINDOW + 1));
-    const end     = Math.min(start + WINDOW - 1, totalPages);
-    const isFirst = current === 1;
-    const isLast  = current === totalPages;
+        function renderPagerNav() {
+            const windowSize = 5;
+            const start      = Math.max(1, Math.min(currentPage - Math.floor(windowSize / 2), totalPages - windowSize + 1));
+            const end        = Math.min(start + windowSize - 1, totalPages);
+            const isFirst    = currentPage === 1;
+            const isLast     = currentPage === totalPages;
 
-    const li = (label, page, disabled, active) =>
-        `<li class="page-item ${disabled ? 'disabled' : ''} ${active ? 'active' : ''}">` +
-        `<a class="page-link" href="#" data-p="${page}">${label}</a></li>`;
+            const buildPageItem = (label, page, disabled, active) =>
+                `<li class="page-item ${disabled ? 'disabled' : ''} ${active ? 'active' : ''}">` +
+                `<a class="page-link" href="#" data-p="${page}">${label}</a></li>`;
 
-    let items = '';
-    items += li('«', 1,           isFirst, false);
-    items += li('‹', current - 1, isFirst, false);
-    for (let p = start; p <= end; p++) items += li(p, p, false, p === current);
-    items += li('›', current + 1, isLast, false);
-    items += li('»', totalPages,  isLast, false);
+            let pageItems = '';
+            pageItems += buildPageItem('«', 1,               isFirst, false);
+            pageItems += buildPageItem('‹', currentPage - 1, isFirst, false);
+            for (let pageNum = start; pageNum <= end; pageNum++) {
+                pageItems += buildPageItem(pageNum, pageNum, false, pageNum === currentPage);
+            }
+            pageItems += buildPageItem('›', currentPage + 1, isLast, false);
+            pageItems += buildPageItem('»', totalPages,       isLast, false);
 
-    const from = (current - 1) * pageSize + 1;
-    const to   = Math.min(current * pageSize, rows.length);
+            const rangeFrom = (currentPage - 1) * pageSize + 1;
+            const rangeTo   = Math.min(currentPage * pageSize, rows.length);
 
-    $pager.html(
-        `<small class="text-muted d-block text-center mb-1" style="font-size:.7rem;">
-            Showing ${from}–${to} of ${rows.length}
-        </small>` +
-        `<ul class="pagination pagination-sm mb-0 justify-content-center flex-wrap">${items}</ul>`
-    );
+            $pager.html(
+                `<small class="text-muted d-block text-center mb-1" style="font-size:.7rem;">
+                    Showing ${rangeFrom}–${rangeTo} of ${rows.length}
+                </small>` +
+                `<ul class="pagination pagination-sm mb-0 justify-content-center flex-wrap">${pageItems}</ul>`
+            );
 
-    $pager.find('.page-link').off('click').on('click', function (e) {
-        e.preventDefault();
-        const p = parseInt($(this).data('p'), 10);
-        if (!isNaN(p) && p > 0) showPage(p);
-    });
-}
+            $pager.find('.page-link').off('click').on('click', function (e) {
+                e.preventDefault();
+                const targetPage = parseInt($(this).data('p'), 10);
+                if (!isNaN(targetPage) && targetPage > 0) showPage(targetPage);
+            });
+        }
 
         showPage(1);
     }
@@ -597,13 +602,13 @@ function renderPagerNav() {
     function renderAllLogsRow(row) {
         return `<tr>
             <td class="ps-3 fw-semibold">${escVal(row.id_number)}</td>
-            <td class="text-muted">${escVal(row.name      || '—')}</td>
-            <td class="text-muted">${escVal(row.college   || '—')}</td>
-            <td class="text-muted">${escVal(row.course    || '—')}</td>
+            <td class="text-muted">${escVal(row.name           || '—')}</td>
+            <td class="text-muted">${escVal(row.college        || '—')}</td>
+            <td class="text-muted">${escVal(row.course         || '—')}</td>
             <td><span class="badge bg-secondary-subtle text-secondary rounded-pill" style="font-size:.68rem;">
                 ${escVal(row.classification || '—')}</span></td>
-            <td class="text-muted">${escVal(row.library   || '—')}</td>
-            <td class="text-muted">${escVal(row.sex       || '—')}</td>
+            <td class="text-muted">${escVal(row.library        || '—')}</td>
+            <td class="text-muted">${escVal(row.sex            || '—')}</td>
             <td class="text-end text-muted">${escVal(row.checkin_time)}</td>
             <td class="text-end text-muted pe-3">${escVal(row.checkout_time || '—')}</td>
             <td class="text-end pe-3">${row.duration_minutes != null ? Math.round(row.duration_minutes) : '—'}</td>
@@ -612,69 +617,81 @@ function renderPagerNav() {
 
 
     // =========================================================
-    //  CHART INITIALIZERS
+    //  TAB INITIALIZERS
     // =========================================================
-function initUsersTab(res) {
-    const TOP = 3;
+    function initLogsTab(res) {
+        paginateInlineTable('allLogsCard', 'allLogsTbody', 'allLogsPager', renderAllLogsRow);
+    }
 
-    const byC = flattenUserRanking(res.topCheckins, 'count',   TOP);
-    const byD = flattenUserRanking(res.topDuration, 'minutes', TOP);
+    function initUsersTab(res) {
+        const rankLimit        = 3;
+        const topCheckinUsers  = flattenUserRanking(res.topCheckins, 'count',   rankLimit);
+        const topDurationUsers = flattenUserRanking(res.topDuration, 'minutes', rankLimit);
 
-    ChartManager.renderBarH(
-        'chartTopUserCheckins',
-        byC.map(r => r.label), byC.map(r => r.value),
-        Analytics.rankColors.checkins.slice(0, byC.length), 'Check-ins'
-    );
-    ChartManager.renderBarH(
-        'chartTopUserDuration',
-        byD.map(r => r.label), byD.map(r => Math.round(r.value)),
-        Analytics.rankColors.duration.slice(0, byD.length), 'Minutes'
-    );
-    ChartManager.renderDonut(
-        'chartVisitorTypeDonut',
-        Object.keys(res.classificationDistribution),
-        Object.values(res.classificationDistribution),
-        Analytics.donutColorsVisitorType, 'Visitors'
-    );
+        ChartManager.renderBarH(
+            'chartTopUserCheckins',
+            topCheckinUsers.map(entry => entry.label),
+            topCheckinUsers.map(entry => entry.value),
+            Analytics.rankColors.checkins.slice(0, topCheckinUsers.length),
+            'Check-ins'
+        );
+        ChartManager.renderBarH(
+            'chartTopUserDuration',
+            topDurationUsers.map(entry => entry.label),
+            topDurationUsers.map(entry => Math.round(entry.value)),
+            Analytics.rankColors.duration.slice(0, topDurationUsers.length),
+            'Minutes'
+        );
+        ChartManager.renderDonut(
+            'chartVisitorTypeDonut',
+            Object.keys(res.classificationDistribution),
+            Object.values(res.classificationDistribution),
+            Analytics.donutColorsVisitorType,
+            'Visitors'
+        );
 
-    paginateInlineTable('checkinDetailsCard',  'checkinDetailsTbody',  'checkinDetailsPager',  renderCheckinRow);
-    paginateInlineTable('durationDetailsCard', 'durationDetailsTbody', 'durationDetailsPager', renderDurationRow);
-    paginateInlineTable('allLogsCard',         'allLogsTbody',         'allLogsPager',         renderAllLogsRow);
-}
+        paginateInlineTable('checkinDetailsCard',  'checkinDetailsTbody',  'checkinDetailsPager',  renderCheckinRow);
+        paginateInlineTable('durationDetailsCard', 'durationDetailsTbody', 'durationDetailsPager', renderDurationRow);
+    }
 
     function initCollegesTab(res) {
-        const cN = Object.keys(res.top3CollegesCheckin);
-        const dN = Object.keys(res.top3CollegesDuration);
+        const checkinColleges  = Object.keys(res.top3CollegesCheckin);
+        const durationColleges = Object.keys(res.top3CollegesDuration);
 
         ChartManager.renderDonut(
             'chartCollegeCheckin',
-            cN, cN.map(n => res.top3CollegesCheckin[n].count),
-            cN.map(resolveCollegeColor),
+            checkinColleges,
+            checkinColleges.map(college => res.top3CollegesCheckin[college].count),
+            checkinColleges.map(resolveCollegeColor),
             'Visitors'
         );
         ChartManager.renderDonut(
             'chartCollegeDuration',
-            dN, dN.map(n => Math.round(res.top3CollegesDuration[n].minutes)),
-            dN.map(resolveCollegeColor),
+            durationColleges,
+            durationColleges.map(college => Math.round(res.top3CollegesDuration[college].minutes)),
+            durationColleges.map(resolveCollegeColor),
             'Minutes'
         );
     }
 
     function initCoursesTab(res) {
-        const labels = [], cVals = [], dVals = [], colors = [];
+        const courseLabels   = [];
+        const checkinValues  = [];
+        const durationValues = [];
+        const courseColors   = [];
 
-        Object.entries(res.topCoursesCheckin).forEach(([college, courses], ci) => {
-            Object.entries(courses).forEach(([course, data], ri) => {
-                labels.push(`${college} · ${course}`);
-                cVals.push(data.count);
-                dVals.push(Math.round((res.topCoursesDuration?.[college]?.[course]?.minutes) || 0));
-                colors.push(Analytics.donutColorsCourse[(ci * 3 + ri) % Analytics.donutColorsCourse.length]);
+        Object.entries(res.topCoursesCheckin).forEach(([college, courses], collegeIndex) => {
+            Object.entries(courses).forEach(([course, data], courseIndex) => {
+                courseLabels.push(`${college} · ${course}`);
+                checkinValues.push(data.count);
+                durationValues.push(Math.round((res.topCoursesDuration?.[college]?.[course]?.minutes) || 0));
+                courseColors.push(Analytics.donutColorsCourse[(collegeIndex * 3 + courseIndex) % Analytics.donutColorsCourse.length]);
             });
         });
 
-        if (labels.length) {
-            ChartManager.renderDonut('chartCoursesCheckin',  labels, cVals, colors, 'Visitors');
-            ChartManager.renderDonut('chartCoursesDuration', labels, dVals, colors, 'Minutes');
+        if (courseLabels.length) {
+            ChartManager.renderDonut('chartCoursesCheckin',  courseLabels, checkinValues,  courseColors, 'Visitors');
+            ChartManager.renderDonut('chartCoursesDuration', courseLabels, durationValues, courseColors, 'Minutes');
         }
     }
 
@@ -688,7 +705,8 @@ function initUsersTab(res) {
         );
     }
 
-    const TAB_CHART_INIT = {
+    const TAB_INITIALIZERS = {
+        logs:         initLogsTab,
         users:        initUsersTab,
         colleges:     initCollegesTab,
         courses:      initCoursesTab,
@@ -705,21 +723,21 @@ function initUsersTab(res) {
         kpi.topStudents.html(
             !res.top3Students?.length
                 ? '<div class="text-muted small fst-italic">No data</div>'
-                : res.top3Students.map((s, i) => `
+                : res.top3Students.map((student, index) => `
                     <div class="d-flex align-items-center justify-content-between gap-2 py-1
-                                ${i < res.top3Students.length - 1 ? 'border-bottom' : ''}">
+                                ${index < res.top3Students.length - 1 ? 'border-bottom' : ''}">
                         <div class="d-flex align-items-center gap-2 min-w-0">
-                            <span style="font-size:.9rem;flex-shrink:0;">${resolveRankMedal(s, i)}</span>
+                            <span style="font-size:.9rem;flex-shrink:0;">${resolveRankMedal(student, index)}</span>
                             <div class="min-w-0">
                                 <div class="fw-bold text-dark" style="font-size:.85rem;line-height:1.2;">
-                                    ${escVal(s.id_number)}</div>
+                                    ${escVal(student.id_number)}</div>
                                 <div class="text-muted" style="font-size:.68rem;">
-                                    ${escVal(s.college || '—')}${s.course ? ' · ' + escVal(s.course) : ''}</div>
+                                    ${escVal(student.college || '—')}${student.course ? ' · ' + escVal(student.course) : ''}</div>
                             </div>
                         </div>
                         <div class="d-flex flex-column align-items-end" style="flex-shrink:0;">
                             <span class="badge rounded-pill bg-primary-subtle text-primary fw-semibold"
-                                  style="font-size:.72rem;">${Number(s.count).toLocaleString()}</span>
+                                  style="font-size:.72rem;">${Number(student.count).toLocaleString()}</span>
                             <span class="text-muted" style="font-size:.62rem;">check-ins</span>
                         </div>
                     </div>`).join('')
@@ -729,17 +747,17 @@ function initUsersTab(res) {
         kpi.topColleges.html(
             !res.top3Colleges?.length
                 ? '<div class="text-muted small fst-italic">No data</div>'
-                : res.top3Colleges.map((c, i) => `
+                : res.top3Colleges.map((college, index) => `
                     <div class="d-flex align-items-center justify-content-between gap-2 py-1
-                                ${i < res.top3Colleges.length - 1 ? 'border-bottom' : ''}">
+                                ${index < res.top3Colleges.length - 1 ? 'border-bottom' : ''}">
                         <div class="d-flex align-items-center gap-2 min-w-0">
-                            <span style="font-size:.9rem;flex-shrink:0;">${resolveRankMedal(c, i)}</span>
+                            <span style="font-size:.9rem;flex-shrink:0;">${resolveRankMedal(college, index)}</span>
                             <div class="fw-bold text-dark text-truncate" style="font-size:.85rem;">
-                                ${escVal(c.name)}</div>
+                                ${escVal(college.name)}</div>
                         </div>
                         <div class="d-flex flex-column align-items-end" style="flex-shrink:0;">
                             <span class="badge rounded-pill bg-success-subtle text-success fw-semibold"
-                                  style="font-size:.72rem;">${Number(c.count).toLocaleString()}</span>
+                                  style="font-size:.72rem;">${Number(college.count).toLocaleString()}</span>
                             <span class="text-muted" style="font-size:.62rem;">students</span>
                         </div>
                     </div>`).join('')
@@ -749,23 +767,23 @@ function initUsersTab(res) {
         kpi.topCourses.html(
             !res.top3Courses?.length
                 ? '<div class="text-muted small fst-italic">No data</div>'
-                : res.top3Courses.map((c, i) => `
+                : res.top3Courses.map((course, index) => `
                     <div class="d-flex align-items-center justify-content-between gap-2 py-1
-                                ${i < res.top3Courses.length - 1 ? 'border-bottom' : ''}">
+                                ${index < res.top3Courses.length - 1 ? 'border-bottom' : ''}">
                         <div class="d-flex align-items-center gap-2 min-w-0">
-                            <span style="font-size:.9rem;flex-shrink:0;">${resolveRankMedal(c, i)}</span>
+                            <span style="font-size:.9rem;flex-shrink:0;">${resolveRankMedal(course, index)}</span>
                             <div class="min-w-0">
                                 <div class="fw-bold text-dark" style="font-size:.85rem;line-height:1.2;">
-                                    ${escVal(c.course)}</div>
+                                    ${escVal(course.course)}</div>
                                 <div style="font-size:.68rem;">
                                     <span class="badge rounded-pill bg-secondary-subtle text-secondary px-2 py-0">
-                                        ${escVal(c.college || '—')}</span>
+                                        ${escVal(course.college || '—')}</span>
                                 </div>
                             </div>
                         </div>
                         <div class="d-flex flex-column align-items-end" style="flex-shrink:0;">
                             <span class="badge rounded-pill bg-warning-subtle text-warning fw-semibold"
-                                  style="font-size:.72rem;">${Number(c.count).toLocaleString()}</span>
+                                  style="font-size:.72rem;">${Number(course.count).toLocaleString()}</span>
                             <span class="text-muted" style="font-size:.62rem;">students</span>
                         </div>
                     </div>`).join('')
@@ -806,10 +824,11 @@ function initUsersTab(res) {
             }
 
             $tabContent.html(res.html);
-            TAB_CHART_INIT[tab]?.(res);
+            TAB_INITIALIZERS[tab]?.(res);
             updateKpi(res);
 
             lastResponse = res;
+            preloadExportLibraries();
             $('#exportBtn').prop('disabled', false);
         })
         .fail(function (xhr, status) {
@@ -854,8 +873,8 @@ function initUsersTab(res) {
 
     $(document).on('click', '#viewAllModalFooter .page-link', function (e) {
         e.preventDefault();
-        const page = parseInt($(this).data('page'), 10);
-        if (!isNaN(page)) { viewAllPage = page; loadViewAll(viewAllTab, viewAllPage); }
+        const targetPage = parseInt($(this).data('page'), 10);
+        if (!isNaN(targetPage)) { viewAllPage = targetPage; loadViewAll(viewAllTab, viewAllPage); }
     });
 
 
@@ -873,64 +892,91 @@ function initUsersTab(res) {
         });
     }
 
-    async function saveBlob(blob, suggestedName, mimeType, ext) {
+    function preloadExportLibraries() {
+        Object.values(Analytics.exportLibraries).forEach(url => loadScript(url).catch(() => {}));
+    }
+
+    async function saveBlob(blob, suggestedName, mimeType, extension) {
         if (window.showSaveFilePicker) {
             try {
-                const handle = await window.showSaveFilePicker({
+                const fileHandle = await window.showSaveFilePicker({
                     suggestedName,
-                    types: [{ description: `${ext.toUpperCase()} File`, accept: { [mimeType]: ['.' + ext] } }],
+                    types: [{ description: `${extension.toUpperCase()} File`, accept: { [mimeType]: ['.' + extension] } }],
                 });
-                const writer = await handle.createWritable();
-                await writer.write(blob);
-                await writer.close();
+                const writableStream = await fileHandle.createWritable();
+                await writableStream.write(blob);
+                await writableStream.close();
                 return;
             } catch (err) {
                 if (err.name === 'AbortError') return;
             }
         }
 
-        const url    = URL.createObjectURL(blob);
-        const anchor = Object.assign(document.createElement('a'), { href: url, download: suggestedName });
-        document.body.appendChild(anchor);
-        anchor.click();
-        document.body.removeChild(anchor);
-        setTimeout(() => URL.revokeObjectURL(url), 2000);
+        const objectUrl    = URL.createObjectURL(blob);
+        const downloadLink = Object.assign(document.createElement('a'), { href: objectUrl, download: suggestedName });
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 2000);
     }
 
-    function defaultFilename(tabs, ext) {
+    function defaultFilename(tabs, extension) {
         const suffix = tabs.length === 1 ? tabs[0] : 'full';
-        return `LibraryReport_${suffix}_${filters.startDate.val() || 'unknown'}_${filters.endDate.val() || 'unknown'}.${ext}`;
+        return `LibraryReport_${suffix}_${filters.startDate.val() || 'unknown'}_${filters.endDate.val() || 'unknown'}.${extension}`;
     }
 
-    function fmtDate(raw) {
-        if (!raw) return '—';
-        const date = new Date(raw.replace(' ', 'T'));
+    function formatDateForExport(rawDateString) {
+        if (!rawDateString) return '—';
+        const date = new Date(rawDateString.replace(' ', 'T'));
         return isNaN(date)
-            ? raw
+            ? rawDateString
             : date.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
     }
 
-    // ── Export schema ─────────────────────────────────────────
+
+    // =========================================================
+    //  EXPORT SCHEMA
+    // =========================================================
     const EXPORT_SCHEMA = {
+
+        logs: {
+            label:   'Visit Logs',
+            headers: ['ID Number', 'Name', 'College', 'Course', 'Type', 'Section', 'Sex', 'Check-in', 'Check-out', 'Duration (min)'],
+			columnAlignments: [ null,        null,   null,      null,     null,   null,      null,  null,       null,        'center' ],
+            rowMapper(res) {
+                return (res.allLogs || []).map(log => [
+                    log.id_number,
+                    log.name           || '—',
+                    log.college        || '—',
+                    log.course         || '—',
+                    log.classification || '—',
+                    log.library        || '—',
+                    log.sex            || '—',
+                    formatDateForExport(log.checkin_time),
+                    log.checkout_time  ? formatDateForExport(log.checkout_time) : '—',
+                    log.duration_minutes != null ? Math.round(log.duration_minutes) : '—',
+                ]);
+            },
+        },
 
         users: {
             label:   'Users',
             headers: ['ID Number', 'Name', 'College', 'Course', 'Type', 'Library Section', 'Check-ins', 'Duration (min)', 'Last Check-in'],
             rowMapper(res) {
                 const rows = [];
-                for (const [type, userMap] of Object.entries(res.topCheckins)) {
+                for (const [classification, userMap] of Object.entries(res.topCheckins)) {
                     for (const [userId, user] of Object.entries(userMap)) {
-                        const dur = res.topDuration?.[type]?.[userId];
+                        const durationEntry = res.topDuration?.[classification]?.[userId];
                         rows.push([
                             user.display_label,
                             user.name    ?? '—',
                             user.college || '—',
                             user.course  || '—',
-                            type,
+                            classification,
                             user.library ?? '—',
                             user.count,
-                            dur ? Math.round(dur.minutes) : '—',
-                            fmtDate(user.last_checkin),
+                            durationEntry ? Math.round(durationEntry.minutes) : '—',
+                            formatDateForExport(user.last_checkin),
                         ]);
                     }
                 }
@@ -950,7 +996,9 @@ function initUsersTab(res) {
                     merged[name]         ??= { count: '—', minutes: '—', last: data.last_checkin };
                     merged[name].minutes   = Math.round(data.minutes);
                 }
-                return Object.entries(merged).map(([name, row]) => [name, row.count, row.minutes, fmtDate(row.last)]);
+                return Object.entries(merged).map(([name, row]) => [
+                    name, row.count, row.minutes, formatDateForExport(row.last),
+                ]);
             },
         },
 
@@ -961,8 +1009,14 @@ function initUsersTab(res) {
                 const rows = [];
                 for (const [college, courses] of Object.entries(res.topCoursesCheckin)) {
                     for (const [course, data] of Object.entries(courses)) {
-                        const dur = res.topCoursesDuration?.[college]?.[course];
-                        rows.push([college, course, data.count, dur ? Math.round(dur.minutes) : '—', fmtDate(data.last_checkin)]);
+                        const durationEntry = res.topCoursesDuration?.[college]?.[course];
+                        rows.push([
+                            college,
+                            course,
+                            data.count,
+                            durationEntry ? Math.round(durationEntry.minutes) : '—',
+                            formatDateForExport(data.last_checkin),
+                        ]);
                     }
                 }
                 return rows;
@@ -973,22 +1027,28 @@ function initUsersTab(res) {
             label:   'Demographics',
             headers: ['Sex', 'Visitors', '% of Total'],
             rowMapper(res) {
-                const total = Object.values(res.sexDistribution).reduce((sum, n) => sum + n, 0);
+                const totalVisitors = Object.values(res.sexDistribution).reduce((sum, count) => sum + count, 0);
                 return Object.entries(res.sexDistribution).map(([sex, count]) => [
-                    sex, count,
-                    total > 0 ? (count / total * 100).toFixed(1) + '%' : '0%',
+                    sex,
+                    count,
+                    totalVisitors > 0 ? (count / totalVisitors * 100).toFixed(1) + '%' : '0%',
                 ]);
             },
         },
     };
 
-    // ── Offscreen chart helpers ───────────────────────────────
-    const PDF_BAR_W = 900, PDF_BAR_H = 220;
-    const PDF_DNT_W = 500, PDF_DNT_H = 380;
 
-    function offscreenBarH(labels, values, colors, unit, title) {
-        const canvas  = Object.assign(document.createElement('canvas'), { width: PDF_BAR_W, height: PDF_BAR_H });
-        const chart   = new Chart(canvas, {
+    // =========================================================
+    //  OFFSCREEN CHART BUILDERS  (for PDF export)
+    // =========================================================
+    const OFFSCREEN_BAR_WIDTH    = 900;
+    const OFFSCREEN_BAR_HEIGHT   = 220;
+    const OFFSCREEN_DONUT_WIDTH  = 500;
+    const OFFSCREEN_DONUT_HEIGHT = 380;
+
+    function buildOffscreenBarChart(labels, values, colors, unit, title) {
+        const canvas        = Object.assign(document.createElement('canvas'), { width: OFFSCREEN_BAR_WIDTH, height: OFFSCREEN_BAR_HEIGHT });
+        const offscreenChart = new Chart(canvas, {
             type: 'bar',
             data: { labels, datasets: [{ label: unit, data: values, backgroundColor: colors, borderRadius: 5, borderSkipped: false, barThickness: 50 }] },
             options: {
@@ -1001,33 +1061,37 @@ function initUsersTab(res) {
                 layout: { padding: { left: 4, right: 20, top: 6, bottom: 6 } },
             },
         });
-        const dataUrl = canvas.toDataURL('image/png');
-        chart.destroy();
-        return { dataUrl, W: PDF_BAR_W, H: PDF_BAR_H, label: title, type: 'bar' };
+
+        const imageDataUrl = canvas.toDataURL('image/png');
+        offscreenChart.destroy();
+        return { imageDataUrl, label: title, type: 'bar' };
     }
 
-    function offscreenDonut(labels, values, colors, centerLabel, title) {
-        const canvas = Object.assign(document.createElement('canvas'), { width: PDF_DNT_W, height: PDF_DNT_H });
-        const total  = values.reduce((s, v) => s + v, 0);
+    function buildOffscreenDonutChart(labels, values, colors, centerLabel, title) {
+        const canvas     = Object.assign(document.createElement('canvas'), { width: OFFSCREEN_DONUT_WIDTH, height: OFFSCREEN_DONUT_HEIGHT });
+        const totalValue = values.reduce((sum, value) => sum + value, 0);
 
-        const centerPlugin = {
-            id: 'pdfCenter',
-            afterDraw(chart) {
-                const { ctx, chartArea: ca } = chart;
-                if (!ca) return;
-                const cx = (ca.left + ca.right) / 2;
-                const cy = (ca.top + ca.bottom) / 2;
-                ctx.save();
-                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                ctx.font = 'bold 34px sans-serif'; ctx.fillStyle = '#111827';
-                ctx.fillText(total.toLocaleString(), cx, cy - 14);
-                ctx.font = '17px sans-serif'; ctx.fillStyle = '#6b7280';
-                ctx.fillText(centerLabel, cx, cy + 18);
-                ctx.restore();
+        const centerTextPlugin = {
+            id: 'offscreenCenterText',
+            afterDraw(chartInstance) {
+                const { ctx: context, chartArea } = chartInstance;
+                if (!chartArea) return;
+                const centerX = (chartArea.left + chartArea.right) / 2;
+                const centerY = (chartArea.top  + chartArea.bottom) / 2;
+                context.save();
+                context.textAlign    = 'center';
+                context.textBaseline = 'middle';
+                context.font         = 'bold 34px sans-serif';
+                context.fillStyle    = '#111827';
+                context.fillText(totalValue.toLocaleString(), centerX, centerY - 14);
+                context.font      = '17px sans-serif';
+                context.fillStyle = '#6b7280';
+                context.fillText(centerLabel, centerX, centerY + 18);
+                context.restore();
             },
         };
 
-        const chart   = new Chart(canvas, {
+        const offscreenChart = new Chart(canvas, {
             type: 'doughnut',
             data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 3, borderColor: '#fff', hoverOffset: 0 }] },
             options: {
@@ -1037,79 +1101,120 @@ function initUsersTab(res) {
                         position: 'bottom',
                         labels: {
                             font: { size: 13 }, padding: 14, usePointStyle: true, pointStyle: 'circle',
-                            generateLabels: chart => chart.data.labels.map((lbl, i) => ({
-                                text:        `${lbl}  (${(chart.data.datasets[0].data[i] || 0).toLocaleString()})`,
-                                fillStyle:   chart.data.datasets[0].backgroundColor[i],
-                                strokeStyle: chart.data.datasets[0].backgroundColor[i],
+                            generateLabels: chartInstance => chartInstance.data.labels.map((label, index) => ({
+                                text:        `${label}  (${(chartInstance.data.datasets[0].data[index] || 0).toLocaleString()})`,
+                                fillStyle:   chartInstance.data.datasets[0].backgroundColor[index],
+                                strokeStyle: chartInstance.data.datasets[0].backgroundColor[index],
                                 hidden:      false,
-                                index:       i,
+                                index,
                                 pointStyle:  'circle',
                             })),
                         },
                     },
                 },
             },
-            plugins: [centerPlugin],
+            plugins: [centerTextPlugin],
         });
 
-        const dataUrl = canvas.toDataURL('image/png');
-        chart.destroy();
-        return { dataUrl, W: PDF_DNT_W, H: PDF_DNT_H, label: title, type: 'donut' };
+        const imageDataUrl = canvas.toDataURL('image/png');
+        offscreenChart.destroy();
+        return { imageDataUrl, label: title, type: 'donut' };
     }
 
     function buildChartsForTab(tab, res) {
         switch (tab) {
 
+            case 'logs':
+                return [];
+
             case 'users': {
-                const byC = [], byD = [];
+                const checkinUserList  = [];
+                const durationUserList = [];
+
                 for (const userMap of Object.values(res.topCheckins))
                     for (const user of Object.values(userMap))
-                        byC.push({ label: user.display_label, value: user.count ?? 0 });
+                        checkinUserList.push({ label: user.display_label, value: user.count ?? 0 });
+
                 for (const userMap of Object.values(res.topDuration))
                     for (const user of Object.values(userMap))
-                        byD.push({ label: user.display_label, value: Math.round(user.minutes ?? 0) });
+                        durationUserList.push({ label: user.display_label, value: Math.round(user.minutes ?? 0) });
 
-                byC.sort((a, b) => b.value - a.value);
-                byD.sort((a, b) => b.value - a.value);
+                checkinUserList.sort((a, b)  => b.value - a.value);
+                durationUserList.sort((a, b) => b.value - a.value);
 
-                const topC = byC.slice(0, 3);
-                const topD = byD.slice(0, 3);
+                const topCheckinUsers  = checkinUserList.slice(0, 3);
+                const topDurationUsers = durationUserList.slice(0, 3);
 
                 return [
-                    offscreenBarH(topC.map(r => r.label), topC.map(r => r.value), Analytics.rankColors.checkins.slice(0, topC.length), 'Check-ins', 'Top Visitors by Check-ins'),
-                    offscreenBarH(topD.map(r => r.label), topD.map(r => r.value), Analytics.rankColors.duration.slice(0, topD.length),  'Minutes',   'Top Visitors by Duration'),
-                    offscreenDonut(Object.keys(res.classificationDistribution), Object.values(res.classificationDistribution), Analytics.donutColorsVisitorType, 'Visitors', 'Visitor Type Breakdown'),
+                    buildOffscreenBarChart(
+                        topCheckinUsers.map(entry => entry.label),
+                        topCheckinUsers.map(entry => entry.value),
+                        Analytics.rankColors.checkins.slice(0, topCheckinUsers.length),
+                        'Check-ins', 'Top Visitors by Check-ins'
+                    ),
+                    buildOffscreenBarChart(
+                        topDurationUsers.map(entry => entry.label),
+                        topDurationUsers.map(entry => entry.value),
+                        Analytics.rankColors.duration.slice(0, topDurationUsers.length),
+                        'Minutes', 'Top Visitors by Duration'
+                    ),
+                    buildOffscreenDonutChart(
+                        Object.keys(res.classificationDistribution),
+                        Object.values(res.classificationDistribution),
+                        Analytics.donutColorsVisitorType,
+                        'Visitors', 'Visitor Type Breakdown'
+                    ),
                 ];
             }
 
             case 'colleges': {
-                const cN = Object.keys(res.top3CollegesCheckin);
-                const dN = Object.keys(res.top3CollegesDuration);
+                const checkinColleges  = Object.keys(res.top3CollegesCheckin);
+                const durationColleges = Object.keys(res.top3CollegesDuration);
                 return [
-                    offscreenDonut(cN, cN.map(n => res.top3CollegesCheckin[n].count),                       cN.map(resolveCollegeColor), 'Visitors', 'Top Colleges by Check-ins'),
-                    offscreenDonut(dN, dN.map(n => Math.round(res.top3CollegesDuration[n].minutes)), dN.map(resolveCollegeColor), 'Minutes',  'Top Colleges by Duration'),
+                    buildOffscreenDonutChart(
+                        checkinColleges,
+                        checkinColleges.map(college => res.top3CollegesCheckin[college].count),
+                        checkinColleges.map(resolveCollegeColor),
+                        'Visitors', 'Top Colleges by Check-ins'
+                    ),
+                    buildOffscreenDonutChart(
+                        durationColleges,
+                        durationColleges.map(college => Math.round(res.top3CollegesDuration[college].minutes)),
+                        durationColleges.map(resolveCollegeColor),
+                        'Minutes', 'Top Colleges by Duration'
+                    ),
                 ];
             }
 
             case 'courses': {
-                const labels = [], cVals = [], dVals = [], colors = [];
-                Object.entries(res.topCoursesCheckin).forEach(([college, courses], ci) =>
-                    Object.entries(courses).forEach(([course, data], ri) => {
-                        labels.push(`${college} · ${course}`);
-                        cVals.push(data.count);
-                        dVals.push(Math.round((res.topCoursesDuration?.[college]?.[course]?.minutes) || 0));
-                        colors.push(Analytics.donutColorsCourse[(ci * 3 + ri) % Analytics.donutColorsCourse.length]);
+                const courseLabels   = [];
+                const checkinValues  = [];
+                const durationValues = [];
+                const courseColors   = [];
+
+                Object.entries(res.topCoursesCheckin).forEach(([college, courses], collegeIndex) =>
+                    Object.entries(courses).forEach(([course, data], courseIndex) => {
+                        courseLabels.push(`${college} · ${course}`);
+                        checkinValues.push(data.count);
+                        durationValues.push(Math.round((res.topCoursesDuration?.[college]?.[course]?.minutes) || 0));
+                        courseColors.push(Analytics.donutColorsCourse[(collegeIndex * 3 + courseIndex) % Analytics.donutColorsCourse.length]);
                     })
                 );
-                return labels.length ? [
-                    offscreenDonut(labels, cVals, colors, 'Visitors', 'Top Courses by Check-ins'),
-                    offscreenDonut(labels, dVals, colors, 'Minutes',  'Top Courses by Duration'),
+
+                return courseLabels.length ? [
+                    buildOffscreenDonutChart(courseLabels, checkinValues,  courseColors, 'Visitors', 'Top Courses by Check-ins'),
+                    buildOffscreenDonutChart(courseLabels, durationValues, courseColors, 'Minutes',  'Top Courses by Duration'),
                 ] : [];
             }
 
             case 'demographics':
                 return [
-                    offscreenDonut(Object.keys(res.sexDistribution), Object.values(res.sexDistribution), Analytics.donutColorsSex, 'Visitors', 'Sex Distribution'),
+                    buildOffscreenDonutChart(
+                        Object.keys(res.sexDistribution),
+                        Object.values(res.sexDistribution),
+                        Analytics.donutColorsSex,
+                        'Visitors', 'Sex Distribution'
+                    ),
                 ];
 
             default:
@@ -1117,128 +1222,295 @@ function initUsersTab(res) {
         }
     }
 
-    // ── PDF export ────────────────────────────────────────────
+
+    // =========================================================
+    //  PDF EXPORT
+    // =========================================================
     async function runExportPDF(tabs, res) {
-        const { jsPDF } = window.jspdf;
-        const doc    = new jsPDF('l', 'mm', 'a4');
-        const MARGIN = 16;
-        const PW     = doc.internal.pageSize.getWidth();
-        const PH     = doc.internal.pageSize.getHeight();
-        const CW     = PW - MARGIN * 2;
-        const FOOTER = 14;
-        const DONUT_MAX_W = 85, GAP = 6;
-        let isFirstPage = true;
-        let pageNum     = 1;
+        const { jsPDF }       = window.jspdf;
+        const pdf             = new jsPDF('l', 'mm', 'a4');
+        const margin          = 16;
+        const pageWidth       = pdf.internal.pageSize.getWidth();
+        const pageHeight      = pdf.internal.pageSize.getHeight();
+        const contentWidth    = pageWidth - margin * 2;
+        const footerClearance = 14;
+        const maxDonutWidth   = 85;
+        const chartGap        = 6;
+        let   isFirstTab      = true;
+        let   currentPage     = 1;
+        let   cursorY         = 0;
 
-        const hRule        = y => { doc.setDrawColor(226,232,240); doc.setLineWidth(0.25); doc.line(MARGIN, y, PW - MARGIN, y); };
-        const sectionLabel = (text, y) => { doc.setFont('helvetica','bold').setFontSize(8.5).setTextColor(17,24,39); doc.text(text, MARGIN, y); };
-        const chartLabel   = (text, x, y, w, centered = false) => { doc.setFont('helvetica','normal').setFontSize(6.5).setTextColor(100,116,139); centered ? doc.text(text, x + w / 2, y, { align: 'center' }) : doc.text(text, x, y); };
-        const pageFooter   = n => { doc.setFont('helvetica','normal').setFontSize(7).setTextColor(148,163,184); doc.text('Library Analytics Report   ·   Page ' + n, PW / 2, PH - 6, { align: 'center' }); doc.setDrawColor(226,232,240); doc.setLineWidth(0.2); doc.line(MARGIN, PH - 10, PW - MARGIN, PH - 10); };
+        // ── Drawing helpers ───────────────────────────────────────────────
+        const drawHorizontalRule = (y) => {
+            pdf.setDrawColor(226, 232, 240);
+            pdf.setLineWidth(0.25);
+            pdf.line(margin, y, pageWidth - margin, y);
+        };
 
-        doc.setFillColor(17,24,39); doc.rect(0, 0, PW, 18, 'F');
-        doc.setFont('helvetica','bold').setFontSize(11).setTextColor(255,255,255);
-        doc.text('Library Analytics Report', MARGIN, 12);
-        doc.setFont('helvetica','normal').setFontSize(8).setTextColor(148,163,184);
-        doc.text(tabs.map(t => Analytics.tabLabels[t]).join(' · ') + '   ·   ' + buildDateRangeLabel(), PW - MARGIN, 12, { align: 'right' });
+        const drawSectionHeading = (text, y) => {
+            pdf.setFont('helvetica', 'bold').setFontSize(8.5).setTextColor(17, 24, 39);
+            pdf.text(text, margin, y);
+        };
 
-        let Y = 24;
-        doc.setFont('helvetica','normal').setFontSize(7.5).setTextColor(100,116,139);
-        doc.text('Generated: ' + new Date().toLocaleString(), MARGIN, Y);
-        Y += 5; hRule(Y); Y += 6;
+        const drawChartCaption = (text, x, y, width, centered = false) => {
+            pdf.setFont('helvetica', 'normal').setFontSize(6.5).setTextColor(100, 116, 139);
+            centered
+                ? pdf.text(text, x + width / 2, y, { align: 'center' })
+                : pdf.text(text, x, y);
+        };
 
+        const drawPageFooter = (pageNumber) => {
+            pdf.setFont('helvetica', 'normal').setFontSize(7).setTextColor(148, 163, 184);
+            pdf.text('Library Analytics Report   ·   Page ' + pageNumber, pageWidth / 2, pageHeight - 6, { align: 'center' });
+            pdf.setDrawColor(226, 232, 240);
+            pdf.setLineWidth(0.2);
+            pdf.line(margin, pageHeight - 10, pageWidth - margin, pageHeight - 10);
+        };
+
+        // ── Cover header ──────────────────────────────────────────────────
+        pdf.setFillColor(17, 24, 39);
+        pdf.rect(0, 0, pageWidth, 18, 'F');
+        pdf.setFont('helvetica', 'bold').setFontSize(11).setTextColor(255, 255, 255);
+        pdf.text('Library Analytics Report', margin, 12);
+        pdf.setFont('helvetica', 'normal').setFontSize(8).setTextColor(148, 163, 184);
+        pdf.text(
+            tabs.map(tab => Analytics.tabLabels[tab]).join(' · ') + '   ·   ' + buildDateRangeLabel(),
+            pageWidth - margin, 12, { align: 'right' }
+        );
+
+        cursorY = 24;
+        pdf.setFont('helvetica', 'normal').setFontSize(7.5).setTextColor(100, 116, 139);
+        pdf.text('Generated: ' + new Date().toLocaleString(), margin, cursorY);
+        cursorY += 5;
+        drawHorizontalRule(cursorY);
+        cursorY += 6;
+
+        // ── Tab sections ──────────────────────────────────────────────────
         for (const tab of tabs) {
-            if (!isFirstPage) { doc.addPage(); Y = MARGIN; pageNum++; }
-            isFirstPage = false;
+            if (!isFirstTab) {
+                pdf.addPage();
+                cursorY = margin;
+                currentPage++;
+            }
+            isFirstTab = false;
 
-            const schema = EXPORT_SCHEMA[tab];
-            if (!schema) continue;
+            const tabSchema = EXPORT_SCHEMA[tab];
+            if (!tabSchema) continue;
 
-            const data = schema.rowMapper(res);
+            const tableRows = tabSchema.rowMapper(res);
 
-            doc.setFillColor(248,250,252); doc.rect(MARGIN, Y - 2, CW, 8, 'F');
-            doc.setFont('helvetica','bold').setFontSize(9.5).setTextColor(17,24,39);
-            doc.text(schema.label, MARGIN + 3, Y + 4);
-            Y += 12;
+            // Section banner
+            pdf.setFillColor(248, 250, 252);
+            pdf.rect(margin, cursorY - 2, contentWidth, 8, 'F');
+            pdf.setFont('helvetica', 'bold').setFontSize(9.5).setTextColor(17, 24, 39);
+            pdf.text(tabSchema.label, margin + 3, cursorY + 4);
+            cursorY += 12;
 
-            const chartDefs = buildChartsForTab(tab, res);
-            if (chartDefs.length) {
-                const bars   = chartDefs.filter(c => c.type === 'bar');
-                const donuts = chartDefs.filter(c => c.type === 'donut');
+            // ── Charts block ──────────────────────────────────────────────
+            const chartDefinitions = buildChartsForTab(tab, res);
 
-                sectionLabel('Charts', Y); Y += 5;
+            if (chartDefinitions.length) {
+                const barCharts   = chartDefinitions.filter(chart => chart.type === 'bar');
+                const donutCharts = chartDefinitions.filter(chart => chart.type === 'donut');
 
-                if (bars.length) {
-                    const barW = (CW - (bars.length - 1) * GAP) / bars.length;
-                    const barH = barW * (PDF_BAR_H / PDF_BAR_W);
-                    bars.forEach((c, i) => { const x = MARGIN + i * (barW + GAP); chartLabel(c.label, x, Y + 4, barW); doc.addImage(c.dataUrl, 'PNG', x, Y + 6, barW, barH); });
-                    Y += barH + 12;
+                drawSectionHeading('Charts', cursorY);
+                cursorY += 5;
+
+                if (barCharts.length) {
+                    const barWidth  = (contentWidth - (barCharts.length - 1) * chartGap) / barCharts.length;
+                    const barHeight = barWidth * (OFFSCREEN_BAR_HEIGHT / OFFSCREEN_BAR_WIDTH);
+
+                    barCharts.forEach((chart, index) => {
+                        const chartX = margin + index * (barWidth + chartGap);
+                        drawChartCaption(chart.label, chartX, cursorY + 4, barWidth);
+                        pdf.addImage(chart.imageDataUrl, 'PNG', chartX, cursorY + 6, barWidth, barHeight);
+                    });
+                    cursorY += barHeight + 12;
                 }
-                if (donuts.length) {
-                    const rawW   = (CW - (donuts.length - 1) * GAP) / donuts.length;
-                    const donutW = Math.min(DONUT_MAX_W, rawW);
-                    const donutH = donutW * (PDF_DNT_H / PDF_DNT_W);
-                    const startX = MARGIN + (CW - (donuts.length * donutW + (donuts.length - 1) * GAP)) / 2;
-                    donuts.forEach((c, i) => { const x = startX + i * (donutW + GAP); chartLabel(c.label, x, Y + 4, donutW, true); doc.addImage(c.dataUrl, 'PNG', x, Y + 6, donutW, donutH); });
-                    Y += donutH + 12;
+
+                if (donutCharts.length) {
+                    const rawDonutWidth  = (contentWidth - (donutCharts.length - 1) * chartGap) / donutCharts.length;
+                    const donutWidth     = Math.min(maxDonutWidth, rawDonutWidth);
+                    const donutHeight    = donutWidth * (OFFSCREEN_DONUT_HEIGHT / OFFSCREEN_DONUT_WIDTH);
+                    const donutRowWidth  = donutCharts.length * donutWidth + (donutCharts.length - 1) * chartGap;
+                    const donutRowStartX = margin + (contentWidth - donutRowWidth) / 2;
+
+                    donutCharts.forEach((chart, index) => {
+                        const chartX = donutRowStartX + index * (donutWidth + chartGap);
+                        drawChartCaption(chart.label, chartX, cursorY + 4, donutWidth, true);
+                        pdf.addImage(chart.imageDataUrl, 'PNG', chartX, cursorY + 6, donutWidth, donutHeight);
+                    });
+                    cursorY += donutHeight + 12;
                 }
-                hRule(Y); Y += 5;
+
+                drawHorizontalRule(cursorY);
+                cursorY += 5;
             }
 
-            if (Y + 20 > PH - FOOTER) { pageFooter(pageNum); doc.addPage(); pageNum++; Y = MARGIN; }
-            sectionLabel('Data Summary', Y);
-            doc.setFont('helvetica','normal').setFontSize(7.5).setTextColor(100,116,139);
-            doc.text(data.length + ' records', PW - MARGIN, Y, { align: 'right' });
-            Y += 5;
+            // ── Data table ────────────────────────────────────────────────
+            const nearPageBottom = cursorY + 20 > pageHeight - footerClearance;
+            if (nearPageBottom) {
+                drawPageFooter(currentPage);
+                pdf.addPage();
+                currentPage++;
+                cursorY = margin;
+            }
 
-            doc.autoTable({
-                head: [schema.headers], body: data, startY: Y,
-                styles:             { fontSize: 8, cellPadding: 3, lineColor: [226,232,240], lineWidth: 0.2 },
-                headStyles:         { fillColor: [17,24,39], textColor: [255,255,255], fontStyle: 'bold', fontSize: 8, cellPadding: 3.5 },
-                alternateRowStyles: { fillColor: [248,250,252] },
+            drawSectionHeading('Data Summary', cursorY);
+            pdf.setFont('helvetica', 'normal').setFontSize(7.5).setTextColor(100, 116, 139);
+            pdf.text(tableRows.length + ' records', pageWidth - margin, cursorY, { align: 'right' });
+            cursorY += 5;
+
+            pdf.autoTable({
+                head:               [tabSchema.headers],
+                body:               tableRows,
+                startY:             cursorY,
+                styles:             { fontSize: 8, cellPadding: 3, lineColor: [226, 232, 240], lineWidth: 0.2 },
+                headStyles:         { fillColor: [17, 24, 39], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8, cellPadding: 3.5 },
+                alternateRowStyles: { fillColor: [248, 250, 252] },
                 columnStyles:       { 0: { fontStyle: 'bold' } },
-                margin:             { left: MARGIN, right: MARGIN },
-                tableLineColor:     [226,232,240], tableLineWidth: 0.2,
-                didDrawPage:        hook => pageFooter(hook.pageNumber),
+                margin:             { left: margin, right: margin },
+                tableLineColor:     [226, 232, 240],
+                tableLineWidth:     0.2,
+                didDrawPage:        hook => drawPageFooter(hook.pageNumber),
             });
-            Y = doc.lastAutoTable.finalY + 8;
+
+            cursorY = pdf.lastAutoTable.finalY + 8;
         }
 
-        const pdfBlob = new Blob([doc.output('arraybuffer')], { type: 'application/pdf' });
+        // ── Save ──────────────────────────────────────────────────────────
+        const pdfBlob = new Blob([pdf.output('arraybuffer')], { type: 'application/pdf' });
         await saveBlob(pdfBlob, defaultFilename(tabs, 'pdf'), 'application/pdf', 'pdf');
     }
 
-    // ── Excel export ──────────────────────────────────────────
+
+    // =========================================================
+    //  EXCEL EXPORT
+    // =========================================================
     async function runExportExcel(tabs, res) {
-        const XLSX      = window.XLSX;
-        const wb        = XLSX.utils.book_new();
+        const ExcelJS   = window.ExcelJS;
+        const workbook  = new ExcelJS.Workbook();
         const dateRange = buildDateRangeLabel();
 
+        // ── Style definitions ─────────────────────────────────────────────
+        const titleFill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF111827' } };
+        const metaFill   = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFf3f4f6' } };
+        const headerFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF059669' } };
+        const whiteFill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
+        const zebraFill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFf0fdf4' } };
+
+        const headerBorder = {
+            top:    { style: 'thin', color: { argb: 'FF047857' } },
+            bottom: { style: 'thin', color: { argb: 'FF047857' } },
+            left:   { style: 'thin', color: { argb: 'FF047857' } },
+            right:  { style: 'thin', color: { argb: 'FF047857' } },
+        };
+        const dataBorder = {
+            top:    { style: 'hair', color: { argb: 'FFe5e7eb' } },
+            bottom: { style: 'hair', color: { argb: 'FFe5e7eb' } },
+            left:   { style: 'hair', color: { argb: 'FFe5e7eb' } },
+            right:  { style: 'hair', color: { argb: 'FFe5e7eb' } },
+        };
+
+        const centerAlign = { horizontal: 'center', vertical: 'middle' };
+        const leftAlign   = { horizontal: 'left',   vertical: 'middle' };
+        const rightAlign  = { horizontal: 'right',  vertical: 'middle' };
+
+        // ── Per-tab sheet builder ─────────────────────────────────────────
         for (const tab of tabs) {
-            const schema = EXPORT_SCHEMA[tab];
-            if (!schema) continue;
+            const tabSchema = EXPORT_SCHEMA[tab];
+            if (!tabSchema) continue;
 
-            const data = schema.rowMapper(res);
-            const ws   = XLSX.utils.aoa_to_sheet([
-                [`Library Analytics Report — ${schema.label}`],
-                [`Period: ${dateRange}`],
-                [`Generated: ${new Date().toLocaleString()}`],
-                [],
-                schema.headers,
-                ...data,
-            ]);
+            const dataRows = tabSchema.rowMapper(res);
+            const colCount = tabSchema.headers.length;
+            const sheet    = workbook.addWorksheet(tabSchema.label.substring(0, 31));
 
-            ws['!cols']   = schema.headers.map((h, ci) => {
-                const vals = [h, ...data.map(row => String(row[ci] ?? ''))];
-                return { wch: Math.min(50, Math.max(...vals.map(v => v.length)) + 2) };
+            sheet.views = [{ state: 'frozen', ySplit: 5 }];
+
+            // ── Row 1 — Title ─────────────────────────────────────────────
+            sheet.addRow([`Library Analytics Report — ${tabSchema.label}`]);
+            const titleRow    = sheet.getRow(1);
+            titleRow.height   = 30;
+            titleRow.getCell(1).font      = { bold: true, color: { argb: 'FFFFFFFF' }, size: 14 };
+            titleRow.getCell(1).fill      = titleFill;
+            titleRow.getCell(1).alignment = centerAlign;
+            sheet.mergeCells(1, 1, 1, colCount);
+            for (let col = 2; col <= colCount; col++) titleRow.getCell(col).fill = titleFill;
+
+            // ── Row 2 — Date range ────────────────────────────────────────
+            sheet.addRow([`Period: ${dateRange}`]);
+            const periodRow    = sheet.getRow(2);
+            periodRow.height   = 18;
+            periodRow.getCell(1).font      = { color: { argb: 'FF6b7280' }, size: 10 };
+            periodRow.getCell(1).fill      = metaFill;
+            periodRow.getCell(1).alignment = centerAlign;
+            sheet.mergeCells(2, 1, 2, colCount);
+            for (let col = 2; col <= colCount; col++) periodRow.getCell(col).fill = metaFill;
+
+            // ── Row 3 — Generated timestamp + record count ────────────────
+            sheet.addRow([`Generated: ${new Date().toLocaleString()}   ·   ${dataRows.length} records`]);
+            const timestampRow    = sheet.getRow(3);
+            timestampRow.height   = 16;
+            timestampRow.getCell(1).font      = { italic: true, color: { argb: 'FF9ca3af' }, size: 9 };
+            timestampRow.getCell(1).fill      = metaFill;
+            timestampRow.getCell(1).alignment = centerAlign;
+            sheet.mergeCells(3, 1, 3, colCount);
+            for (let col = 2; col <= colCount; col++) timestampRow.getCell(col).fill = metaFill;
+
+            // ── Row 4 — Spacer ────────────────────────────────────────────
+            sheet.addRow([]);
+            sheet.getRow(4).height = 6;
+
+            // ── Row 5 — Column headers ────────────────────────────────────
+            sheet.addRow(tabSchema.headers);
+            const columnHeaderRow  = sheet.getRow(5);
+            columnHeaderRow.height = 22;
+            columnHeaderRow.eachCell(cell => {
+                cell.font      = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
+                cell.fill      = headerFill;
+                cell.alignment = centerAlign;
+                cell.border    = headerBorder;
             });
-            ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: schema.headers.length - 1 } }];
 
-            XLSX.utils.book_append_sheet(wb, ws, schema.label.substring(0, 31));
+            // ── Rows 6+ — Data ────────────────────────────────────────────
+            sheet.addRows(dataRows);
+            const firstDataRowIndex = 6;
+            const lastDataRowIndex  = firstDataRowIndex + dataRows.length - 1;
+
+for (let rowIndex = firstDataRowIndex; rowIndex <= lastDataRowIndex; rowIndex++) {
+    const dataRow        = sheet.getRow(rowIndex);
+    const isAlternateRow = (rowIndex - firstDataRowIndex) % 2 !== 0;
+    dataRow.height       = 18;
+    dataRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+        const colIndex         = colNumber - 1;  // convert to 0-based
+        const overrideAlign    = tabSchema.columnAlignments?.[colIndex];
+        const defaultAlign     = typeof cell.value === 'number' ? rightAlign : leftAlign;
+
+        cell.fill      = isAlternateRow ? zebraFill : whiteFill;
+        cell.border    = dataBorder;
+        cell.font      = { size: 10 };
+        cell.alignment = overrideAlign === 'center' ? centerAlign
+                       : overrideAlign === 'right'  ? rightAlign
+                       : overrideAlign === 'left'   ? leftAlign
+                       : defaultAlign;
+    });
+}
+
+            // ── Column widths — auto-fit from content ─────────────────────
+            tabSchema.headers.forEach((headerLabel, colIndex) => {
+                const maxContentLength = dataRows.reduce((max, row) => {
+                    return Math.max(max, String(row[colIndex] ?? '').length);
+                }, headerLabel.length);
+                sheet.getColumn(colIndex + 1).width = Math.min(50, maxContentLength + 4);
+            });
         }
 
-        const wbArray = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-        const blob    = new Blob([wbArray], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        await saveBlob(blob, defaultFilename(tabs, 'xlsx'), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'xlsx');
+        // ── Write and trigger download ────────────────────────────────────
+        const fileBuffer = await workbook.xlsx.writeBuffer();
+        const fileBlob   = new Blob([fileBuffer], {
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        });
+        await saveBlob(fileBlob, defaultFilename(tabs, 'xlsx'), fileBlob.type, 'xlsx');
     }
 
 
@@ -1251,17 +1523,17 @@ function initUsersTab(res) {
     });
 
     $('#exportCheckAll').on('change', function () {
-        const checked = $(this).is(':checked');
+        const isChecked = $(this).is(':checked');
         $('#exportSectionIndividual .export-section-check')
-            .prop('checked', checked)
+            .prop('checked', isChecked)
             .closest('label')
-            .toggleClass('opacity-50', !checked);
+            .toggleClass('opacity-50', !isChecked);
     });
 
     $('#exportSectionIndividual').on('change', '.export-section-check', function () {
-        const $checks    = $('#exportSectionIndividual .export-section-check');
-        const allChecked = $checks.length === $checks.filter(':checked').length;
-        $('#exportCheckAll').prop('checked', allChecked);
+        const $allChecks  = $('#exportSectionIndividual .export-section-check');
+        const allSelected = $allChecks.length === $allChecks.filter(':checked').length;
+        $('#exportCheckAll').prop('checked', allSelected);
     });
 
     $('#exportBtn').on('click', function () {
@@ -1278,17 +1550,17 @@ function initUsersTab(res) {
         if (!selectedSections.length) { alert('Please select at least one section to export.'); return; }
         if (!lastResponse)            { alert('No data available. Please generate analytics first.'); return; }
 
-        const format = $('input[name="exportFormat"]:checked').val() || 'xlsx';
+        const selectedFormat = $('input[name="exportFormat"]:checked').val() || 'xlsx';
         $('#exportModal').modal('hide');
         showSpinner();
 
         try {
-            if (format === 'pdf') {
+            if (selectedFormat === 'pdf') {
                 await loadScript(Analytics.exportLibraries.jspdf);
                 await loadScript(Analytics.exportLibraries.autotable);
                 await runExportPDF(selectedSections, lastResponse);
             } else {
-                await loadScript(Analytics.exportLibraries.xlsx);
+                await loadScript(Analytics.exportLibraries.exceljs);
                 await runExportExcel(selectedSections, lastResponse);
             }
         } catch (err) {
@@ -1312,8 +1584,8 @@ function initUsersTab(res) {
         if (hasDateRange()) loadTab(activeTab);
     });
 
-    $.each(filters, function (key, $el) {
-        $el.on('change', function () {
+    $.each(filters, function (key, $filterElement) {
+        $filterElement.on('change', function () {
             if (hasDateRange()) loadTab(activeTab);
         });
     });

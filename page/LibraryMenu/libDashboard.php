@@ -1,14 +1,27 @@
 <div class="container-fluid px-4 py-4">
-
+<style>
+  @keyframes ldot {
+    0%,100% { opacity:1; }
+    50%      { opacity:.35; }
+  }
+  #toggleIdVisibility:hover { color:#064e3b !important; }
+  #logForm button[type=submit]:hover {
+    background:#047857 !important;
+    box-shadow:0 5px 18px rgba(6,78,59,.25) !important;
+  }
+</style>
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h5 class="fw-bold mb-0 text-dark">Library Dashboard</h5>
             <small class="text-muted">Overview of library activities and trends</small>
         </div>
-        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2 rounded-pill fw-semibold">
-            <i class="fas fa-circle me-1 text-success" style="font-size:.55rem;vertical-align:middle;"></i>Live
-        </span>
+          <div class="d-flex align-items-center mb-1" style="gap:9px;">
+            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;
+                         background:#10b981;flex-shrink:0;
+                         animation:ldot 2.2s ease-in-out infinite;"></span>
+            <span class="fw-bold text-dark" style="font-size:1rem;letter-spacing:-.2px;">Live</span>
+          </div>
     </div>
 
     <!-- KPI Cards -->

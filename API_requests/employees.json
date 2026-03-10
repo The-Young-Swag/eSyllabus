@@ -3,7 +3,7 @@
   "type": "EMPLOYEE",
   "data": [
     {
-      "employee_number": "TAU0001000",
+      "employee_number": "TAU-1000",
       "name": "Satoru Gojo",
       "sex": "Male"
     },
