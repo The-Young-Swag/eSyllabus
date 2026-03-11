@@ -410,43 +410,45 @@ $(function () {
         $("#guestNoResults").toggle($("#guestCheckoutList .guest-row:visible").length === 0);
     });
 
-    // Guest checkout — confirm button
-$(document).on("click", ".btn-guest-checkout", function () {
+    // ✅ Put this at the TOP LEVEL — runs once on page load, never inside 
+// a function that gets re-called (modal init, loadSection, AJAX callback, etc.)
 
-    const button    = $(this);
-    const logID     = button.data("logid");
-    const guestName = button.data("name");
+$(document).ready(function () {
 
-    if (!logID) return;
+    $(document).on("click", ".btn-guest-checkout", function () {
 
-    $.post(
-        BACKEND,
-        { request: "guestCheckout", logID, sectionID: currentLibraryID },
-        response => {
+        const button    = $(this);
+        const logID     = button.data("logid");
+        const guestName = button.data("name");
 
-            if (response.error) {
-                alert(response.error);
-                return;
+        if (!logID) return;
+
+        $.post(
+            BACKEND,
+            { request: "guestCheckout", logID, sectionID: currentLibraryID },
+            response => {
+                if (response.error) {
+                    alert(response.error);
+                    return;
+                }
+
+                button.closest(".guest-row").fadeOut(200, function () {
+                    $(this).remove();
+                });
+
+                $("#guestCheckoutList").prepend(`
+                    <div class="alert alert-success py-2 px-3 mb-2 text-center">
+                        <i class="fas fa-check-circle me-1"></i>
+                        <strong>${guestName}</strong> successfully checked out.
+                    </div>
+                `);
+
+                loadKPI(currentLibraryID);
             }
+        ).fail(() => {
+            alert("Connection error.");
+        });
 
-            // Remove guest row smoothly
-            button.closest(".guest-row").fadeOut(200, function () {
-                $(this).remove();
-            });
-
-            // Optional inline success message
-            $("#guestCheckoutList").prepend(`
-                <div class="alert alert-success py-2 px-3 mb-2 text-center">
-                    <i class="fas fa-check-circle me-1"></i>
-                    <strong>${guestName}</strong> successfully checked out.
-                </div>
-            `);
-
-            // Refresh KPIs
-            loadKPI(currentLibraryID);
-        }
-    ).fail(() => {
-        alert("Connection error.");
     });
 
 });
