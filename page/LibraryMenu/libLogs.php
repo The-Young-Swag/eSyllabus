@@ -349,10 +349,10 @@ $(document).on("input", "#guestSearchInput", function () {
 });
 
 // ─── Guest Checkout Handler ──────────────────────────────
-$(document).on("click",".btn-guest-checkout",function(){
-    const logID=$(this).data("logid"),
-          guestName=$(this).data("name");
-    if(!logID) return;
+$(document).on("click", ".btn-guest-checkout", function () {
+    const logID     = $(this).data("logid");
+    const guestName = $(this).data("name");
+    if (!logID) return;
 
     showModal("Success",
         `<div class="alert alert-danger text-center mb-0">
@@ -361,15 +361,14 @@ $(document).on("click",".btn-guest-checkout",function(){
          </div>`
     );
 
-    let checkoutTimer=setTimeout(()=>{
-        checkoutTimer=null;
+    successTimer = setTimeout(() => {
+        successTimer = null;
         $("#dynamicModal").modal("hide");
-    },2000);
+    }, 2000);
 
-    $.post(BACKEND,
-        {request:"guestCheckout",logID,sectionID:currentLibraryID},
-        response=>{
-            if(response.error){
+    $.post(BACKEND, { request: "guestCheckout", logID, sectionID: currentLibraryID },
+        response => {
+            if (response.error) {
                 showModal("Error",
                     `<div class="alert alert-danger text-center mb-0">
                         <i class="fas fa-exclamation-circle me-2"></i>${response.error}

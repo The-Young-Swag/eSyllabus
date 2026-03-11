@@ -19,23 +19,11 @@ function sendResponse(array $payload): void
     exit;
 }
 
-/**
- * Validates that an ID number only contains letters and digits.
- * Rejects anything suspicious before it touches any data source.
- */
 function validateIdFormat(string $id): bool
 {
     return (bool) preg_match('/^[A-Z0-9-]+$/i', $id);
 }
 
-/**
- * Returns the date-range boundaries for "today" as two datetime strings.
- * Used instead of CAST()/CONVERT() on the column so SQL can use an index.
- *
- *   checkin_time >= $start  AND  checkin_time < $end
- *
- * Returns: [ "YYYY-MM-DD 00:00:00", "YYYY-MM-DD 00:00:00" (next day) ]
- */
 function getTodayRange(string $today): array
 {
     $start = $today . " 00:00:00";
@@ -43,154 +31,113 @@ function getTodayRange(string $today): array
     return [$start, $end];
 }
 
-
-//  DATA SOURCE LOADERS
 // ====================================================================
-// CONFIGURATION — the only section you ever need to touch
+//  DATA SOURCE CONFIG — Unified Local JSON / API Loader
 // ====================================================================
 
-// Step 1: Flip to false when your live API is ready
-define("USE_LOCAL_DATA", true);
+define("USE_LOCAL_DATA", true); // flip false when API ready
 
-// API endpoints — update these when your real URLs are known
-define("API_ENDPOINTS", [
-    "students"  => "https://your-school-api.edu/api/students",
-    "employees" => "https://your-school-api.edu/api/employees",
-]);
+$USER_SOURCE = [
+    "students"  => __DIR__ . "/../../API_requests/students.json",
+    "employees" => __DIR__ . "/../../API_requests/employees.json",
 
-// ID filter param each endpoint expects  (GET /api/students?id_number=xxx)
+    // Example API replacement:
+    // "students"  => "https://your-school-api.edu/api/students",
+    // "employees" => "https://your-school-api.edu/api/employees",
+];
+
 define("API_ID_PARAMS", [
     "students"  => "id_number",
     "employees" => "employee_number",
 ]);
 
-
 /**
- * Resolves a user by ID — single entry point for all lookups.
- * Optimized: direct lookup O(1) vs full dataset scan O(n).
- * Returns an array of matches (duplicates possible) or empty if none.
- * Automatically uses local JSON or API based on USE_LOCAL_DATA flag.
+ * Unified user resolver
  */
 function resolveUserById(string $idNumber): array
 {
+    $isEmployee   = str_starts_with(strtoupper($idNumber), "TAU");
+    $sourceGroup  = $isEmployee ? "employees" : "students";
+
+    $rawPayload   = loadUserPayload($sourceGroup, $idNumber);
+    if (!$rawPayload) return [];
+
+    $allRecords   = extractRecordsFromPayload($rawPayload);
+    $mappedUsers  = [];
+
+    foreach ($allRecords as $record) {
+        $mappedUsers[] = $isEmployee
+            ? mapEmployeeToUserRecord($record)
+            : mapStudentToUserRecord($record);
+    }
+
+    // array_values() resets keys after filter so $mappedUsers[0] is always safe
+    return array_values(
+        array_filter($mappedUsers, fn($user) => $user["id_number"] === $idNumber)
+    );
+}
+
+/**
+ * Loads payload from either local JSON or API
+ */
+function loadUserPayload(string $source, string $idNumber = null): ?array
+{
+    global $USER_SOURCE;
+
+    $pathOrUrl = $USER_SOURCE[$source] ?? null;
+    if (!$pathOrUrl) return null;
+
     if (USE_LOCAL_DATA) {
-        return resolveFromLocalJSON($idNumber);
+        if (!file_exists($pathOrUrl)) return null;
+        $decoded = json_decode(file_get_contents($pathOrUrl), true);
+        return (json_last_error() === JSON_ERROR_NONE && is_array($decoded))
+            ? $decoded
+            : null;
     }
 
-    return resolveFromAPI($idNumber);
-}
-
-/**
- * Searches the local JSON test file for the given ID.
- * Used during development — no API needed, no network calls.
- */
-function resolveFromLocalJSON(string $idNumber): array
-{
-    $isEmployee = str_starts_with(strtoupper($idNumber), "TAU");
-    $file = __DIR__ . "/../../API_requests/" . ($isEmployee ? "employees" : "students") . ".json";
-
-    if (!file_exists($file)) return [];
-
-    $decoded = json_decode(file_get_contents($file), true);
-    if (json_last_error() !== JSON_ERROR_NONE || !is_array($decoded)) return [];
-
-    $records = extractRecordsFromPayload($decoded);
-    $matches = [];
-
-    foreach ($records as $r) {
-        $id = $r["employee_number"] ?? $r["id_number"] ?? null;
-        if ($id !== $idNumber) continue;
-
-        $matches[] = $isEmployee
-            ? mapEmployeeToUserRecord($r)
-            : mapStudentToUserRecord($r);
-    }
-
-    return $matches;
-}
-
-/**
- * Fetches exactly this one person from the live API.
- *
- *   GET /api/students?id_number=2022100114
- *   GET /api/employees?employee_number=TAU0001
- *
- * O(1) — no dataset loading, no indexing, no iteration on our side.
- * No caching — each scan fetches exactly one record directly from the API.
- */
-function resolveFromAPI(string $idNumber): array
-{
-    $isEmployee = str_starts_with(strtoupper($idNumber), "TAU");
+    // API loader
     $token = $_ENV["SCHOOL_API_TOKEN"] ?? null;
+    if (!$token) return null;
 
-    if (!$token) return [];
+    $url = $pathOrUrl;
+    if ($idNumber) {
+        $url .= "?" . http_build_query([API_ID_PARAMS[$source] => $idNumber]);
+    }
 
-    $source = $isEmployee ? "employees" : "students";
-
-    $url = API_ENDPOINTS[$source] . "?" .
-        http_build_query([API_ID_PARAMS[$source] => $idNumber]);
-
-    $response = apiRequest($url,$token);
-    if (!$response) return [];
-
-    $records = extractRecordsFromPayload($response);
-    $matches = [];
-
-    foreach ($records as $r)
-        $matches[] = $isEmployee
-            ? mapEmployeeToUserRecord($r)
-            : mapStudentToUserRecord($r);
-
-    return $matches;
+    return apiRequest($url, $token);
 }
 
-/**
- * Shared cURL helper. Returns the decoded JSON array, or null on any failure.
- * Both resolvers use this — cURL setup lives in exactly one place.
- */
-function apiRequest(string $url,string $token): ?array
+function apiRequest(string $url, string $token): ?array
 {
     $curl = curl_init($url);
-
-    curl_setopt_array($curl,[
+    curl_setopt_array($curl, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT        => 5,
         CURLOPT_CONNECTTIMEOUT => 3,
-        CURLOPT_HTTPHEADER => [
+        CURLOPT_HTTPHEADER     => [
             "Authorization: Bearer {$token}",
             "Accept: application/json"
         ]
     ]);
 
-    $body = curl_exec($curl);
-    $status = curl_getinfo($curl,CURLINFO_HTTP_CODE);
+    $body   = curl_exec($curl);
+    $status = curl_getinfo($curl, CURLINFO_HTTP_CODE);
     curl_close($curl);
 
     if ($body === false || $status !== 200) return null;
 
-    $decoded = json_decode($body,true);
-    if (json_last_error() !== JSON_ERROR_NONE || !is_array($decoded)) return null;
-
-    return $decoded;
+    $decoded = json_decode($body, true);
+    return (json_last_error() === JSON_ERROR_NONE && is_array($decoded))
+        ? $decoded
+        : null;
 }
 
-/**
- * Handles all JSON wrapper shapes so neither resolver has to repeat this.
- *
- *   { "data": [ ... ] }      ← your current API format
- *   { "students": [ ... ] }
- *   [ ... ]                  ← flat array, no wrapper
- */
 function extractRecordsFromPayload(array $payload): array
 {
-    if (isset($payload[0])) {
-        return $payload;
-    }
+    if (isset($payload[0])) return $payload;
 
     foreach (["data", "employees", "students", "records", "items"] as $key) {
-        if (isset($payload[$key]) && is_array($payload[$key])) {
-            return $payload[$key];
-        }
+        if (isset($payload[$key]) && is_array($payload[$key])) return $payload[$key];
     }
 
     return [];
@@ -200,8 +147,8 @@ function extractRecordsFromPayload(array $payload): array
 function mapStudentToUserRecord(array $student): array
 {
     return [
-        "id_number"      => $student["id_number"],
-        "name"           => $student["name"],
+        "id_number"      => $student["id_number"] ?? "",
+        "name"           => $student["name"] ?? "",
         "sex"            => $student["sex"]     ?? null,
         "college"        => $student["college"] ?? null,
         "course"         => $student["course"]  ?? null,
@@ -640,35 +587,6 @@ function ValidateUser(): void
         "matches"=>$matches,
         "modalHTML"=>buildDuplicateModalHTML()
     ]);
-}
-
-//GUEST CHECK IN
-function handleGuestCheckin(): void
-{
-    $name      = trim($_POST["name"] ?? "");
-    $sex       = trim($_POST["sex"] ?? "");
-    $agency    = trim($_POST["agency"] ?? "");
-    $sectionID = intval($_POST["sectionID"] ?? 0);
-    if (!$name || !$sex || !$agency || !$sectionID) {
-        sendResponse(["error" => "Missing guest information."]);
-    }
-    $pdo = dbconES();
-    $now = date("Y-m-d H:i:s");
-
-    $stmt = $pdo->prepare("
-INSERT INTO Library_logs
-(id_number, name, classification, college, course, library, checkin_time, sex, agency_organization)
-        VALUES (NULL, ?, 'GUEST', ?, ?, ?, ?)
-    ");
-    $stmt->execute([
-        $name,
-        $sex,
-        $agency,
-        $sectionID,
-        $now
-    ]);
-
-    sendResponse(["success" => true]);
 }
 
 
