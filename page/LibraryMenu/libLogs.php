@@ -410,11 +410,10 @@ $(function () {
         $("#guestNoResults").toggle($("#guestCheckoutList .guest-row:visible").length === 0);
     });
 
-    // ✅ Put this at the TOP LEVEL — runs once on page load, never inside 
+    // Runs once on page load, never inside 
 // a function that gets re-called (modal init, loadSection, AJAX callback, etc.)
 
 $(document).ready(function () {
-
     $(document).on("click", ".btn-guest-checkout", function () {
 
         const button    = $(this);
@@ -448,9 +447,7 @@ $(document).ready(function () {
         ).fail(() => {
             alert("Connection error.");
         });
-
     });
-
 });
 
     // Guest check-in — confirm button
