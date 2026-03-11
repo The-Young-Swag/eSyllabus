@@ -12,7 +12,6 @@ if ($_SERVER["REQUEST_METHOD"] !== "POST") {
     sendResponse(["error" => "Invalid request method."]);
 }
 
-
 //  UTILITY
 function sendResponse(array $payload): void
 {
@@ -28,7 +27,6 @@ function validateIdFormat(string $id): bool
 {
     return (bool) preg_match('/^[A-Z0-9-]+$/i', $id);
 }
-
 
 /**
  * Returns the date-range boundaries for "today" as two datetime strings.
@@ -530,14 +528,24 @@ function performCheckin(PDO $pdo, string $idNumber, int $sectionID, string $now,
 
     // Already here — nothing to do
     $stmtCheck = $pdo->prepare("
-        SELECT COUNT(*) FROM Library_logs
-        WHERE  id_number     = ?
-          AND  library       = ?
-          AND  checkout_time IS NULL
-          AND  checkin_time >= ?
-          AND  checkin_time  < ?
+        SELECT COUNT(*) 
+        FROM Library_logs
+        WHERE id_number = ?
+        AND name = ?
+        AND library = ?
+        AND checkout_time IS NULL
+        AND checkin_time >= ?
+        AND checkin_time < ?
     ");
-    $stmtCheck->execute([$idNumber, $sectionID, $start, $end]);
+
+    $stmtCheck->execute([
+        $idNumber,
+        $user["name"],
+        $sectionID,
+        $start,
+        $end
+    ]);
+
     if (intval($stmtCheck->fetchColumn()) > 0) {
         return;
     }
@@ -545,13 +553,21 @@ function performCheckin(PDO $pdo, string $idNumber, int $sectionID, string $now,
     // Auto-checkout from any other section (switch scenario)
     $pdo->prepare("
         UPDATE Library_logs
-        SET    checkout_time = ?
-        WHERE  id_number     = ?
-          AND  checkout_time IS NULL
-          AND  checkin_time >= ?
-          AND  checkin_time  < ?
-          AND  library <> ?
-    ")->execute([$now, $idNumber, $start, $end, $sectionID]);
+        SET checkout_time = ?
+        WHERE id_number = ?
+        AND name = ?
+        AND checkout_time IS NULL
+        AND checkin_time >= ?
+        AND checkin_time < ?
+        AND library <> ?
+    ")->execute([
+        $now,
+        $idNumber,
+        $user["name"],
+        $start,
+        $end,
+        $sectionID
+    ]);
 
     // Insert new check-in
     $pdo->prepare("
@@ -662,7 +678,9 @@ INSERT INTO Library_logs
 
 function CheckStatusToday(): void
 {
-    $id = trim($_POST["idNumber"] ?? "");
+    $id   = trim($_POST["idNumber"] ?? "");
+    $name = trim($_POST["name"] ?? "");
+
     if (!$id) sendResponse(["error"=>"Identification number is required."]);
 
     [$start,$end] = getTodayRange(date("Y-m-d"));
@@ -672,14 +690,15 @@ function CheckStatusToday(): void
         SELECT TOP 1 ll.library, ls.SectionName
         FROM Library_logs ll
         LEFT JOIN LibrarySection ls ON ls.SectionID = ll.library
-        WHERE ll.id_number=?
-          AND ll.checkout_time IS NULL
-          AND ll.checkin_time>=?
-          AND ll.checkin_time<?
+        WHERE ll.id_number = ?
+        AND ll.name = ?
+        AND ll.checkout_time IS NULL
+        AND ll.checkin_time >= ?
+        AND ll.checkin_time < ?
         ORDER BY ll.checkin_time DESC
     ");
 
-    $stmt->execute([$id,$start,$end]);
+    $stmt->execute([$id,$name,$start,$end]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$row) sendResponse(["checkedIn"=>false]);

@@ -508,7 +508,11 @@ function validateUser() {
         }
 
         selectedUser = res.data;
-        $.post(BACKEND, { request: "checkStatusToday", idNumber: selectedUser.id_number }, function (status) {
+        $.post(BACKEND, { 
+    request: "checkStatusToday", 
+    idNumber: selectedUser.id_number,
+    name: selectedUser.name
+}, function (status) {
             determineAction(selectedUser, status);
         });
     });
@@ -552,7 +556,11 @@ function determineAction(user,status){
             selectedUser = match;
             setSecretKeyStatus('success', 'fa-check-circle', 'Identity verified');
             $("#verifiedStudentContainer").show();
-            $.post(BACKEND, { request: "checkStatusToday", idNumber: selectedUser.id_number }, function (status) {
+            $.post(BACKEND, { 
+    request: "checkStatusToday", 
+    idNumber: selectedUser.id_number,
+    name: selectedUser.name
+}, function (status) {
                 determineAction(selectedUser, status);
             });
         } else {
