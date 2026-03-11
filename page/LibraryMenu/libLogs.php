@@ -54,7 +54,7 @@
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 pb-3 mb-4"
            style="border-bottom:1px solid #c6ead9;">
         <div>
-          <div class="fw-bold text-dark mb-1" style="font-size:.96rem;">Library Access</div>
+          <div class="fw-bold text-dark mb-1" style="font-size:.96rem;"><b>Library Access</b></div>
           <div class="text-muted" style="font-size:.75rem;">Secure identification verification</div>
         </div>
 
