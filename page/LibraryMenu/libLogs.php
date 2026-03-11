@@ -366,24 +366,23 @@ $(function () {
         },
 
         // Nudge tooltip -----------------------------------------------
-        // FIX: store both timers so they can be cleared on re-injection,
-        // mirroring the same guard pattern used by startClock().
-
         startGuestNudge() {
-            if (State.nudgeTimer) clearInterval(State.nudgeTimer);
+    if (State.nudgeTimer) clearTimeout(State.nudgeTimer);
 
-            const show = () => {
-                UI.guest.nudgeTooltip.style.opacity = "1";
-                setTimeout(() => { UI.guest.nudgeTooltip.style.opacity = "0"; }, 1800);
-            };
-            setTimeout(() => {
-                show();
-                State.nudgeTimer = setInterval(show, 3000);
-            }, 10000);
-        },
+    const showTooltip = () => {
+        UI.guest.nudgeTooltip.style.opacity = "1"; // show
+        // hide after 5 seconds
+        State.nudgeTimer = setTimeout(() => {
+            UI.guest.nudgeTooltip.style.opacity = "0"; // hide
+            // show again after 2 seconds
+            State.nudgeTimer = setTimeout(showTooltip, 2000);
+        }, 5000);
+    };
+    // initial delay of 10 seconds
+    State.nudgeTimer = setTimeout(showTooltip, 2000);
+},
 
         // Hover styles ------------------------------------------------
-
         applyHover(targetElement, enterStyles, leaveStyles) {
             $(targetElement)
                 .off("mouseenter.libLogs mouseleave.libLogs")   // FIX: prevent stacking on re-injection
@@ -393,7 +392,6 @@ $(function () {
 
         // Password toggle ---------------------------------------------
         // Shared logic for both the ID field and the secret key field.
-
         togglePassword(inputElement, iconElement) {
             const $inputField  = $(inputElement);
             const isHidden     = $inputField.attr("type") === "password";
@@ -402,7 +400,6 @@ $(function () {
         },
 
         // Modal -------------------------------------------------------
-
         showModal(title, body, footer = "") {
             if (State.successTimer) { clearTimeout(State.successTimer); State.successTimer = null; }
             $(UI.modal.title).html(title);
