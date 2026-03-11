@@ -304,7 +304,7 @@ $(function () {
 
     const BACKEND = "backend/bk_LibraryMenu/bk_libLogs-Test.php";
 
-    const API = {
+    const GET = {
 
         getLibraries: (userID) =>
             $.post(BACKEND, { request: "getLibraries", userID }),
@@ -483,7 +483,7 @@ $(function () {
                 return;
             }
 
-            API.getLibraries(UserInfo.UserID)
+            GET.getLibraries(UserInfo.UserID)
                 .done(libraryRes => {
                     if (!libraryRes.success || !libraryRes.data?.length) {
                         State.currentLibraryName = libraryRes.error ?? "No Library Access";
@@ -506,7 +506,7 @@ $(function () {
 
         loadKPI() {
             if (!State.currentLibraryID) return;
-            API.getKPI(State.currentLibraryID)
+            GET.getKPI(State.currentLibraryID)
                 .done(kpiRes => { if (kpiRes.success && kpiRes.data) Helpers.renderKPI(kpiRes.data); });
         },
 
@@ -514,7 +514,7 @@ $(function () {
             const idNumber = $(UI.inputs.studentNumber).val().trim();
             if (!idNumber) return alert("Please enter an Identification Number.");
 
-            API.validateUser(idNumber)
+            GET.validateUser(idNumber)
                 .done(validationRes => {
                     if (validationRes.error) {
                         alert("No record found for that ID number.");
@@ -529,7 +529,7 @@ $(function () {
                     }
 
                     State.selectedUser = validationRes.data;
-                    API.checkStatus(State.selectedUser.id_number, State.selectedUser.name)
+                    GET.checkStatus(State.selectedUser.id_number, State.selectedUser.name)
                         .done(status => Actions.determineAttendanceAction(State.selectedUser, status));
                 });
         },
@@ -555,7 +555,7 @@ $(function () {
 
             State.currentAction = action;
 
-            API.getAttendanceModal(user, color, icon, btnText, message, State.currentLibraryName)
+            GET.getAttendanceModal(user, color, icon, btnText, message, State.currentLibraryName)
                 .done(attendanceRes => attendanceRes.success && Helpers.showModal("Attendance Confirmation", attendanceRes.body, attendanceRes.footer));
         },
 
@@ -566,7 +566,7 @@ $(function () {
                 State.selectedUser = match;
                 Helpers.setSecretKeyStatus("success", "fa-check-circle", "Identity verified");
                 $(UI.validation.verifiedContainer).show();
-                API.checkStatus(State.selectedUser.id_number, State.selectedUser.name)
+                GET.checkStatus(State.selectedUser.id_number, State.selectedUser.name)
                     .done(status => Actions.determineAttendanceAction(State.selectedUser, status));
             } else {
                 Helpers.setSecretKeyStatus("danger", "fa-exclamation-circle", "Invalid key — try again");
@@ -583,7 +583,7 @@ $(function () {
 
             Helpers.showSuccessModal(user.name, label);
 
-            API.saveAttendance(user, resolvedAction, State.currentLibraryID)
+            GET.saveAttendance(user, resolvedAction, State.currentLibraryID)
                 .done(saveRes => {
                     if (saveRes.error) { Helpers.showErrorModal(saveRes.error); return; }
                     Actions.loadKPI();
@@ -593,7 +593,7 @@ $(function () {
 
         openGuestCheckIn() {
             if (!State.currentLibraryID) return alert("Library section not loaded yet.");
-            API.getGuestCheckInModal(State.currentLibraryName)
+            GET.getGuestCheckInModal(State.currentLibraryName)
                 .done(guestCheckInRes => {
                     if (!guestCheckInRes.success) return alert(guestCheckInRes.error || "Failed to load guest form.");
                     Helpers.showModal("Guest Check-In", guestCheckInRes.body, guestCheckInRes.footer);
@@ -603,7 +603,7 @@ $(function () {
 
         openGuestCheckOut() {
             if (!State.currentLibraryID) return alert("Library section not loaded yet.");
-            API.getGuestCheckOutModal(State.currentLibraryID, State.currentLibraryName)
+            GET.getGuestCheckOutModal(State.currentLibraryID, State.currentLibraryName)
                 .done(guestCheckOutRes => {
                     if (!guestCheckOutRes.success) return alert(guestCheckOutRes.error || "Failed to load guest list.");
                     Helpers.showModal("Guest Check-Out", guestCheckOutRes.body, guestCheckOutRes.footer);
@@ -613,7 +613,7 @@ $(function () {
 
         checkoutGuest(logID, guestName) {
             if (!logID) return;
-            API.guestCheckout(logID, State.currentLibraryID)
+            GET.guestCheckout(logID, State.currentLibraryID)
                 .done(checkoutRes => {
                     if (checkoutRes.error) { alert(checkoutRes.error); return; }
 
