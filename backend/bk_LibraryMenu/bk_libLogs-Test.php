@@ -594,7 +594,7 @@ function GuestCheckInModal(): void
     <div class='row g-3'>
         <div class='col-6'>
             <label class='text-uppercase fw-semibold mb-1' style='$labelStyle'>Sex</label>
-            <select id='guestSex' class='form-select w-100' style='$selectStyle'>
+            <select id='guestSex' class='form-select w-100' style='$selectStyle;text-align:center;text-align-last:center;'>
                 <option value=''>Select</option>
                 <option value='Male'>Male</option>
                 <option value='Female'>Female</option>
