@@ -1,10 +1,9 @@
 <?php
 // Library Logs Backend
-// Handles: user validation, attendance logging, and KPI reporting.
-// Database table: Library_logs
-// Columns:
-//   id, id_number, name, college, course, library,
-//   checkin_time, checkout_time, sex, classification
+// Handles: user validation, attendance logging, KPI reporting
+// Database: Library_logs (id, id_number, name, college, course, library,
+//           checkin_time, checkout_time, sex, classification)
+
 include "../../db/dbconnection.php";
 date_default_timezone_set("Asia/Manila");
 header("Content-Type: application/json");
@@ -34,54 +33,81 @@ function getTodayRange(string $today): array
     $end   = date("Y-m-d", strtotime("+1 day", strtotime($today))) . " 00:00:00";
     return [$start, $end];
 }
+
 // ============================================================
-// DATA SOURCE CONFIG
+// DATA SOURCE CONFIG — Unified Local JSON / API Loader
 // ============================================================
 
-define("USE_LOCAL_DATA", true);
+define("USE_LOCAL_DATA", true); // flip to false when API is ready
 
-$DATA_SOURCE = [
+$USER_SOURCE = [
     "students"  => __DIR__ . "/../../API_requests/students.json",
     "employees" => __DIR__ . "/../../API_requests/employees.json",
+
+    // Example API replacement:
+    // "students"  => "https://your-school-api.edu/api/students",
+    // "employees" => "https://your-school-api.edu/api/employees",
 ];
 
-// ============================================================
-// DATA LOADER
-// ============================================================
+define("API_ID_PARAMS", [
+    "students"  => "id_number",
+    "employees" => "employee_number",
+]);
 
-function loadDataSource(string $group): array
+// Resolves a user record from either local JSON or the API,
+// filtered to the exact ID number provided.
+// Note: validateIdFormat() allows lowercase via /i flag — ensure source
+// JSON stores id_number in consistent casing to avoid === mismatches here.
+function resolveUserById(string $idNumber): array
 {
-    global $DATA_SOURCE;
+    $isEmployee  = str_starts_with(strtoupper($idNumber), "TAU");
+    $sourceGroup = $isEmployee ? "employees" : "students";
 
-    $source = $DATA_SOURCE[$group] ?? null;
-    if (!$source) return [];
+    $rawPayload = loadUserPayload($sourceGroup, $idNumber);
+    if (!$rawPayload) return [];
+
+    $allRecords  = extractRecordsFromPayload($rawPayload);
+    $mappedUsers = [];
+
+    foreach ($allRecords as $record) {
+        $mappedUsers[] = $isEmployee
+            ? mapEmployeeToUserRecord($record)
+            : mapStudentToUserRecord($record);
+    }
+
+    // array_values() resets keys after filter so $mappedUsers[0] is always safe
+    return array_values(
+        array_filter($mappedUsers, fn($user) => $user["id_number"] === $idNumber)
+    );
+}
+
+// Loads a user payload from either a local JSON file or a remote API endpoint.
+function loadUserPayload(string $source, string $idNumber = null): ?array
+{
+    global $USER_SOURCE;
+
+    $localOrAPI = $USER_SOURCE[$source] ?? null;
+    if (!$localOrAPI) return null;
 
     if (USE_LOCAL_DATA) {
-        if (!file_exists($source)) return [];
-        $json = json_decode(file_get_contents($source), true);
-        if (json_last_error() !== JSON_ERROR_NONE || !is_array($json)) return [];
-        return extractRecords($json);
+        if (!file_exists($localOrAPI)) return null;
+        $decoded = json_decode(file_get_contents($localOrAPI), true);
+        return (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) ? $decoded : null;
     }
 
-    return fetchAPI($source);
-}
-
-function extractRecords(array $payload): array
-{
-    if (isset($payload[0])) return $payload;
-
-    foreach (["data", "records", "items", "students", "employees"] as $key) {
-        if (isset($payload[$key]) && is_array($payload[$key])) return $payload[$key];
-    }
-
-    return [];
-}
-
-function fetchAPI(string $url): array
-{
+    // API path
     $token = $_ENV["SCHOOL_API_TOKEN"] ?? null;
-    if (!$token) return [];
+    if (!$token) return null;
 
+    if ($idNumber) {
+        $localOrAPI .= "?" . http_build_query([API_ID_PARAMS[$source] => $idNumber]);
+    }
+
+    return apiRequest($localOrAPI, $token);
+}
+
+function apiRequest(string $url, string $token): ?array
+{
     $curl = curl_init($url);
     curl_setopt_array($curl, [
         CURLOPT_RETURNTRANSFER => true,
@@ -93,63 +119,55 @@ function fetchAPI(string $url): array
         ],
     ]);
 
-    $body   = curl_exec($curl);
-    $status = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+    $body       = curl_exec($curl);
+    $statusCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
     curl_close($curl);
 
-    if ($body === false || $status !== 200) return [];
+    if ($body === false || $statusCode !== 200) return null;
 
     $decoded = json_decode($body, true);
-    return (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) ? $decoded : [];
+    return (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) ? $decoded : null;
+}
+
+function extractRecordsFromPayload(array $payload): array
+{
+    if (isset($payload[0])) return $payload;
+
+    foreach (["data", "employees", "students", "records", "items"] as $key) {
+        if (isset($payload[$key]) && is_array($payload[$key])) return $payload[$key];
+    }
+
+    return [];
 }
 
 // ============================================================
-// USER MAPPERS
+// USER RECORD MAPPERS
 // ============================================================
 
-function mapStudent(array $s): array
+function mapStudentToUserRecord(array $student): array
 {
     return [
-        "id_number"      => $s["id_number"]  ?? "",
-        "name"           => $s["name"]       ?? "",
-        "sex"            => $s["sex"]        ?? null,
-        "college"        => $s["college"]    ?? null,
-        "course"         => $s["course"]     ?? null,
+        "id_number"      => $student["id_number"] ?? "",
+        "name"           => $student["name"]      ?? "",
+        "sex"            => $student["sex"]        ?? null,
+        "college"        => $student["college"]    ?? null,
+        "course"         => $student["course"]     ?? null,
         "classification" => "STUDENT",
-        "secretKey"      => $s["birthDate"]  ?? null,
+        "secretKey"      => $student["birthDate"]  ?? null,
     ];
 }
 
-function mapEmployee(array $e): array
+function mapEmployeeToUserRecord(array $employee): array
 {
     return [
-        "id_number"      => $e["employee_number"] ?? $e["id_number"] ?? "",
-        "name"           => $e["name"] ?? "",
-        "sex"            => $e["sex"]  ?? null,
+        "id_number"      => $employee["employee_number"] ?? $employee["id_number"] ?? "",
+        "name"           => $employee["name"] ?? "",
+        "sex"            => $employee["sex"]  ?? null,
         "college"        => "",
         "course"         => "",
         "classification" => "EMPLOYEE",
         "secretKey"      => null,
     ];
-}
-
-// ============================================================
-// USER RESOLVER
-// ============================================================
-
-// Returns all records matching $idNumber (usually 1; >1 = duplicate ID).
-function resolveUserById(string $idNumber): array
-{
-    $isEmployee = str_starts_with(strtoupper($idNumber), "TAU");
-    $group      = $isEmployee ? "employees" : "students";
-    $mapper     = $isEmployee ? "mapEmployee" : "mapStudent";
-
-    $records = loadDataSource($group);
-    $mapped  = array_map($mapper, $records);
-
-    return array_values(
-        array_filter($mapped, fn($u) => $u["id_number"] === $idNumber)
-    );
 }
 
 // ============================================================
@@ -452,7 +470,7 @@ function ValidateUser(): void
     $matches = resolveUserById($idNumber);
     $count   = count($matches);
 
-    if (!$count)     sendResponse(["error" => "User not found."]);
+    if (!$count)      sendResponse(["error" => "User not found."]);
     if ($count === 1) sendResponse(["success" => true, "data" => $matches[0]]);
 
     sendResponse([
@@ -678,7 +696,7 @@ function GuestCheckoutModal(): void
                     data-logid='{$logID}'
                     data-name='{$guestName}'
                     style='font-size:.75rem;height:32px;'>
-                <i class='fas fa-sign-out-alt me-1'></i>
+                <i class='fas fa-sign-out-alt me-1'></i>Out
             </button>
         </div>";
     }
@@ -760,10 +778,7 @@ function GuestCheckout(): void
           AND  checkout_time  IS NULL
     ")->execute([date("Y-m-d H:i:s"), $logID, $sectionID]);
 
-    sendResponse([
-        "success" => true,
-        "kpi"     => KPIData($pdo, $sectionID, date("Y-m-d")),
-    ]);
+    sendResponse(["success" => true]);
 }
 
 function SaveAttendance(): void
@@ -809,11 +824,9 @@ function SaveAttendance(): void
         error_log("[LibraryLogs] saveAttendance error: " . $exception->getMessage());
         sendResponse(["error" => "A database error occurred. Please try again."]);
     }
-
     sendResponse([
         "success" => true,
         "action"  => $action,
-        "kpi"     => KPIData($pdo, $sectionID, $today),
     ]);
 }
 
@@ -836,40 +849,40 @@ function ShowKPI(): void
 $request = trim($_POST["request"] ?? "");
 
 switch ($request) {
-    case "getLibraries":      
-        GetLibraries();       
+    case "getLibraries":
+        GetLibraries();
         break;
 
-    case "getValidateUser":   
-        ValidateUser();       
+    case "getValidateUser":
+        ValidateUser();
         break;
 
-    case "checkStatusToday":  
-        CheckStatusToday();   
+    case "checkStatusToday":
+        CheckStatusToday();
         break;
 
-    case "getAttendanceModal": 
-        AttendanceModal();   
+    case "getAttendanceModal":
+        AttendanceModal();
         break;
 
-    case "guestCheckIn":      
-        GuestCheckInModal();  
+    case "guestCheckIn":
+        GuestCheckInModal();
         break;
 
-    case "getSaveAttendance":    
-        SaveAttendance();  
+    case "getSaveAttendance":
+        SaveAttendance();
         break;
 
     case "getGuestCheckoutModal":
-        GuestCheckoutModal(); 
+        GuestCheckoutModal();
         break;
 
-    case "guestCheckout":     
-        GuestCheckout();      
+    case "guestCheckout":
+        GuestCheckout();
         break;
 
-    case "getKPI":            
-        ShowKPI();             
+    case "getKPI":
+        ShowKPI();
         break;
 
     default:

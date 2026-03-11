@@ -299,6 +299,7 @@ $(function () {
         currentAction:       "checkin",
         successTimer:        null,
         clockTimer:          null,
+        nudgeTimer:          null,   // FIX: track nudge interval to prevent leak on re-injection
     };
 
     const BACKEND = "backend/bk_LibraryMenu/bk_libLogs-Test.php";
@@ -365,21 +366,29 @@ $(function () {
         },
 
         // Nudge tooltip -----------------------------------------------
+        // FIX: store both timers so they can be cleared on re-injection,
+        // mirroring the same guard pattern used by startClock().
 
         startGuestNudge() {
+            if (State.nudgeTimer) clearInterval(State.nudgeTimer);
+
             const show = () => {
                 UI.guest.nudgeTooltip.style.opacity = "1";
                 setTimeout(() => { UI.guest.nudgeTooltip.style.opacity = "0"; }, 1800);
             };
-            setTimeout(() => { show(); setInterval(show, 3000); }, 10000);
+            setTimeout(() => {
+                show();
+                State.nudgeTimer = setInterval(show, 3000);
+            }, 10000);
         },
 
         // Hover styles ------------------------------------------------
 
         applyHover(targetElement, enterStyles, leaveStyles) {
             $(targetElement)
-                .on("mouseenter", function () { $(this).css(enterStyles); })
-                .on("mouseleave", function () { $(this).css(leaveStyles); });
+                .off("mouseenter.libLogs mouseleave.libLogs")   // FIX: prevent stacking on re-injection
+                .on("mouseenter.libLogs", function () { $(this).css(enterStyles); })
+                .on("mouseleave.libLogs", function () { $(this).css(leaveStyles); });
         },
 
         // Password toggle ---------------------------------------------
@@ -526,7 +535,7 @@ $(function () {
         },
 
         determineAttendanceAction(user, status) {
-            let action  = "checkin",       color   = "success";
+            let action  = "checkin",        color   = "success";
             let icon    = "fa-sign-in-alt", btnText = "Check In";
             let message = "Not checked in yet";
 
@@ -623,7 +632,7 @@ $(function () {
                     Actions.loadKPI();
                 })
                 .fail(() => alert("Connection error."));
-},
+        },
 
         confirmGuestCheckIn() {
             const name   = $(UI.inputs.guestName).val().trim();
@@ -642,14 +651,15 @@ $(function () {
 
     };
 
-    $(document).off(".libLogs"); // Clear stale handlers from any previous AJAX injection
+    $(document).off(".libLogs"); // Clear stale delegated handlers from any previous AJAX injection
 
     // Boot
     Helpers.startClock();
     Helpers.startGuestNudge();
     Actions.loadLibraries();
 
-    // Hover styles (direct — static elements, safe to re-bind on each injection)
+    // Hover styles
+    // FIX: namespaced mouseenter/mouseleave inside applyHover() prevents stacking on re-injection
     Helpers.applyHover(
         UI.buttons.guestCheckIn,
         { background: "#d1fae5", boxShadow: "0 4px 14px rgba(6,78,59,.15)",    transform: "translateY(-1px)" },
@@ -661,10 +671,11 @@ $(function () {
         { background: "#fff5f5", boxShadow: "",                                transform: "" }
     );
 
-    // Direct binds — static elements
-    $(UI.buttons.guestCheckIn).on("click",  () => Actions.openGuestCheckIn());
-    $(UI.buttons.guestCheckOut).on("click", () => Actions.openGuestCheckOut());
-    $(UI.buttons.toggleIdVisibility).on("click", () =>
+    // FIX: direct binds are now namespaced and preceded by .off() so they don't
+    // stack on AJAX re-injection (delegated binds are already cleared above via .off(".libLogs"))
+    $(UI.buttons.guestCheckIn).off("click.libLogs").on("click.libLogs",  () => Actions.openGuestCheckIn());
+    $(UI.buttons.guestCheckOut).off("click.libLogs").on("click.libLogs", () => Actions.openGuestCheckOut());
+    $(UI.buttons.toggleIdVisibility).off("click.libLogs").on("click.libLogs", () =>
         Helpers.togglePassword(UI.inputs.studentNumber, UI.icons.toggle)
     );
 
