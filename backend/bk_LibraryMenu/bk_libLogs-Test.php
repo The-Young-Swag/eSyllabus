@@ -710,7 +710,7 @@ function GuestCheckoutModal(): void
     $rows = "";
     foreach ($guests as $guest) {
         $logID        = intval($guest["id"]);
-        $guestName    = htmlspecialchars($guest["name"]                ?? "");
+        $guestName = htmlspecialchars($guest["name"] ?? "", ENT_QUOTES, 'UTF-8');
         $guestSex     = htmlspecialchars($guest["sex"]                 ?? "");
         $organization = htmlspecialchars($guest["agency_organization"] ?? "");
         $checkinTime  = date("h:i A", strtotime($guest["checkin_time"]));
@@ -751,12 +751,10 @@ function GuestCheckoutModal(): void
     $guestCount = count($guests);
     $guestLabel = $guestCount !== 1 ? "guests" : "guest";
 
-    $emptyState = !$guestCount
-        ? "<div class='text-center text-muted py-4' style='font-size:.85rem;'>
-               <i class='fas fa-users-slash mb-2 d-block' style='font-size:1.5rem;opacity:.35;'></i>
-               No guests currently checked in.
-           </div>"
-        : "";
+    $emptyState = "<div id='guestEmptyState' class='text-center text-muted py-4' style='font-size:.85rem;" . ($guestCount ? "display:none;" : "") . "'>
+    <i class='fas fa-users-slash mb-2 d-block' style='font-size:1.5rem;opacity:.35;'></i>
+    No guests currently checked in.
+</div>";
 
     $body = "
     <div style='background:#fef2f2;border:1px solid #fca5a5;border-radius:16px;padding:22px;'>

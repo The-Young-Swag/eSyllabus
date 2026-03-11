@@ -609,27 +609,50 @@ $(function () {
         },
 
         checkoutGuest(logID, guestName) {
-            if (!logID) return;
-            GET.guestCheckout(logID, State.currentLibraryID)
-                .done(checkoutRes => {
-                    if (checkoutRes.error) { alert(checkoutRes.error); return; }
+    if (!logID) return;
+    GET.guestCheckout(logID, State.currentLibraryID)
+        .done(checkoutRes => {
+            if (checkoutRes.error) { alert(checkoutRes.error); return; }
 
-                    $(`.btn-guest-checkout[data-logid="${logID}"]`)
-                        .closest(".guest-row")
-                        .fadeOut(200, function () { $(this).remove(); });
+            $(`.btn-guest-checkout[data-logid="${logID}"]`)
+                .closest(".guest-row")
+                .fadeOut(200, function () {
+                    $(this).remove();
+                    Actions.updateGuestCheckoutModalUI();   // <-- new line
+                });
 
-                    // Prepend the success alert, then self-remove after 2 s
-                    // so stale messages never stack up in the list.
-                    const $alert = $(`<div class="alert alert-success py-2 px-3 mb-2 text-center">
-                            <i class="fas fa-check-circle me-1"></i>
-                            <strong>${guestName}</strong> successfully checked out.
-                        </div>`).prependTo(UI.guest.checkoutList);
-                    setTimeout(() => $alert.fadeOut(400, () => $alert.remove()), 2000);
+            // Prepend success alert (unchanged)
+            const $alert = $(`<div class="alert alert-success py-2 px-3 mb-2 text-center">
+                    <i class="fas fa-check-circle me-1"></i>
+                    <strong>${guestName}</strong> successfully checked out.
+                </div>`).prependTo(UI.guest.checkoutList);
+            setTimeout(() => $alert.fadeOut(400, () => $alert.remove()), 2000);
 
-                    Actions.loadKPI();
-                })
-                .fail(() => alert("Connection error."));
-        },
+            Actions.loadKPI();
+        })
+        .fail(() => alert("Connection error."));
+},
+
+        updateGuestCheckoutModalUI() {
+    const $list = $(UI.guest.checkoutList);
+    const guestRows = $list.find('.guest-row');
+    const count = guestRows.length;
+
+    // Update the badge (assumes it’s the only span with class 'badge' in the modal)
+    const $badge = $('#dynamicModal .badge.rounded-pill');
+    $badge.text(count + ' ' + (count === 1 ? 'guest' : 'guests'));
+
+    // Show/hide the empty state
+    const $emptyState = $('#guestEmptyState');
+    if (count === 0) {
+        $emptyState.show();
+    } else {
+        $emptyState.hide();
+    }
+
+    // Re-trigger search filtering to update visible rows and no‑results message
+    $('#guestSearchInput').trigger('input');
+},
 
         confirmGuestCheckIn() {
             const name   = $(UI.inputs.guestName).val().trim();
@@ -697,15 +720,24 @@ $(function () {
         Actions.checkoutGuest($(this).data("logid"), $(this).data("name"));
     });
 
-    $(document).on("input.libLogs", "#guestSearchInput", function () {                               // PHP: GuestCheckoutModal()
-        const searchQuery = $(this).val().toLowerCase();
-        $(UI.guest.checkoutList).find(".guest-row").each(function () {
-            $(this).toggle($(this).data("name").toLowerCase().includes(searchQuery));
-        });
-        $(UI.guest.noResults).toggle(
-            $(UI.guest.checkoutList).find(".guest-row:visible").length === 0
-        );
+    $(document).on("input.libLogs", "#guestSearchInput", function () {
+    const searchQuery = $(this).val().toLowerCase().trim();
+    let visibleCount = 0;
+
+    $(UI.guest.checkoutList).find(".guest-row").each(function () {
+        const name = $(this).data("name") || "";          // fallback to empty string
+        const matches = name.toLowerCase().includes(searchQuery);
+        $(this).toggle(matches);
+        if (matches) visibleCount++;
     });
+
+    // Show "no results" only when there is a non‑empty search and no visible rows
+    if (visibleCount === 0 && searchQuery !== "") {
+        $(UI.guest.noResults).show();
+    } else {
+        $(UI.guest.noResults).hide();
+    }
+});
 
     $(document).on("click.libLogs", "#toggleSecretKey", () =>                                        // PHP: DuplicateModal()
         Helpers.togglePassword(UI.inputs.secretKey, UI.icons.secret)
