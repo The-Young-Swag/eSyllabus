@@ -237,440 +237,487 @@ style="background:linear-gradient(135deg,#ffffff,#ecfdf5);
 <?php include 'LibModals.php'; ?>
 
 <script>
-(() => {
-    const n = document.getElementById('guestNudge');
-    const b = document.getElementById('guestCheckIn');
-
-    b.onmouseenter = () => {
-        b.style.background   = '#d1fae5';
-        b.style.boxShadow    = '0 4px 14px rgba(6,78,59,.15)';
-        b.style.transform    = 'translateY(-1px)';
-    };
-    b.onmouseleave = () => {
-        b.style.background = '#f0fdf9';
-        b.style.boxShadow  = '';
-        b.style.transform  = '';
-    };
-
-    const show = () => {
-        n.style.opacity = '1';
-        setTimeout(() => { n.style.opacity = '0'; }, 1800);
-    };
-    setTimeout(() => { show(); setInterval(show, 3000); }, 10000);
-})();
-
 $(function () {
 
-    // =========================================================================
-    // STATE
-    // =========================================================================
-    let currentLibraryID    = null;
-    let currentLibraryName  = '';
-    let selectedUser        = null;
-    let duplicateCandidates = [];
-    let currentAction       = 'checkin';
-    let successTimer        = null;
+
+    const UI = {
+
+        buttons: {
+            get guestCheckIn()       { return document.getElementById("guestCheckIn"); },
+            get guestCheckOut()      { return document.getElementById("guestCheckOut"); },
+            get toggleIdVisibility() { return document.getElementById("toggleIdVisibility"); },
+        },
+
+        icons: {
+            get toggle() { return document.getElementById("toggleIcon"); },
+            get secret() { return document.getElementById("secretIcon"); },
+        },
+
+        inputs: {
+            get studentNumber() { return document.getElementById("inputStudentNumber"); },
+            get secretKey()     { return document.getElementById("modalSecretKey"); },
+            get guestName()     { return document.getElementById("guestName"); },
+            get guestAgency()   { return document.getElementById("guestAgency"); },
+            get guestSex()      { return document.getElementById("guestSex"); },
+        },
+
+        kpi: {
+            get currentTime()    { return document.getElementById("kpiCurrentTime"); },
+            get currentLibrary() { return document.getElementById("currentLibraryDisplay"); },
+            get totalCheckins()  { return document.getElementById("kpiTotalCheckins"); },
+            get activeStudents() { return document.getElementById("kpiActiveStudents"); },
+            get topColleges()    { return document.getElementById("topColleges"); },
+            get topCourses()     { return document.getElementById("topCourses"); },
+        },
+
+        modal: {
+            get container() { return document.getElementById("dynamicModal"); },
+            get title()     { return document.getElementById("dynamicModalTitle"); },
+            get body()      { return document.getElementById("dynamicModalBody"); },
+            get footer()    { return document.getElementById("dynamicModalFooter"); },
+        },
+
+        guest: {
+            get nudgeTooltip() { return document.getElementById("guestNudge"); },
+            get checkoutList() { return document.getElementById("guestCheckoutList"); },
+            get noResults()    { return document.getElementById("guestNoResults"); },
+        },
+
+        validation: {
+            get verifiedContainer() { return document.getElementById("verifiedStudentContainer"); },
+            get secretKeyStatus()   { return document.getElementById("secretKeyStatus"); },
+        },
+
+    };
+
+
+    const State = {
+        currentLibraryID:    null,
+        currentLibraryName:  "",
+        selectedUser:        null,
+        duplicateCandidates: [],
+        currentAction:       "checkin",
+        successTimer:        null,
+        clockTimer:          null,
+    };
 
     const BACKEND = "backend/bk_LibraryMenu/bk_libLogs-Test.php";
 
-    // =========================================================================
-    // CLOCK
-    // =========================================================================
-    function startClock() {
-        const fmt = {
-            hour: "2-digit", minute: "2-digit", second: "2-digit",
-            year: "numeric", month: "short",    day: "numeric", hour12: true
-        };
-        const tick = () => $("#kpiCurrentTime").text(new Date().toLocaleString("en-US", fmt));
-        tick();
-        setInterval(tick, 1000);
-    }
-    startClock();
+    const API = {
 
-    // =========================================================================
-    // LIBRARIES
-    // =========================================================================
-    function loadLibraries() {
-        if (typeof UserInfo === 'undefined' || !UserInfo.UserID) {
-            $("#currentLibraryDisplay").text("User not logged in");
-            return;
-        }
+        getLibraries: (userID) =>
+            $.post(BACKEND, { request: "getLibraries", userID }),
 
-        $.post(BACKEND,
-            { request: "getLibraries", userID: UserInfo.UserID },
-            res => {
-                if (!res.success || !res.data?.length) {
-                    currentLibraryName = res.error ?? "No Library Access";
-                    currentLibraryID   = null;
-                    $("#currentLibraryDisplay").text(currentLibraryName);
-                    return;
-                }
+        getKPI: (sectionID) =>
+            $.post(BACKEND, { request: "getKPI", sectionID }),
 
-                const lib          = res.data[0];
-                currentLibraryID   = lib.SectionID;
-                currentLibraryName = lib.SectionName;
-                $("#currentLibraryDisplay").text(currentLibraryName);
-                loadKPI(currentLibraryID);
-            }
-        ).fail(xhr => {
-            $("#currentLibraryDisplay").text("Connection error");
-            console.error("getLibraries failed:", xhr.responseText);
-        });
-    }
-    loadLibraries();
+        validateUser: (idNumber) =>
+            $.post(BACKEND, { request: "getValidateUser", idNumber }),
 
-    // =========================================================================
-    // KPI
-    // =========================================================================
-    function loadKPI(sectionID) {
-        $.post(BACKEND,
-            { request: "getKPI", sectionID },
-            res => {
-                if (!res.success || !res.data) return;
-                const d = res.data;
+        checkStatus: (idNumber, name) =>
+            $.post(BACKEND, { request: "checkStatusToday", idNumber, name }),
 
-                $("#kpiTotalCheckins").text(d.totalToday       ?? 0);
-                $("#kpiActiveStudents").text(d.currentlyInside ?? 0);
+        getAttendanceModal: (user, color, icon, btnText, message, libraryName) =>
+            $.post(BACKEND, { request: "getAttendanceModal", user: JSON.stringify(user), color, icon, btnText, message, libraryName }),
 
-                $("#topColleges").html(
-                    (d.topColleges || ["-", "-", "-"]).map((c, i) =>
-                        `<div class="mb-1">
-                            <span class="fw-bold">${i + 1}.</span>
-                            <span class="text-warning">${c}</span>
-                         </div>`
-                    ).join('')
-                );
+        getGuestCheckInModal: (libraryName) =>
+            $.post(BACKEND, { request: "guestCheckIn", libraryName }),
 
-                $("#topCourses").html(
-                    (d.topCourses || ["-", "-", "-"]).map((c, i) =>
-                        `<div class="mb-1">
-                            <span class="fw-bold">${i + 1}.</span>
-                            <span class="text-info">${c}</span>
-                         </div>`
-                    ).join('')
-                );
-            }
-        );
-    }
+        getGuestCheckOutModal: (sectionID, libraryName) =>
+            $.post(BACKEND, { request: "getGuestCheckoutModal", sectionID, libraryName }),
 
-    // =========================================================================
-    // MODAL HELPER
-    // =========================================================================
-    function showModal(title, body, footer = "") {
-        if (successTimer) { clearTimeout(successTimer); successTimer = null; }
-        $("#dynamicModalTitle").html(title);
-        $("#dynamicModalBody").html(body);
-        $("#dynamicModalFooter").html(footer);
-        $("#dynamicModal").modal("show");
-    }
+        guestCheckout: (logID, sectionID) =>
+            $.post(BACKEND, { request: "guestCheckout", logID, sectionID }),
 
-    // =========================================================================
-    // GUEST CHECK-IN
-    // =========================================================================
-    $("#guestCheckIn").on("click", () => {
-        if (!currentLibraryID) return alert("Library section not loaded yet.");
-
-        $.post(BACKEND,
-            { request: "guestCheckIn", libraryName: currentLibraryName },
-            res => {
-                if (!res.success) return alert(res.error || "Failed to load guest form.");
-                showModal("Guest Check-In", res.body, res.footer);
-            }
-        ).fail(xhr => { console.error(xhr.responseText); alert("Connection error."); });
-    });
-
-    // =========================================================================
-    // GUEST CHECK-OUT
-    // =========================================================================
-    $("#guestCheckOut")
-        .on("mouseenter", function () {
-            $(this).css({ background: "#fee2e2", boxShadow: "0 4px 14px rgba(220,38,38,.15)", transform: "translateY(-1px)" });
-        })
-        .on("mouseleave", function () {
-            $(this).css({ background: "#fff5f5", boxShadow: "", transform: "" });
-        })
-        .on("click", () => {
-            if (!currentLibraryID) return alert("Library section not loaded yet.");
-
-            $.post(BACKEND,
-                { request: "getGuestCheckoutModal", sectionID: currentLibraryID, libraryName: currentLibraryName },
-                res => {
-                    if (!res.success) return alert(res.error || "Failed to load guest list.");
-                    showModal("Guest Check-Out", res.body, res.footer);
-                }
-            ).fail(xhr => { console.error(xhr.responseText); alert("Connection error."); });
-        });
-
-    // Guest checkout — live search filter
-    $(document).on("input", "#guestSearchInput", function () {
-        const q = $(this).val().toLowerCase();
-        $("#guestCheckoutList .guest-row").each(function () {
-            $(this).toggle($(this).data("name").toLowerCase().includes(q));
-        });
-        $("#guestNoResults").toggle($("#guestCheckoutList .guest-row:visible").length === 0);
-    });
-
-    // Runs once on page load, never inside 
-// a function that gets re-called (modal init, loadSection, AJAX callback, etc.)
-
-$(document).ready(function () {
-    $(document).on("click", ".btn-guest-checkout", function () {
-
-        const button    = $(this);
-        const logID     = button.data("logid");
-        const guestName = button.data("name");
-
-        if (!logID) return;
-
-        $.post(
-            BACKEND,
-            { request: "guestCheckout", logID, sectionID: currentLibraryID },
-            response => {
-                if (response.error) {
-                    alert(response.error);
-                    return;
-                }
-
-                button.closest(".guest-row").fadeOut(200, function () {
-                    $(this).remove();
-                });
-
-                $("#guestCheckoutList").prepend(`
-                    <div class="alert alert-success py-2 px-3 mb-2 text-center">
-                        <i class="fas fa-check-circle me-1"></i>
-                        <strong>${guestName}</strong> successfully checked out.
-                    </div>
-                `);
-
-                loadKPI(currentLibraryID);
-            }
-        ).fail(() => {
-            alert("Connection error.");
-        });
-    });
-});
-
-    // Guest check-in — confirm button
-    $(document).on("click", "#confirmGuestCheckIn", function () {
-        const guestName   = $("#guestName").val().trim();
-        const guestSex    = $("#guestSex").val();
-        const guestAgency = $("#guestAgency").val().trim();
-
-        if (!guestName)   { alert("Guest name is required.");          return; }
-        if (!guestSex)    { alert("Please select a sex.");             return; }
-        if (!guestAgency) { alert("Agency / Organization required.");  return; }
-
-        processAttendance({
-            id_number:           "",
-            name:                guestName,
-            classification:      "GUEST",
-            college:             "",
-            course:              "",
-            sex:                 guestSex,
-            agency_organization: guestAgency
-        }, "checkin");
-    });
-
-    // =========================================================================
-    // EVENT HANDLERS
-    // =========================================================================
-
-    // Toggle ID number visibility
-    $("#toggleIdVisibility").on("click", function () {
-        const $input   = $("#inputStudentNumber");
-        const $icon    = $("#toggleIcon");
-        const isHidden = $input.attr("type") === "password";
-        $input.attr("type", isHidden ? "text" : "password");
-        $icon.toggleClass("fa-eye", !isHidden).toggleClass("fa-eye-slash", isHidden);
-    });
-
-    // Toggle secret key visibility
-    $(document).on("click", "#toggleSecretKey", function () {
-        const $input   = $("#modalSecretKey");
-        const $icon    = $("#secretIcon");
-        const isHidden = $input.attr("type") === "password";
-        $input.attr("type", isHidden ? "text" : "password");
-        $icon.toggleClass("fa-eye", !isHidden).toggleClass("fa-eye-slash", isHidden);
-    });
-
-    // Form submit
-    $("#logForm").on("submit", function (e) {
-        e.preventDefault();
-        validateUser();
-    });
-
-    // Confirm attendance
-    $(document).on("click", "#confirmAttendance", function () {
-        if (selectedUser && currentAction) processAttendance(selectedUser, currentAction);
-    });
-
-    // Secret key — auto-format + fire on 8 digits
-    $(document).on("input", "#modalSecretKey", function () {
-        let raw = $(this).val().replace(/\D/g, '').substring(0, 8);
-
-        let formatted = raw;
-        if      (raw.length > 4) formatted = raw.slice(0, 2) + '/' + raw.slice(2, 4) + '/' + raw.slice(4);
-        else if (raw.length > 2) formatted = raw.slice(0, 2) + '/' + raw.slice(2);
-        $(this).val(formatted);
-
-        if (raw.length === 8) {
-            validateSecretKey(raw);
-        } else {
-            $("#verifiedStudentContainer").hide().empty();
-            setSecretKeyStatus('muted', 'fa-info-circle', 'Enter birth date (MM/DD/YYYY)');
-        }
-    });
-
-    // Modal close — clear any pending success timer
-    $(document).on(
-        "click",
-        "#dynamicModal .btn-close, #dynamicModal [data-dismiss='modal'], #dynamicModal [data-bs-dismiss='modal']",
-        function () {
-            if (successTimer) { clearTimeout(successTimer); successTimer = null; }
-            $("#dynamicModal").modal("hide");
-        }
-    );
-
-    // =========================================================================
-    // USER VALIDATION
-    // =========================================================================
-    function validateUser() {
-        const idNumber = $("#inputStudentNumber").val().trim();
-        if (!idNumber) return alert("Please enter an Identification Number.");
-
-        $.post(BACKEND,
-            { request: "getValidateUser", idNumber },
-            res => {
-                if (res.error) {
-                    alert("No record found for that ID number.");
-                    $("#inputStudentNumber").val("").focus();
-                    return;
-                }
-
-                if (res.duplicate) {
-                    duplicateCandidates = res.matches;
-                    showModal("Identity Verification", res.modalHTML, "");
-                    return;
-                }
-
-                selectedUser = res.data;
-                $.post(BACKEND,
-                    { request: "checkStatusToday", idNumber: selectedUser.id_number, name: selectedUser.name },
-                    status => determineAction(selectedUser, status)
-                );
-            }
-        );
-    }
-
-    function determineAction(user, status) {
-        let action  = "checkin",   color  = "success";
-        let icon    = "fa-sign-in-alt", btnText = "Check In";
-        let message = "Not checked in yet";
-
-        if (status.checkedIn) {
-            const sameSection = Number(status.sectionID) === Number(currentLibraryID);
-            if (sameSection) {
-                action  = "checkout"; color   = "danger";
-                icon    = "fa-sign-out-alt"; btnText = "Check Out";
-                message = "Currently in this library";
-            } else {
-                const prevLibrary = status.sectionName || "another library";
-                action  = "switch"; color   = "warning";
-                icon    = "fa-random"; btnText = "Switch & Check In";
-                message = `You forgot to check out at <strong>${prevLibrary}</strong>. No worries — we've automatically checked you out and completed your check-in here.`;
-            }
-        }
-
-        currentAction = action;
-
-        $.post(BACKEND,
-            { request: "getAttendanceModal", user: JSON.stringify(user), color, icon, btnText, message, libraryName: currentLibraryName },
-            res => res.success && showModal("Attendance Confirmation", res.body, res.footer)
-        );
-    }
-
-    // =========================================================================
-    // SECRET KEY VERIFICATION
-    // =========================================================================
-    function validateSecretKey(key) {
-        const match = duplicateCandidates.find(u => u.secretKey?.replace(/\D/g, '') === key);
-
-        if (match) {
-            selectedUser = match;
-            setSecretKeyStatus('success', 'fa-check-circle', 'Identity verified');
-            $("#verifiedStudentContainer").show();
-            $.post(BACKEND,
-                { request: "checkStatusToday", idNumber: selectedUser.id_number, name: selectedUser.name },
-                status => determineAction(selectedUser, status)
-            );
-        } else {
-            setSecretKeyStatus('danger', 'fa-exclamation-circle', 'Invalid key — try again');
-            $("#verifiedStudentContainer").hide().empty();
-        }
-    }
-
-    function setSecretKeyStatus(type, faIcon, text) {
-        const colorClass = type === 'success' ? 'text-success'
-                         : type === 'danger'  ? 'text-danger'
-                         : 'text-muted';
-        $("#secretKeyStatus").html(
-            `<span class="${colorClass}"><i class="fas ${faIcon} me-1"></i>${text}</span>`
-        );
-    }
-
-    // =========================================================================
-    // PROCESS & SAVE ATTENDANCE
-    // =========================================================================
-    function processAttendance(user, action) {
-        if (!currentLibraryID) return;
-        if (user.classification !== 'GUEST' && !user.id_number) return;
-
-        const resolvedAction = action === "switch" ? "checkin" : action;
-        const label          = resolvedAction === "checkin" ? "checked in" : "checked out";
-        const successName    = user.name;
-
-        showModal("Success",
-            `<div class="alert alert-success text-center mb-0">
-                <i class="fas fa-check-circle me-2"></i>
-                <strong>${successName}</strong> successfully ${label}.
-             </div>`
-        );
-        successTimer = setTimeout(() => {
-            successTimer = null;
-            $("#dynamicModal").modal("hide");
-        }, 2000);
-
-        saveAttendance(user, resolvedAction);
-    }
-
-    function saveAttendance(user, action) {
-        $.post(BACKEND,
-            {
+        saveAttendance: (user, action, sectionID) =>
+            $.post(BACKEND, {
                 request:             "getSaveAttendance",
                 action,
                 idNumber:            user.id_number,
-                sectionID:           currentLibraryID,
+                sectionID,
                 classification:      user.classification      || "STUDENT",
                 name:                user.name,
                 college:             user.college             || "",
                 course:              user.course              || "",
                 sex:                 user.sex                 || "",
                 agency_organization: user.agency_organization || "",
-            },
-            res => {
-                if (res.error) {
-                    showModal("Error",
-                        `<div class="alert alert-danger text-center mb-0">
-                            <i class="fas fa-exclamation-circle me-2"></i>${res.error}
-                         </div>`
-                    );
-                    return;
-                }
-                loadKPI(currentLibraryID);
-                $("#inputStudentNumber").val("");
+            }),
+
+    };
+
+
+    const Helpers = {
+
+        // Clock -------------------------------------------------------
+        // Clears any previous interval before starting, so re-injection
+        // never spawns multiple ticking clocks on the same element.
+
+        startClock() {
+            if (State.clockTimer) clearInterval(State.clockTimer);
+
+            const clockFormat = {
+                hour: "2-digit", minute: "2-digit", second: "2-digit",
+                year: "numeric", month: "short",    day:  "numeric", hour12: true,
+            };
+            const tick = () => $(UI.kpi.currentTime).text(new Date().toLocaleString("en-US", clockFormat));
+            tick();
+            State.clockTimer = setInterval(tick, 1000);
+        },
+
+        // Nudge tooltip -----------------------------------------------
+
+        startGuestNudge() {
+            const show = () => {
+                UI.guest.nudgeTooltip.style.opacity = "1";
+                setTimeout(() => { UI.guest.nudgeTooltip.style.opacity = "0"; }, 1800);
+            };
+            setTimeout(() => { show(); setInterval(show, 3000); }, 10000);
+        },
+
+        // Hover styles ------------------------------------------------
+
+        applyHover(targetElement, enterStyles, leaveStyles) {
+            $(targetElement)
+                .on("mouseenter", function () { $(this).css(enterStyles); })
+                .on("mouseleave", function () { $(this).css(leaveStyles); });
+        },
+
+        // Password toggle ---------------------------------------------
+        // Shared logic for both the ID field and the secret key field.
+
+        togglePassword(inputElement, iconElement) {
+            const $inputField  = $(inputElement);
+            const isHidden     = $inputField.attr("type") === "password";
+            $inputField.attr("type", isHidden ? "text" : "password");
+            $(iconElement).toggleClass("fa-eye", !isHidden).toggleClass("fa-eye-slash", isHidden);
+        },
+
+        // Modal -------------------------------------------------------
+
+        showModal(title, body, footer = "") {
+            if (State.successTimer) { clearTimeout(State.successTimer); State.successTimer = null; }
+            $(UI.modal.title).html(title);
+            $(UI.modal.body).html(body);
+            $(UI.modal.footer).html(footer);
+            $(UI.modal.container).modal("show");
+        },
+
+        hideModal() {
+            if (State.successTimer) { clearTimeout(State.successTimer); State.successTimer = null; }
+            $(UI.modal.container).modal("hide");
+        },
+
+        showSuccessModal(name, label) {
+            Helpers.showModal("Success",
+                `<div class="alert alert-success text-center mb-0">
+                    <i class="fas fa-check-circle me-2"></i>
+                    <strong>${name}</strong> successfully ${label}.
+                 </div>`
+            );
+            State.successTimer = setTimeout(() => {
+                State.successTimer = null;
+                $(UI.modal.container).modal("hide");
+            }, 2000);
+        },
+
+        showErrorModal(message) {
+            Helpers.showModal("Error",
+                `<div class="alert alert-danger text-center mb-0">
+                    <i class="fas fa-exclamation-circle me-2"></i>${message}
+                 </div>`
+            );
+        },
+
+        // KPI ---------------------------------------------------------
+
+        renderKPI(kpiData) {
+            $(UI.kpi.totalCheckins).text(kpiData.totalToday       ?? 0);
+            $(UI.kpi.activeStudents).text(kpiData.currentlyInside ?? 0);
+
+            $(UI.kpi.topColleges).html(
+                (kpiData.topColleges || ["-", "-", "-"]).map((collegeName, i) =>
+                    `<div class="mb-1">
+                        <span class="fw-bold">${i + 1}.</span>
+                        <span class="text-warning">${collegeName}</span>
+                     </div>`
+                ).join("")
+            );
+
+            $(UI.kpi.topCourses).html(
+                (kpiData.topCourses || ["-", "-", "-"]).map((courseName, i) =>
+                    `<div class="mb-1">
+                        <span class="fw-bold">${i + 1}.</span>
+                        <span class="text-info">${courseName}</span>
+                     </div>`
+                ).join("")
+            );
+        },
+
+        // Secret key status -------------------------------------------
+
+        setSecretKeyStatus(type, faIcon, text) {
+            const colorClass = type === "success" ? "text-success"
+                             : type === "danger"  ? "text-danger"
+                             : "text-muted";
+            $(UI.validation.secretKeyStatus).html(
+                `<span class="${colorClass}"><i class="fas ${faIcon} me-1"></i>${text}</span>`
+            );
+        },
+
+    };
+
+    const Actions = {
+
+        loadLibraries() {
+            if (typeof UserInfo === "undefined" || !UserInfo.UserID) {
+                $(UI.kpi.currentLibrary).text("User not logged in");
+                return;
             }
+
+            API.getLibraries(UserInfo.UserID)
+                .done(libraryRes => {
+                    if (!libraryRes.success || !libraryRes.data?.length) {
+                        State.currentLibraryName = libraryRes.error ?? "No Library Access";
+                        State.currentLibraryID   = null;
+                        $(UI.kpi.currentLibrary).text(State.currentLibraryName);
+                        return;
+                    }
+
+                    const library            = libraryRes.data[0];
+                    State.currentLibraryID   = library.SectionID;
+                    State.currentLibraryName = library.SectionName;
+                    $(UI.kpi.currentLibrary).text(State.currentLibraryName);
+                    Actions.loadKPI();
+                })
+                .fail(xhr => {
+                    $(UI.kpi.currentLibrary).text("Connection error");
+                    console.error("getLibraries failed:", xhr.responseText);
+                });
+        },
+
+        loadKPI() {
+            if (!State.currentLibraryID) return;
+            API.getKPI(State.currentLibraryID)
+                .done(kpiRes => { if (kpiRes.success && kpiRes.data) Helpers.renderKPI(kpiRes.data); });
+        },
+
+        validateUser() {
+            const idNumber = $(UI.inputs.studentNumber).val().trim();
+            if (!idNumber) return alert("Please enter an Identification Number.");
+
+            API.validateUser(idNumber)
+                .done(validationRes => {
+                    if (validationRes.error) {
+                        alert("No record found for that ID number.");
+                        $(UI.inputs.studentNumber).val("").focus();
+                        return;
+                    }
+
+                    if (validationRes.duplicate) {
+                        State.duplicateCandidates = validationRes.matches;
+                        Helpers.showModal("Identity Verification", validationRes.modalHTML, "");
+                        return;
+                    }
+
+                    State.selectedUser = validationRes.data;
+                    API.checkStatus(State.selectedUser.id_number, State.selectedUser.name)
+                        .done(status => Actions.determineAttendanceAction(State.selectedUser, status));
+                });
+        },
+
+        determineAttendanceAction(user, status) {
+            let action  = "checkin",       color   = "success";
+            let icon    = "fa-sign-in-alt", btnText = "Check In";
+            let message = "Not checked in yet";
+
+            if (status.checkedIn) {
+                const sameSection = Number(status.sectionID) === Number(State.currentLibraryID);
+                if (sameSection) {
+                    action  = "checkout"; color   = "danger";
+                    icon    = "fa-sign-out-alt"; btnText = "Check Out";
+                    message = "Currently in this library";
+                } else {
+                    const prevLibrary = status.sectionName || "another library";
+                    action  = "switch"; color   = "warning";
+                    icon    = "fa-random"; btnText = "Switch & Check In";
+                    message = `You forgot to check out at <strong>${prevLibrary}</strong>. No worries — we've automatically checked you out and completed your check-in here.`;
+                }
+            }
+
+            State.currentAction = action;
+
+            API.getAttendanceModal(user, color, icon, btnText, message, State.currentLibraryName)
+                .done(attendanceRes => attendanceRes.success && Helpers.showModal("Attendance Confirmation", attendanceRes.body, attendanceRes.footer));
+        },
+
+        validateSecretKey(key) {
+            const match = State.duplicateCandidates.find(candidate => candidate.secretKey?.replace(/\D/g, "") === key);
+
+            if (match) {
+                State.selectedUser = match;
+                Helpers.setSecretKeyStatus("success", "fa-check-circle", "Identity verified");
+                $(UI.validation.verifiedContainer).show();
+                API.checkStatus(State.selectedUser.id_number, State.selectedUser.name)
+                    .done(status => Actions.determineAttendanceAction(State.selectedUser, status));
+            } else {
+                Helpers.setSecretKeyStatus("danger", "fa-exclamation-circle", "Invalid key — try again");
+                $(UI.validation.verifiedContainer).hide().empty();
+            }
+        },
+
+        processAttendance(user, action) {
+            if (!State.currentLibraryID) return;
+            if (user.classification !== "GUEST" && !user.id_number) return;
+
+            const resolvedAction = action === "switch" ? "checkin" : action;
+            const label          = resolvedAction === "checkin" ? "checked in" : "checked out";
+
+            Helpers.showSuccessModal(user.name, label);
+
+            API.saveAttendance(user, resolvedAction, State.currentLibraryID)
+                .done(saveRes => {
+                    if (saveRes.error) { Helpers.showErrorModal(saveRes.error); return; }
+                    Actions.loadKPI();
+                    $(UI.inputs.studentNumber).val("");
+                });
+        },
+
+        openGuestCheckIn() {
+            if (!State.currentLibraryID) return alert("Library section not loaded yet.");
+            API.getGuestCheckInModal(State.currentLibraryName)
+                .done(guestCheckInRes => {
+                    if (!guestCheckInRes.success) return alert(guestCheckInRes.error || "Failed to load guest form.");
+                    Helpers.showModal("Guest Check-In", guestCheckInRes.body, guestCheckInRes.footer);
+                })
+                .fail(xhr => { console.error(xhr.responseText); alert("Connection error."); });
+        },
+
+        openGuestCheckOut() {
+            if (!State.currentLibraryID) return alert("Library section not loaded yet.");
+            API.getGuestCheckOutModal(State.currentLibraryID, State.currentLibraryName)
+                .done(guestCheckOutRes => {
+                    if (!guestCheckOutRes.success) return alert(guestCheckOutRes.error || "Failed to load guest list.");
+                    Helpers.showModal("Guest Check-Out", guestCheckOutRes.body, guestCheckOutRes.footer);
+                })
+                .fail(xhr => { console.error(xhr.responseText); alert("Connection error."); });
+        },
+
+        checkoutGuest(logID, guestName) {
+            if (!logID) return;
+            API.guestCheckout(logID, State.currentLibraryID)
+                .done(checkoutRes => {
+                    if (checkoutRes.error) { alert(checkoutRes.error); return; }
+
+                    $(`.btn-guest-checkout[data-logid="${logID}"]`)
+                        .closest(".guest-row")
+                        .fadeOut(200, function () { $(this).remove(); });
+
+                    // Prepend the success alert, then self-remove after 2 s
+                    // so stale messages never stack up in the list.
+                    const $alert = $(`<div class="alert alert-success py-2 px-3 mb-2 text-center">
+                            <i class="fas fa-check-circle me-1"></i>
+                            <strong>${guestName}</strong> successfully checked out.
+                        </div>`).prependTo(UI.guest.checkoutList);
+                    setTimeout(() => $alert.fadeOut(400, () => $alert.remove()), 2000);
+
+                    Actions.loadKPI();
+                })
+                .fail(() => alert("Connection error."));
+},
+
+        confirmGuestCheckIn() {
+            const name   = $(UI.inputs.guestName).val().trim();
+            const sex    = $(UI.inputs.guestSex).val();
+            const agency = $(UI.inputs.guestAgency).val().trim();
+
+            if (!name)   { alert("Guest name is required.");         return; }
+            if (!sex)    { alert("Please select a sex.");            return; }
+            if (!agency) { alert("Agency / Organization required."); return; }
+
+            Actions.processAttendance({
+                id_number: "", name, classification: "GUEST",
+                college: "", course: "", sex, agency_organization: agency,
+            }, "checkin");
+        },
+
+    };
+
+    $(document).off(".libLogs"); // Clear stale handlers from any previous AJAX injection
+
+    // Boot
+    Helpers.startClock();
+    Helpers.startGuestNudge();
+    Actions.loadLibraries();
+
+    // Hover styles (direct — static elements, safe to re-bind on each injection)
+    Helpers.applyHover(
+        UI.buttons.guestCheckIn,
+        { background: "#d1fae5", boxShadow: "0 4px 14px rgba(6,78,59,.15)",    transform: "translateY(-1px)" },
+        { background: "#f0fdf9", boxShadow: "",                                transform: "" }
+    );
+    Helpers.applyHover(
+        UI.buttons.guestCheckOut,
+        { background: "#fee2e2", boxShadow: "0 4px 14px rgba(220,38,38,.15)", transform: "translateY(-1px)" },
+        { background: "#fff5f5", boxShadow: "",                                transform: "" }
+    );
+
+    // Direct binds — static elements
+    $(UI.buttons.guestCheckIn).on("click",  () => Actions.openGuestCheckIn());
+    $(UI.buttons.guestCheckOut).on("click", () => Actions.openGuestCheckOut());
+    $(UI.buttons.toggleIdVisibility).on("click", () =>
+        Helpers.togglePassword(UI.inputs.studentNumber, UI.icons.toggle)
+    );
+
+    // Delegated binds — namespaced to prevent stacking on re-injection
+    $(document).on("submit.libLogs", "#logForm", e => { e.preventDefault(); Actions.validateUser(); });
+
+    $(document).on(                                                                             // PHP: buildAttendanceModalHTML()
+        "click.libLogs",
+        "#dynamicModal .btn-close, #dynamicModal [data-dismiss='modal'], #dynamicModal [data-bs-dismiss='modal']",
+        () => Helpers.hideModal()
+    );
+
+    $(document).on("click.libLogs", "#confirmAttendance", () => {                              // PHP: buildAttendanceModalHTML()
+        if (State.selectedUser && State.currentAction) {
+            Actions.processAttendance(State.selectedUser, State.currentAction);
+        }
+    });
+
+    $(document).on("click.libLogs",  "#confirmGuestCheckIn",  () => Actions.confirmGuestCheckIn());  // PHP: GuestCheckInModal()
+
+    $(document).on("click.libLogs", ".btn-guest-checkout", function () {                             // PHP: GuestCheckoutModal()
+        Actions.checkoutGuest($(this).data("logid"), $(this).data("name"));
+    });
+
+    $(document).on("input.libLogs", "#guestSearchInput", function () {                               // PHP: GuestCheckoutModal()
+        const searchQuery = $(this).val().toLowerCase();
+        $(UI.guest.checkoutList).find(".guest-row").each(function () {
+            $(this).toggle($(this).data("name").toLowerCase().includes(searchQuery));
+        });
+        $(UI.guest.noResults).toggle(
+            $(UI.guest.checkoutList).find(".guest-row:visible").length === 0
         );
-    }
+    });
+
+    $(document).on("click.libLogs", "#toggleSecretKey", () =>                                        // PHP: DuplicateModal()
+        Helpers.togglePassword(UI.inputs.secretKey, UI.icons.secret)
+    );
+
+    $(document).on("input.libLogs", "#modalSecretKey", function () {                                 // PHP: DuplicateModal()
+        let raw = $(this).val().replace(/\D/g, "").substring(0, 8);
+
+        let formatted = raw;
+        if      (raw.length > 4) formatted = raw.slice(0, 2) + "/" + raw.slice(2, 4) + "/" + raw.slice(4);
+        else if (raw.length > 2) formatted = raw.slice(0, 2) + "/" + raw.slice(2);
+        $(this).val(formatted);
+
+        if (raw.length === 8) {
+            Actions.validateSecretKey(raw);
+        } else {
+            $(UI.validation.verifiedContainer).hide().empty();
+            Helpers.setSecretKeyStatus("muted", "fa-info-circle", "Enter birth date (MM/DD/YYYY)");
+        }
+    });
 
 });
 </script>
