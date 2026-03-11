@@ -35,26 +35,15 @@ function getTodayRange(string $today): array
 }
 
 // ============================================================
-// DATA SOURCE CONFIG — Unified Local JSON / API Loader
+// DATA SOURCE CONFIG — Pure Local JSON (no API)
 // ============================================================
-
-define("USE_LOCAL_DATA", true); // flip to false when API is ready
 
 $USER_SOURCE = [
     "students"  => __DIR__ . "/../../API_requests/students.json",
     "employees" => __DIR__ . "/../../API_requests/employees.json",
-
-    // Example API replacement:
-    // "students"  => "https://your-school-api.edu/api/students",
-    // "employees" => "https://your-school-api.edu/api/employees",
 ];
 
-define("API_ID_PARAMS", [
-    "students"  => "id_number",
-    "employees" => "employee_number",
-]);
-
-// Resolves a user record from either local JSON or the API,
+// Resolves a user record from local JSON,
 // filtered to the exact ID number provided.
 // Note: validateIdFormat() allows lowercase via /i flag — ensure source
 // JSON stores id_number in consistent casing to avoid === mismatches here.
@@ -63,7 +52,7 @@ function resolveUserById(string $idNumber): array
     $isEmployee  = str_starts_with(strtoupper($idNumber), "TAU");
     $sourceGroup = $isEmployee ? "employees" : "students";
 
-    $rawPayload = loadUserPayload($sourceGroup, $idNumber);
+    $rawPayload = loadUserPayload($sourceGroup);
     if (!$rawPayload) return [];
 
     $allRecords  = extractRecordsFromPayload($rawPayload);
@@ -81,51 +70,15 @@ function resolveUserById(string $idNumber): array
     );
 }
 
-// Loads a user payload from either a local JSON file or a remote API endpoint.
-function loadUserPayload(string $source, string $idNumber = null): ?array
+// Loads a user payload from a local JSON file.
+function loadUserPayload(string $source): ?array
 {
     global $USER_SOURCE;
 
-    $localOrAPI = $USER_SOURCE[$source] ?? null;
-    if (!$localOrAPI) return null;
+    $filePath = $USER_SOURCE[$source] ?? null;
+    if (!$filePath || !file_exists($filePath)) return null;
 
-    if (USE_LOCAL_DATA) {
-        if (!file_exists($localOrAPI)) return null;
-        $decoded = json_decode(file_get_contents($localOrAPI), true);
-        return (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) ? $decoded : null;
-    }
-
-    // API path
-    $token = $_ENV["SCHOOL_API_TOKEN"] ?? null;
-    if (!$token) return null;
-
-    if ($idNumber) {
-        $localOrAPI .= "?" . http_build_query([API_ID_PARAMS[$source] => $idNumber]);
-    }
-
-    return apiRequest($localOrAPI, $token);
-}
-
-function apiRequest(string $url, string $token): ?array
-{
-    $curl = curl_init($url);
-    curl_setopt_array($curl, [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT        => 5,
-        CURLOPT_CONNECTTIMEOUT => 3,
-        CURLOPT_HTTPHEADER     => [
-            "Authorization: Bearer {$token}",
-            "Accept: application/json",
-        ],
-    ]);
-
-    $body       = curl_exec($curl);
-    $statusCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-    curl_close($curl);
-
-    if ($body === false || $statusCode !== 200) return null;
-
-    $decoded = json_decode($body, true);
+    $decoded = json_decode(file_get_contents($filePath), true);
     return (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) ? $decoded : null;
 }
 
@@ -139,6 +92,100 @@ function extractRecordsFromPayload(array $payload): array
 
     return [];
 }
+
+// // ============================================================
+// // DATA SOURCE CONFIG — Pure API (no local JSON)
+// // ============================================================
+
+// $USER_SOURCE = [
+//     "students"  => "https://your-school-api.edu/api/students",   // Replace with real URL
+//     "employees" => "https://your-school-api.edu/api/employees", // Replace with real URL
+// ];
+
+// define("API_ID_PARAMS", [
+//     "students"  => "id_number",
+//     "employees" => "employee_number",
+// ]);
+
+// // Resolves a user record from the API, filtered to the exact ID number provided.
+// // Note: validateIdFormat() allows lowercase via /i flag — ensure API returns
+// // id_number in consistent casing to avoid === mismatches here.
+// function resolveUserById(string $idNumber): array
+// {
+//     $isEmployee  = str_starts_with(strtoupper($idNumber), "TAU");
+//     $sourceGroup = $isEmployee ? "employees" : "students";
+
+//     $rawPayload = loadUserPayload($sourceGroup, $idNumber); // API already filtered
+//     if (!$rawPayload) return [];
+
+//     $allRecords  = extractRecordsFromPayload($rawPayload);
+//     $mappedUsers = [];
+
+//     foreach ($allRecords as $record) {
+//         $mappedUsers[] = $isEmployee
+//             ? mapEmployeeToUserRecord($record)
+//             : mapStudentToUserRecord($record);
+//     }
+
+//     // array_values() resets keys after filter so $mappedUsers[0] is always safe
+//     return array_values(
+//         array_filter($mappedUsers, fn($user) => $user["id_number"] === $idNumber)
+//     );
+// }
+
+// // Loads a user payload from a remote API endpoint.
+// // If $idNumber is provided, appends the appropriate query parameter.
+// function loadUserPayload(string $source, string $idNumber = null): ?array
+// {
+//     global $USER_SOURCE;
+
+//     $url = $USER_SOURCE[$source] ?? null;
+//     if (!$url) return null;
+
+//     $token = $_ENV["SCHOOL_API_TOKEN"] ?? null;
+//     if (!$token) return null;
+
+//     if ($idNumber) {
+//         $url .= "?" . http_build_query([API_ID_PARAMS[$source] => $idNumber]);
+//     }
+
+//     return apiRequest($url, $token);
+// }
+
+// function apiRequest(string $url, string $token): ?array
+// {
+//     $curl = curl_init($url);
+//     curl_setopt_array($curl, [
+//         CURLOPT_RETURNTRANSFER => true,
+//         CURLOPT_TIMEOUT        => 5,
+//         CURLOPT_CONNECTTIMEOUT => 3,
+//         CURLOPT_HTTPHEADER     => [
+//             "Authorization: Bearer {$token}",
+//             "Accept: application/json",
+//         ],
+//     ]);
+
+//     $body       = curl_exec($curl);
+//     $statusCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+//     curl_close($curl);
+
+//     if ($body === false || $statusCode !== 200) return null;
+
+//     $decoded = json_decode($body, true);
+//     return (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) ? $decoded : null;
+// }
+
+// function extractRecordsFromPayload(array $payload): array
+// {
+//     if (isset($payload[0])) return $payload;
+
+//     foreach (["data", "employees", "students", "records", "items"] as $key) {
+//         if (isset($payload[$key]) && is_array($payload[$key])) return $payload[$key];
+//     }
+
+//     return [];
+// }
+
 
 // ============================================================
 // USER RECORD MAPPERS
