@@ -238,10 +238,7 @@ style="background:linear-gradient(135deg,#ffffff,#ecfdf5);
 
 <script>
 $(function () {
-
-
     const UI = {
-
         buttons: {
             get guestCheckIn()       { return document.getElementById("guestCheckIn"); },
             get guestCheckOut()      { return document.getElementById("guestCheckOut"); },
@@ -343,7 +340,6 @@ $(function () {
                 sex:                 user.sex                 || "",
                 agency_organization: user.agency_organization || "",
             }),
-
     };
 
 

@@ -226,10 +226,16 @@ $(function () {
         collegeColorFallback: 'rgba(139,92,246,0.88)',
 
         exportLibraries: {
-            jspdf:     'https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js',
-            autotable: 'https://unpkg.com/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js',
-            exceljs:   'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js',
-        },
+            jspdf:     'libs/jspdf.umd.min.js',
+            autotable: 'libs/jspdf.plugin.autotable.min.js',
+            exceljs:   'libs/exceljs.min.js',
+
+    // exportLibraries: {
+    //         jspdf:     'https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js',
+    //         autotable: 'https://unpkg.com/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js',
+    //         exceljs:   'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js',
+    //     },
+},
     };
 
 
@@ -1013,19 +1019,37 @@ const renderDurationRow = (row) => `<tr>
 
     // ── EXPORT HELPERS ────────────────────────────────────────────────────────
 
+    const _scriptCache = {};
+
     function loadScript(url) {
-        return new Promise((resolve, reject) => {
-            if (document.querySelector(`script[src="${url}"]`)) { resolve(); return; }
+        if (_scriptCache[url]) return _scriptCache[url];
+        _scriptCache[url] = new Promise((resolve, reject) => {
+            const existing = document.querySelector(`script[src="${url}"]`);
+            if (existing) {
+                // Tag exists but load may be in-flight — wait for it
+                existing.addEventListener('load',  resolve, { once: true });
+                existing.addEventListener('error', reject,  { once: true });
+                // If already loaded (readyState trick isn't reliable for dynamic scripts,
+                // so just attempt a redundant resolve after a tick)
+                setTimeout(resolve, 0);
+                return;
+            }
             const s    = document.createElement('script');
             s.src      = url;
             s.onload   = resolve;
             s.onerror  = () => reject(new Error('Failed to load: ' + url));
             document.head.appendChild(s);
         });
+        return _scriptCache[url];
     }
 
     function preloadExportLibraries() {
-        Object.values(Analytics.exportLibraries).forEach(url => loadScript(url).catch(() => {}));
+        // autotable MUST come after jsPDF — chain them
+        loadScript(Analytics.exportLibraries.jspdf)
+            .then(() => loadScript(Analytics.exportLibraries.autotable))
+            .catch(() => {});
+        // exceljs is independent
+        loadScript(Analytics.exportLibraries.exceljs).catch(() => {});
     }
 
     async function saveBlob(blob, suggestedName, mimeType, ext) {
@@ -1355,7 +1379,7 @@ const renderDurationRow = (row) => `<tr>
         try {
             if (format === 'pdf') {
                 await loadScript(Analytics.exportLibraries.jspdf);
-                await loadScript(Analytics.exportLibraries.autotable);
+                await loadScript(Analytics.exportLibraries.autotable);  // strictly sequential
                 await runExportPDF(sections, lastResponse);
             } else {
                 await loadScript(Analytics.exportLibraries.exceljs);

@@ -14,24 +14,21 @@
 
         <!-- Table -->
         <div class="card-body p-0">
-
             <div class="table-responsive">
-
                 <table class="table table-hover table-striped align-middle mb-0">
-
                     <thead class="table-success">
                         <tr>
-                            <th>Section Code</th>
-                            <th>Section Name</th>
+                            <th>SectionID</th>
+                            <th>SectionCode</th>
                             <th>Description</th>
-                            <th>Status</th>
+                            <th>SectionName</th>
+                            <th>IsActive</th>
                             <th>Date Created</th>
                             <th>Action</th>
                         </tr>
                     </thead>
 
-                    <tbody>
-
+                    <tbody id="sectionData">
                         <tr>
                             <td class="fw-semibold">SEC-001</td>
                             <td>Human Resources</td>
@@ -43,18 +40,16 @@
                             </td>
                             <td>2026-03-09</td>
                             <td>
-    <div class="d-flex gap-2">
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-outline-primary btn-sm rounded-pill">
+                                        <i class="fas fa-edit me-1"></i> Edit
+                                    </button>
 
-        <button class="btn btn-outline-primary btn-sm rounded-pill">
-            <i class="fas fa-edit me-1"></i> Edit
-        </button>
-
-        <button class="btn btn-outline-danger btn-sm rounded-pill">
-            <i class="fas fa-trash me-1"></i> Delete
-        </button>
-
-    </div>
-</td>
+                                    <button class="btn btn-outline-danger btn-sm rounded-pill">
+                                        <i class="fas fa-trash me-1"></i> Delete
+                                    </button>
+                                </div>
+                            </td>
                         </tr>
 
                         <tr>
@@ -68,28 +63,31 @@
                             </td>
                             <td>2026-03-08</td>
                             <td>
-    <div class="d-flex gap-2">
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-outline-primary btn-sm rounded-pill">
+                                        <i class="fas fa-edit me-1"></i> Edit
+                                    </button>
 
-        <button class="btn btn-outline-primary btn-sm rounded-pill">
-            <i class="fas fa-edit me-1"></i> Edit
-        </button>
-
-        <button class="btn btn-outline-danger btn-sm rounded-pill">
-            <i class="fas fa-trash me-1"></i> Delete
-        </button>
-
-    </div>
-</td>
+                                    <button class="btn btn-outline-danger btn-sm rounded-pill">
+                                        <i class="fas fa-trash me-1"></i> Delete
+                                    </button>
+                                </div>
+                            </td>
                         </tr>
-
                     </tbody>
-
                 </table>
-
             </div>
-
         </div>
-
     </div>
-
 </div>
+
+<script>
+$(function(){
+
+const BACKEND = "backend/bk_LibraryMenu/bk_libSections.php";
+
+$.post(BACKEND, { request:"getSection" }, null, "json")
+    .done(res => $("#sectionData").html(res.html))
+    .fail(err => console.error("Section load failed:", err));
+});
+</script>
