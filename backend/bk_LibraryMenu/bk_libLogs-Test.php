@@ -8,190 +8,116 @@ include "../../db/dbconnection.php";
 date_default_timezone_set("Asia/Manila");
 header("Content-Type: application/json");
 
-if ($_SERVER["REQUEST_METHOD"] !== "POST") {
-    sendResponse(["error" => "Invalid request method."]);
-}
+if ($_SERVER["REQUEST_METHOD"] !== "POST") sendResponse(["error" => "Invalid request method."]);
 
 // ============================================================
-// UTILITIES
+// BOOTSTRAP — captured once, used everywhere
 // ============================================================
 
-function sendResponse(array $payload): void
-{
-    echo json_encode($payload);
-    exit;
-}
-
-function validateIdFormat(string $idNumber): bool
-{
-    return (bool) preg_match('/^[A-Z0-9-]+$/i', $idNumber);
-}
-
-function getTodayRange(string $today): array
-{
-    $start = $today . " 00:00:00";
-    $end   = date("Y-m-d", strtotime("+1 day", strtotime($today))) . " 00:00:00";
-    return [$start, $end];
-}
-
-// ============================================================
-// DATA SOURCE CONFIG — Pure Local JSON (no API)
-// ============================================================
+$input = array_map('trim', $_POST ?? []);
+$today = date("Y-m-d");
+$now   = date("Y-m-d H:i:s");
 
 $USER_SOURCE = [
     "students"  => __DIR__ . "/../../API_requests/students.json",
     "employees" => __DIR__ . "/../../API_requests/employees.json",
 ];
 
-// Resolves a user record from local JSON,
-// filtered to the exact ID number provided.
-// Note: validateIdFormat() allows lowercase via /i flag — ensure source
-// JSON stores id_number in consistent casing to avoid === mismatches here.
+// ============================================================
+// CONSTANTS
+// ============================================================
+
+// Action config lives here — not in JS — since PHP is the sole consumer of
+// color/icon/btnText when building the attendance modal HTML.
+const ACTION_CONFIG = [
+    "checkin"  => ["color" => "success", "icon" => "fa-sign-in-alt",  "btnText" => "Check In",         "message" => "Not checked in yet"],
+    "checkout" => ["color" => "danger",  "icon" => "fa-sign-out-alt", "btnText" => "Check Out",         "message" => "Currently in this library"],
+    "switch"   => ["color" => "warning", "icon" => "fa-random",       "btnText" => "Switch & Check In", "message" => null],
+];
+
+// ============================================================
+// UTILITIES
+// ============================================================
+
+function sendResponse(array $payload): void { echo json_encode($payload); exit; }
+function str(string $key, string $default = ""): string { global $input; return $input[$key] ?? $default; }
+function int(string $key): int                          { global $input; return intval($input[$key] ?? 0); }
+
+function escHtml(mixed $value): string
+{
+    return htmlspecialchars((string)($value ?? ""), ENT_QUOTES, "UTF-8");
+}
+
+function validateId(string $idNumber): bool
+{
+    return (bool) preg_match('/^[A-Z0-9-]+$/i', $idNumber);
+}
+
+function todayRange(string $today): array
+{
+    return [
+        $today . " 00:00:00",
+        date("Y-m-d", strtotime("+1 day", strtotime($today))) . " 00:00:00",
+    ];
+}
+
+// Prepares, executes, and returns the statement for chaining.
+function run(PDO $pdo, string $sql, array $params = []): PDOStatement
+{
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    return $stmt;
+}
+
+// ============================================================
+// DATA SOURCE CONFIG — Pure Local JSON (no API)
+// ============================================================
+
+// Resolves user records from local JSON, filtered to the exact ID provided.
+// Note: validateId() allows lowercase via /i — ensure JSON stores
+// id_number in consistent casing to avoid === mismatches.
+// IMPORTANT: Must collect ALL matches — duplicate IDs trigger the secret key modal.
 function resolveUserById(string $idNumber): array
 {
     $isEmployee  = str_starts_with(strtoupper($idNumber), "TAU");
     $sourceGroup = $isEmployee ? "employees" : "students";
+    $payload     = loadUserPayload($sourceGroup);
+    if (!$payload) return [];
 
-    $rawPayload = loadUserPayload($sourceGroup);
-    if (!$rawPayload) return [];
+    $mapper  = $isEmployee ? "mapEmployee" : "mapStudent";
+    $matches = [];
 
-    $allRecords  = extractRecordsFromPayload($rawPayload);
-    $mappedUsers = [];
-
-    foreach ($allRecords as $record) {
-        $mappedUsers[] = $isEmployee
-            ? mapEmployeeToUserRecord($record)
-            : mapStudentToUserRecord($record);
+    foreach (extractRecords($payload) as $record) {
+        $user = $mapper($record);
+        if ($user["id_number"] === $idNumber) $matches[] = $user;
     }
 
-    // array_values() resets keys after filter so $mappedUsers[0] is always safe
-    return array_values(
-        array_filter($mappedUsers, fn($user) => $user["id_number"] === $idNumber)
-    );
+    return $matches;
 }
 
-// Loads a user payload from a local JSON file.
-function loadUserPayload(string $source): ?array
+function loadUserPayload(string $sourceGroup): ?array
 {
     global $USER_SOURCE;
-
-    $filePath = $USER_SOURCE[$source] ?? null;
+    $filePath = $USER_SOURCE[$sourceGroup] ?? null;
     if (!$filePath || !file_exists($filePath)) return null;
-
     $decoded = json_decode(file_get_contents($filePath), true);
     return (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) ? $decoded : null;
 }
 
-function extractRecordsFromPayload(array $payload): array
+function extractRecords(array $payload): array
 {
     if (isset($payload[0])) return $payload;
-
     foreach (["data", "employees", "students", "records", "items"] as $key) {
         if (isset($payload[$key]) && is_array($payload[$key])) return $payload[$key];
     }
-
     return [];
 }
-
-// // ============================================================
-// // DATA SOURCE CONFIG — Pure API (no local JSON)
-// // ============================================================
-
-// $USER_SOURCE = [
-//     "students"  => "https://your-school-api.edu/api/students",   // Replace with real URL
-//     "employees" => "https://your-school-api.edu/api/employees", // Replace with real URL
-// ];
-
-// define("API_ID_PARAMS", [
-//     "students"  => "id_number",
-//     "employees" => "employee_number",
-// ]);
-
-// // Resolves a user record from the API, filtered to the exact ID number provided.
-// // Note: validateIdFormat() allows lowercase via /i flag — ensure API returns
-// // id_number in consistent casing to avoid === mismatches here.
-// function resolveUserById(string $idNumber): array
-// {
-//     $isEmployee  = str_starts_with(strtoupper($idNumber), "TAU");
-//     $sourceGroup = $isEmployee ? "employees" : "students";
-
-//     $rawPayload = loadUserPayload($sourceGroup, $idNumber); // API already filtered
-//     if (!$rawPayload) return [];
-
-//     $allRecords  = extractRecordsFromPayload($rawPayload);
-//     $mappedUsers = [];
-
-//     foreach ($allRecords as $record) {
-//         $mappedUsers[] = $isEmployee
-//             ? mapEmployeeToUserRecord($record)
-//             : mapStudentToUserRecord($record);
-//     }
-
-//     // array_values() resets keys after filter so $mappedUsers[0] is always safe
-//     return array_values(
-//         array_filter($mappedUsers, fn($user) => $user["id_number"] === $idNumber)
-//     );
-// }
-
-// // Loads a user payload from a remote API endpoint.
-// // If $idNumber is provided, appends the appropriate query parameter.
-// function loadUserPayload(string $source, string $idNumber = null): ?array
-// {
-//     global $USER_SOURCE;
-
-//     $url = $USER_SOURCE[$source] ?? null;
-//     if (!$url) return null;
-
-//     $token = $_ENV["SCHOOL_API_TOKEN"] ?? null;
-//     if (!$token) return null;
-
-//     if ($idNumber) {
-//         $url .= "?" . http_build_query([API_ID_PARAMS[$source] => $idNumber]);
-//     }
-
-//     return apiRequest($url, $token);
-// }
-
-// function apiRequest(string $url, string $token): ?array
-// {
-//     $curl = curl_init($url);
-//     curl_setopt_array($curl, [
-//         CURLOPT_RETURNTRANSFER => true,
-//         CURLOPT_TIMEOUT        => 5,
-//         CURLOPT_CONNECTTIMEOUT => 3,
-//         CURLOPT_HTTPHEADER     => [
-//             "Authorization: Bearer {$token}",
-//             "Accept: application/json",
-//         ],
-//     ]);
-
-//     $body       = curl_exec($curl);
-//     $statusCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-//     curl_close($curl);
-
-//     if ($body === false || $statusCode !== 200) return null;
-
-//     $decoded = json_decode($body, true);
-//     return (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) ? $decoded : null;
-// }
-
-// function extractRecordsFromPayload(array $payload): array
-// {
-//     if (isset($payload[0])) return $payload;
-
-//     foreach (["data", "employees", "students", "records", "items"] as $key) {
-//         if (isset($payload[$key]) && is_array($payload[$key])) return $payload[$key];
-//     }
-
-//     return [];
-// }
-
 
 // ============================================================
 // USER RECORD MAPPERS
 // ============================================================
 
-function mapStudentToUserRecord(array $student): array
+function mapStudent(array $student): array
 {
     return [
         "id_number"      => $student["id_number"] ?? "",
@@ -204,7 +130,7 @@ function mapStudentToUserRecord(array $student): array
     ];
 }
 
-function mapEmployeeToUserRecord(array $employee): array
+function mapEmployee(array $employee): array
 {
     return [
         "id_number"      => $employee["employee_number"] ?? $employee["id_number"] ?? "",
@@ -224,29 +150,14 @@ function mapEmployeeToUserRecord(array $employee): array
 // ============================================================
 
 // Builds the attendance confirmation modal body and footer.
-// Called after JS has validated the user, checked their status,
-// and determined the action (checkin / checkout / switch).
-// JS owns state and routing — PHP owns rendering.
-// $message may contain only <strong> and <em> tags (strip_tags enforced).
-function buildAttendanceModalHTML(
-    array $user,
-    string $color,
-    string $icon,
-    string $btnText,
-    string $message,
-    string $libraryName
+// JS sends action key + sectionName — PHP resolves color/icon/btnText/message
+// from ACTION_CONFIG. JS owns state and routing — PHP owns rendering.
+function buildAttendanceModal(
+    array $user, string $color, string $icon,
+    string $btnText, string $message, string $libraryName
 ): array {
     $isEmployee = $user["classification"] === "EMPLOYEE";
     $isGuest    = $user["classification"] === "GUEST";
-
-    $escape = fn($value) => htmlspecialchars($value ?? "");
-
-    $idNumber   = $escape($user["id_number"]);
-    $name       = $escape($user["name"]);
-    $sex        = $escape($user["sex"] ?? "N/A");
-    $type       = $escape($user["classification"]);
-    $library    = $escape($libraryName);
-    $message    = strip_tags($message, "<strong><em>");
 
     $buildRow = fn($label, $value) =>
         "<div class='row mb-2'>
@@ -254,36 +165,26 @@ function buildAttendanceModalHTML(
             <div class='col-7'>{$value}</div>
          </div>";
 
-    $rows = "";
-
-    if (!$isGuest) {
-        $rows .= $buildRow("ID", $idNumber);
-    }
-
-    $rows .= $buildRow("Name", $name);
-    $rows .= $buildRow("Sex",  $sex);
-    $rows .= $buildRow("Type", $type);
-
-    if (!$isEmployee && !$isGuest) {
-        $rows .= $buildRow("College", $escape($user["college"] ?? "N/A"));
-        $rows .= $buildRow("Course",  $escape($user["course"]  ?? "N/A"));
-    }
-
-    if ($isGuest) {
-        $rows .= $buildRow("Agency", $escape($user["agency_organization"] ?? "N/A"));
-    }
+    $rows  = "";
+    if (!$isGuest)                 $rows .= $buildRow("ID",      escHtml($user["id_number"]));
+                                   $rows .= $buildRow("Name",    escHtml($user["name"]));
+                                   $rows .= $buildRow("Sex",     escHtml($user["sex"]       ?? "N/A"));
+                                   $rows .= $buildRow("Type",    escHtml($user["classification"]));
+    if (!$isEmployee && !$isGuest) $rows .= $buildRow("College", escHtml($user["college"]   ?? "N/A"))
+                                          . $buildRow("Course",  escHtml($user["course"]    ?? "N/A"));
+    if ($isGuest)                  $rows .= $buildRow("Agency",  escHtml($user["agency_organization"] ?? "N/A"));
 
     $body = "
     <div class='text-center mb-3'>
         <div class='badge bg-{$color} fs-6 p-2'>
             <i class='fas {$icon} me-2'></i>{$btnText} Confirmation
         </div>
-        <p class='text-muted mt-2 small'>{$message}</p>
+        <p class='text-muted mt-2 small'>" . strip_tags($message, "<strong><em>") . "</p>
     </div>
     <div class='bg-light p-3 rounded'>
         {$rows}
         <hr>
-        <div class='text-center fw-bold text-primary'>Library: {$library}</div>
+        <div class='text-center fw-bold text-primary'>Library: " . escHtml($libraryName) . "</div>
     </div>";
 
     $footer = "
@@ -292,12 +193,12 @@ function buildAttendanceModalHTML(
         <i class='fas {$icon} me-1'></i>{$btnText}
     </button>";
 
-    return ["body" => $body, "footer" => $footer];
+    return compact("body", "footer");
 }
 
 // Builds the duplicate ID verification modal.
 // Shown when multiple students share the same ID number.
-function DuplicateModal(): string
+function buildDuplicateModal(): string
 {
     return "
     <div class='text-center mb-3'>
@@ -308,12 +209,9 @@ function DuplicateModal(): string
     </div>
     <div class='card bg-light p-3 border-0'>
         <div class='input-group mb-2'>
-            <input type='text'
-                   id='modalSecretKey'
+            <input type='text' id='modalSecretKey'
                    class='form-control text-center fw-bold fs-5'
-                   maxlength='10'
-                   placeholder='MM/DD/YYYY'
-                   autocomplete='off'>
+                   maxlength='10' placeholder='MM/DD/YYYY' autocomplete='off'>
             <button class='btn btn-outline-secondary' type='button' id='toggleSecretKey'>
                 <i class='fas fa-eye' id='secretIcon'></i>
             </button>
@@ -325,9 +223,47 @@ function DuplicateModal(): string
     <div id='verifiedStudentContainer' class='mt-3' style='display:none;'></div>";
 }
 
+// Builds a single guest row for the checkout modal list.
+function buildGuestRow(array $guest): string
+{
+    $logID        = intval($guest["id"]);
+    $guestName    = escHtml($guest["name"]                ?? "");
+    $guestSex     = escHtml($guest["sex"]                 ?? "");
+    $organization = escHtml($guest["agency_organization"] ?? "");
+    $checkinTime  = date("h:i A", strtotime($guest["checkin_time"]));
+
+    return "
+    <div class='guest-row d-flex align-items-center gap-3 px-3 py-3 mb-2'
+         data-name='{$guestName}'
+         style='background:#ffffff;border:1px solid #fca5a5;border-radius:14px;'>
+        <div class='d-flex align-items-center justify-content-center flex-shrink-0'
+             style='width:42px;height:42px;border-radius:50%;background:#fee2e2;color:#dc2626;font-size:.9rem;'>
+            <i class='fas fa-user'></i>
+        </div>
+        &nbsp;&nbsp;
+        <div class='flex-grow-1' style='min-width:0;'>
+            <div class='fw-semibold text-dark' style='font-size:.92rem;letter-spacing:.01em;'>{$guestName}</div>
+            <div class='d-flex align-items-center flex-wrap gap-2 text-muted' style='font-size:.75rem;'>
+                <span>{$guestSex}</span>&nbsp;
+                <span style='opacity:.35;'>•</span>&nbsp;
+                <span class='text-truncate' style='max-width:170px;'>{$organization}</span>&nbsp;
+                <span style='opacity:.35;'>•</span>&nbsp;
+                <span class='text-danger fw-semibold'>
+                    {$checkinTime}&nbsp;&nbsp;<i class='fas fa-clock me-1' style='font-size:.65rem;'></i>
+                </span>
+            </div>
+        </div>
+        <button type='button'
+                class='btn btn-sm btn-outline-danger rounded-pill px-3 btn-guest-checkout'
+                data-logid='{$logID}' data-name='{$guestName}'
+                style='font-size:.75rem;height:32px;'>
+            <i class='fas fa-sign-out-alt me-1'></i>Out
+        </button>
+    </div>";
+}
+
 // ============================================================
 // KPI BUILDER
-// Builds the KPI payload for a library section on a given date.
 // Uses checkin_time >= start AND < end instead of CAST()/CONVERT()
 // so SQL Server can use an index on checkin_time if one exists.
 //
@@ -338,58 +274,38 @@ function DuplicateModal(): string
 //   topCourses      – Top 3 courses by visit count
 // ============================================================
 
-function KPIData(PDO $pdo, int $sectionID, string $today): array
+function kpiData(PDO $pdo, int $sectionID, string $today): array
 {
-    [$start, $end] = getTodayRange($today);
+    [$start, $end] = todayRange($today);
+    $params = [":sectionID" => $sectionID, ":start" => $start, ":end" => $end];
 
-    // Totals
-    $stmtTotals = $pdo->prepare("
+    $totals = run($pdo, "
         SELECT
             COUNT(*) AS totalToday,
             SUM(CASE WHEN checkout_time IS NULL THEN 1 ELSE 0 END) AS currentlyInside
         FROM Library_logs
-        WHERE library      = ?
-          AND checkin_time >= ?
-          AND checkin_time  < ?
-    ");
-    $stmtTotals->execute([$sectionID, $start, $end]);
-    $totals = $stmtTotals->fetch(PDO::FETCH_ASSOC);
+        WHERE library      = :sectionID
+          AND checkin_time >= :start
+          AND checkin_time  < :end
+    ", $params)->fetch(PDO::FETCH_ASSOC);
 
-    // Top colleges
-    $stmtColleges = $pdo->prepare("
-        SELECT TOP 3 college, COUNT(*) AS total
+    $topBy = fn(string $column) => array_column(run($pdo, "
+        SELECT TOP 3 {$column}, COUNT(*) AS total
         FROM   Library_logs
-        WHERE  library      = ?
-          AND  checkin_time >= ?
-          AND  checkin_time  < ?
-          AND  college IS NOT NULL
-          AND  college <> ''
-        GROUP  BY college
-        ORDER  BY total DESC, college ASC
-    ");
-    $stmtColleges->execute([$sectionID, $start, $end]);
-    $colleges = array_column($stmtColleges->fetchAll(PDO::FETCH_ASSOC), "college");
-
-    // Top courses
-    $stmtCourses = $pdo->prepare("
-        SELECT TOP 3 course, COUNT(*) AS total
-        FROM   Library_logs
-        WHERE  library      = ?
-          AND  checkin_time >= ?
-          AND  checkin_time  < ?
-          AND  course IS NOT NULL
-          AND  course <> ''
-        GROUP  BY course
-        ORDER  BY total DESC, course ASC
-    ");
-    $stmtCourses->execute([$sectionID, $start, $end]);
-    $courses = array_column($stmtCourses->fetchAll(PDO::FETCH_ASSOC), "course");
+        WHERE  library      = :sectionID
+          AND  checkin_time >= :start
+          AND  checkin_time  < :end
+          AND  {$column} IS NOT NULL
+          AND  {$column} <> ''
+        GROUP  BY {$column}
+        ORDER  BY total DESC, {$column} ASC
+    ", $params)->fetchAll(PDO::FETCH_ASSOC), $column);
 
     return [
         "totalToday"      => intval($totals["totalToday"]      ?? 0),
         "currentlyInside" => intval($totals["currentlyInside"] ?? 0),
-        "topColleges"     => array_pad($colleges, 3, "-"),
-        "topCourses"      => array_pad($courses,  3, "-"),
+        "topColleges"     => array_pad($topBy("college"), 3, "-"),
+        "topCourses"      => array_pad($topBy("course"),  3, "-"),
     ];
 }
 
@@ -398,92 +314,89 @@ function KPIData(PDO $pdo, int $sectionID, string $today): array
 // ============================================================
 
 // Performs the full check-in sequence:
-//   1. Skips silently if the user is already checked in at this section today.
+//   1. Skips silently if already checked in at this section today.
 //   2. Auto-closes any open session in a DIFFERENT section (switch scenario).
 //   3. Inserts a new log entry for this section.
 function performCheckin(PDO $pdo, string $idNumber, int $sectionID, string $now, string $today, array $user): void
 {
-    [$start, $end] = getTodayRange($today);
+    [$start, $end] = todayRange($today);
+
+    // Shared params reused across all three queries in this method
+    $sharedParams = [":idNumber" => $idNumber, ":name" => $user["name"], ":start" => $start, ":end" => $end];
 
     // Already here — nothing to do
-    $stmtCheck = $pdo->prepare("
+    $alreadyCheckedIn = intval(run($pdo, "
         SELECT COUNT(*)
         FROM   Library_logs
-        WHERE  id_number     = ?
-          AND  name          = ?
-          AND  library       = ?
+        WHERE  id_number     = :idNumber
+          AND  name          = :name
+          AND  library       = :sectionID
           AND  checkout_time IS NULL
-          AND  checkin_time >= ?
-          AND  checkin_time  < ?
-    ");
-    $stmtCheck->execute([$idNumber, $user["name"], $sectionID, $start, $end]);
+          AND  checkin_time >= :start
+          AND  checkin_time  < :end
+    ", $sharedParams + [":sectionID" => $sectionID])->fetchColumn());
 
-    if (intval($stmtCheck->fetchColumn()) > 0) {
-        return;
-    }
+    if ($alreadyCheckedIn > 0) return;
 
     // Auto-checkout from any other section (switch scenario)
-    $pdo->prepare("
+    run($pdo, "
         UPDATE Library_logs
-        SET    checkout_time = ?
-        WHERE  id_number     = ?
-          AND  name          = ?
+        SET    checkout_time = :now
+        WHERE  id_number     = :idNumber
+          AND  name          = :name
           AND  checkout_time IS NULL
-          AND  checkin_time >= ?
-          AND  checkin_time  < ?
-          AND  library      <> ?
-    ")->execute([$now, $idNumber, $user["name"], $start, $end, $sectionID]);
+          AND  checkin_time >= :start
+          AND  checkin_time  < :end
+          AND  library      <> :sectionID
+    ", $sharedParams + [":now" => $now, ":sectionID" => $sectionID]);
 
     // Insert new check-in
-    $pdo->prepare("
+    run($pdo, "
         INSERT INTO Library_logs
             (id_number, name, classification, college, course, library, checkin_time, sex, agency_organization)
-        VALUES
-            (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ")->execute([
-        $idNumber,
-        $user["name"],
-        $user["classification"],
-        $user["college"],
-        $user["course"],
-        $sectionID,
-        $now,
-        $user["sex"],
-        $user["agency_organization"] ?? "",
+        VALUES (:idNumber, :name, :classification, :college, :course, :sectionID, :now, :sex, :agency)
+    ", [
+        ":idNumber"       => $idNumber,
+        ":name"           => $user["name"],
+        ":classification" => $user["classification"],
+        ":college"        => $user["college"],
+        ":course"         => $user["course"],
+        ":sectionID"      => $sectionID,
+        ":now"            => $now,
+        ":sex"            => $user["sex"],
+        ":agency"         => $user["agency_organization"] ?? "",
     ]);
 }
 
 // Closes the user's active session in the specified section.
 function performCheckout(PDO $pdo, string $idNumber, int $sectionID, string $now, string $today): void
 {
-    [$start, $end] = getTodayRange($today);
-
-    $pdo->prepare("
+    [$start, $end] = todayRange($today);
+    run($pdo, "
         UPDATE Library_logs
-        SET    checkout_time = ?
-        WHERE  id_number     = ?
-          AND  library       = ?
+        SET    checkout_time = :now
+        WHERE  id_number     = :idNumber
+          AND  library       = :sectionID
           AND  checkout_time IS NULL
-          AND  checkin_time >= ?
-          AND  checkin_time  < ?
-    ")->execute([$now, $idNumber, $sectionID, $start, $end]);
+          AND  checkin_time >= :start
+          AND  checkin_time  < :end
+    ", [":now" => $now, ":idNumber" => $idNumber, ":sectionID" => $sectionID, ":start" => $start, ":end" => $end]);
 }
 
 // Inserts a new guest visit. Every guest scan is a fresh record.
 // id_number is '0' — guests have no institutional ID.
 function performGuestCheckin(PDO $pdo, int $sectionID, string $now, array $user): void
 {
-    $pdo->prepare("
+    run($pdo, "
         INSERT INTO Library_logs
             (id_number, name, classification, college, course, library, checkin_time, sex, agency_organization)
-        VALUES
-            ('0', ?, 'GUEST', '', '', ?, ?, ?, ?)
-    ")->execute([
-        $user["name"],
-        $sectionID,
-        $now,
-        $user["sex"],
-        $user["agency_organization"],
+        VALUES ('0', :name, 'GUEST', '', '', :sectionID, :now, :sex, :agency)
+    ", [
+        ":name"      => $user["name"],
+        ":sectionID" => $sectionID,
+        ":now"       => $now,
+        ":sex"       => $user["sex"],
+        ":agency"    => $user["agency_organization"],
     ]);
 }
 
@@ -493,26 +406,23 @@ function performGuestCheckin(PDO $pdo, int $sectionID, string $now, array $user)
 
 function GetLibraries(): void
 {
-    $userID = intval($_POST["userID"] ?? 0);
+    $userID = int("userID");
     if (!$userID) sendResponse(["error" => "Missing or invalid userID."]);
 
-    $libraries = execsqlSRS("
+    sendResponse(["success" => true, "data" => execsqlSRS("
         SELECT ls.SectionID, ls.SectionName
         FROM   LibraryAccess  la
         JOIN   LibrarySection ls ON ls.SectionID = la.SectionID
-        WHERE  la.UserID  = ?
-          AND  ls.IsActive = 1
-    ", "Query", [$userID]);
-
-    sendResponse(["success" => true, "data" => $libraries]);
+        WHERE  la.UserID   = ?
+          AND  ls.IsActive  = 1
+    ", "Query", [$userID])]);
 }
 
 function ValidateUser(): void
 {
-    $idNumber = trim($_POST["idNumber"] ?? "");
-
-    if (!$idNumber)                    sendResponse(["error" => "Identification number is required."]);
-    if (!validateIdFormat($idNumber))  sendResponse(["error" => "Invalid ID format."]);
+    $idNumber = str("idNumber");
+    if (!$idNumber)             sendResponse(["error" => "Identification number is required."]);
+    if (!validateId($idNumber)) sendResponse(["error" => "Invalid ID format."]);
 
     $matches = resolveUserById($idNumber);
     $count   = count($matches);
@@ -520,11 +430,7 @@ function ValidateUser(): void
     if (!$count)      sendResponse(["error" => "User not found."]);
     if ($count === 1) sendResponse(["success" => true, "data" => $matches[0]]);
 
-    sendResponse([
-        "duplicate" => true,
-        "matches"   => $matches,
-        "modalHTML" => DuplicateModal(),
-    ]);
+    sendResponse(["duplicate" => true, "matches" => $matches, "modalHTML" => buildDuplicateModal()]);
 }
 
 // Check-in status algorithm:
@@ -533,76 +439,76 @@ function ValidateUser(): void
 // Found → currently checked in. Not found → not checked in today.
 function CheckStatusToday(): void
 {
-    $idNumber = trim($_POST["idNumber"] ?? "");
-    $name     = trim($_POST["name"]     ?? "");
-
+    global $today;
+    $idNumber = str("idNumber");
+    $name     = str("name");
     if (!$idNumber) sendResponse(["error" => "Identification number is required."]);
 
-    [$start, $end] = getTodayRange(date("Y-m-d"));
-    $pdo = dbconES();
+    [$start, $end] = todayRange($today);
 
-    $stmt = $pdo->prepare("
+    $activeSession = run(dbconES(), "
         SELECT TOP 1 ll.library, ls.SectionName
         FROM   Library_logs   ll
         LEFT   JOIN LibrarySection ls ON ls.SectionID = ll.library
-        WHERE  ll.id_number     = ?
-          AND  ll.name          = ?
+        WHERE  ll.id_number     = :idNumber
+          AND  ll.name          = :name
           AND  ll.checkout_time IS NULL
-          AND  ll.checkin_time >= ?
-          AND  ll.checkin_time  < ?
+          AND  ll.checkin_time >= :start
+          AND  ll.checkin_time  < :end
         ORDER  BY ll.checkin_time DESC
-    ");
-    $stmt->execute([$idNumber, $name, $start, $end]);
-    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    ", [":idNumber" => $idNumber, ":name" => $name, ":start" => $start, ":end" => $end])
+        ->fetch(PDO::FETCH_ASSOC);
 
-    if (!$row) {
-        sendResponse(["checkedIn" => false]);
-    }
+    if (!$activeSession) sendResponse(["checkedIn" => false]);
 
     sendResponse([
         "checkedIn"   => true,
-        "sectionID"   => intval($row["library"]),
-        "sectionName" => $row["SectionName"] ?? "another library",
+        "sectionID"   => intval($activeSession["library"]),
+        "sectionName" => $activeSession["SectionName"] ?? "another library",
     ]);
 }
 
 // Called by JS after it has determined the action (checkin/checkout/switch)
-// and resolved the user. JS sends all the pieces; PHP renders the modal HTML.
+// and resolved the user. JS sends action key + sectionName — PHP resolves
+// color/icon/btnText/message from ACTION_CONFIG and renders the modal.
 // JS stays in charge of state/routing — PHP stays in charge of rendering.
 //
 // POST params:
 //   user        – JSON-encoded user record
-//   color       – Bootstrap color name (success / danger / warning)
-//   icon        – FontAwesome class (fa-sign-in-alt / fa-sign-out-alt / fa-random)
-//   btnText     – Button label
-//   message     – Status message (only <strong><em> tags allowed)
+//   action      – checkin | checkout | switch
+//   sectionName – Previous section name (only used when action is "switch")
 //   libraryName – Current library section name for display
 function AttendanceModal(): void
 {
-    $color       = trim($_POST["color"]       ?? "success");
-    $icon        = trim($_POST["icon"]        ?? "fa-sign-in-alt");
-    $btnText     = trim($_POST["btnText"]     ?? "Check In");
-    $message     = trim($_POST["message"]     ?? "");
-    $libraryName = trim($_POST["libraryName"] ?? "");
-    $user        = json_decode(trim($_POST["user"] ?? "{}"), true);
+    $user   = json_decode(str("user", "{}"), true);
+    $action = str("action", "checkin");
 
-    if (!is_array($user) || empty($user)) {
-        sendResponse(["error" => "Invalid user data."]);
+    if (!is_array($user) || empty($user))  sendResponse(["error" => "Invalid user data."]);
+    if (!isset(ACTION_CONFIG[$action]))    sendResponse(["error" => "Invalid action."]);
+
+    $config  = ACTION_CONFIG[$action];
+    $message = $config["message"];
+
+    if ($action === "switch") {
+        $sectionName = escHtml(str("sectionName") ?: "another library");
+        $message     = "You forgot to check out at <strong>{$sectionName}</strong>. No worries — we've automatically checked you out and completed your check-in here.";
     }
 
-    $modal = buildAttendanceModalHTML($user, $color, $icon, $btnText, $message, $libraryName);
+    $modal = buildAttendanceModal(
+        $user,
+        $config["color"],
+        $config["icon"],
+        $config["btnText"],
+        $message ?? "",
+        str("libraryName")
+    );
 
-    sendResponse([
-        "success" => true,
-        "body"    => $modal["body"],
-        "footer"  => $modal["footer"],
-    ]);
+    sendResponse(["success" => true] + $modal);
 }
 
 function GuestCheckInModal(): void
 {
-    $libraryName = htmlspecialchars(trim($_POST["libraryName"] ?? ""));
-
+    $libraryName = escHtml(str("libraryName"));
     $labelStyle  = "font-size:.65rem;letter-spacing:.12em;color:#6b7280;";
     $inputStyle  = "border-radius:12px;height:40px;font-size:.9rem;border-color:#d1d5db;";
     $selectStyle = "height:44px;border-radius:12px;font-size:.9rem;border-color:#d1d5db;";
@@ -627,21 +533,16 @@ function GuestCheckInModal(): void
             Guest Check-In
         </span>
     </div>
-
     <div class='mb-3'>
         <label class='text-uppercase fw-semibold mb-1' style='$labelStyle'>Full Name</label>
-        <input type='text'
-               id='guestName'
-               class='form-control'
-               placeholder='Enter full name'
-               autocomplete='off'
-               style='$inputStyle'>
+        <input type='text' id='guestName' class='form-control'
+               placeholder='Enter full name' autocomplete='off' style='$inputStyle'>
     </div>
-
     <div class='row g-3'>
         <div class='col-6'>
             <label class='text-uppercase fw-semibold mb-1' style='$labelStyle'>Sex</label>
-            <select id='guestSex' class='form-select w-100' style='$selectStyle;text-align:center;text-align-last:center;'>
+            <select id='guestSex' class='form-select w-100'
+                    style='$selectStyle;text-align:center;text-align-last:center;'>
                 <option value=''>Select</option>
                 <option value='Male'>Male</option>
                 <option value='Female'>Female</option>
@@ -649,35 +550,22 @@ function GuestCheckInModal(): void
         </div>
         <div class='col-6'>
             <label class='text-uppercase fw-semibold mb-1' style='$labelStyle'>Type</label>
-            <input type='text'
-                   class='form-control w-100 fw-semibold text-success'
-                   value='GUEST'
-                   readonly
-                   style='height:44px;border-radius:12px;font-size:.9rem;background:#dcfce7;border:1px solid #86efac;text-align:center;letter-spacing:.05em;'>
+            <input type='text' class='form-control w-100 fw-semibold text-success' value='GUEST' readonly
+                   style='height:44px;border-radius:12px;font-size:.9rem;background:#dcfce7;
+                          border:1px solid #86efac;text-align:center;letter-spacing:.05em;'>
         </div>
     </div>
-
     <div class='mt-3'>
         <label class='text-uppercase fw-semibold mb-1' style='$labelStyle'>Agency / Organization</label>
-        <input type='text'
-               id='guestAgency'
-               class='form-control'
-               placeholder='Enter agency or organization'
-               autocomplete='off'
-               style='$inputStyle'>
+        <input type='text' id='guestAgency' class='form-control'
+               placeholder='Enter agency or organization' autocomplete='off' style='$inputStyle'>
     </div>
 </div>
 HTML;
 
     $footer = <<<HTML
-<button type='button'
-        class='btn btn-light border rounded-pill px-4'
-        data-bs-dismiss='modal'>
-    Cancel
-</button>
-<button type='button'
-        class='btn btn-success rounded-pill px-4 fw-semibold'
-        id='confirmGuestCheckIn'>
+<button type='button' class='btn btn-light border rounded-pill px-4' data-bs-dismiss='modal'>Cancel</button>
+<button type='button' class='btn btn-success rounded-pill px-4 fw-semibold' id='confirmGuestCheckIn'>
     <i class='fas fa-sign-in-alt me-2'></i>Check In
 </button>
 HTML;
@@ -687,74 +575,28 @@ HTML;
 
 function GuestCheckoutModal(): void
 {
-    $sectionID   = intval($_POST["sectionID"]   ?? 0);
-    $libraryName = htmlspecialchars(trim($_POST["libraryName"] ?? ""));
-
+    global $today;
+    $sectionID   = int("sectionID");
+    $libraryName = escHtml(str("libraryName"));
     if (!$sectionID) sendResponse(["error" => "Missing section ID."]);
 
-    [$start, $end] = getTodayRange(date("Y-m-d"));
+    [$start, $end] = todayRange($today);
 
-    $stmt = dbconES()->prepare("
+    $guests     = run(dbconES(), "
         SELECT id, name, sex, agency_organization, checkin_time
         FROM   Library_logs
-        WHERE  library        = ?
+        WHERE  library        = :sectionID
           AND  classification = 'GUEST'
           AND  checkout_time  IS NULL
-          AND  checkin_time  >= ?
-          AND  checkin_time   < ?
+          AND  checkin_time  >= :start
+          AND  checkin_time   < :end
         ORDER  BY checkin_time DESC
-    ");
-    $stmt->execute([$sectionID, $start, $end]);
-    $guests = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    ", [":sectionID" => $sectionID, ":start" => $start, ":end" => $end])->fetchAll(PDO::FETCH_ASSOC);
 
-    $rows = "";
-    foreach ($guests as $guest) {
-        $logID        = intval($guest["id"]);
-        $guestName = htmlspecialchars($guest["name"] ?? "", ENT_QUOTES, 'UTF-8');
-        $guestSex     = htmlspecialchars($guest["sex"]                 ?? "");
-        $organization = htmlspecialchars($guest["agency_organization"] ?? "");
-        $checkinTime  = date("h:i A", strtotime($guest["checkin_time"]));
-
-        $rows .= "
-        <div class='guest-row d-flex align-items-center gap-3 px-3 py-3 mb-2'
-             data-name='{$guestName}'
-             style='background:#ffffff;border:1px solid #fca5a5;border-radius:14px;'>
-            <div class='d-flex align-items-center justify-content-center flex-shrink-0'
-                 style='width:42px;height:42px;border-radius:50%;background:#fee2e2;color:#dc2626;font-size:.9rem;'>
-                <i class='fas fa-user'></i>
-            </div>
-            &nbsp;&nbsp;
-            <div class='flex-grow-1' style='min-width:0;'>
-                <div class='fw-semibold text-dark' style='font-size:.92rem;letter-spacing:.01em;'>
-                    {$guestName}
-                </div>
-                <div class='d-flex align-items-center flex-wrap gap-2 text-muted' style='font-size:.75rem;'>
-                    <span>{$guestSex}</span>&nbsp;
-                    <span style='opacity:.35;'>•</span>&nbsp;
-                    <span class='text-truncate' style='max-width:170px;'>{$organization}</span>&nbsp;
-                    <span style='opacity:.35;'>•</span>&nbsp;
-                    <span class='text-danger fw-semibold'>
-                    {$checkinTime}&nbsp;&nbsp;<i class='fas fa-clock me-1' style='font-size:.65rem;'></i>
-                    </span>
-                </div>
-            </div>
-            <button type='button'
-                    class='btn btn-sm btn-outline-danger rounded-pill px-3 btn-guest-checkout'
-                    data-logid='{$logID}'
-                    data-name='{$guestName}'
-                    style='font-size:.75rem;height:32px;'>
-                <i class='fas fa-sign-out-alt me-1'></i>Out
-            </button>
-        </div>";
-    }
-
+    $guestRows  = implode("", array_map('buildGuestRow', $guests));
     $guestCount = count($guests);
     $guestLabel = $guestCount !== 1 ? "guests" : "guest";
-
-    $emptyState = "<div id='guestEmptyState' class='text-center text-muted py-4' style='font-size:.85rem;" . ($guestCount ? "display:none;" : "") . "'>
-    <i class='fas fa-users-slash mb-2 d-block' style='font-size:1.5rem;opacity:.35;'></i>
-    No guests currently checked in.
-</div>";
+    $emptyStyle = $guestCount ? "display:none;" : "";
 
     $body = "
     <div style='background:#fef2f2;border:1px solid #fca5a5;border-radius:16px;padding:22px;'>
@@ -777,23 +619,20 @@ function GuestCheckoutModal(): void
                 {$guestCount} {$guestLabel}
             </span>
         </div>
-
         <div class='mb-4 position-relative'>
             <i class='fas fa-search position-absolute'
                style='left:14px;top:50%;transform:translateY(-50%);color:#9ca3af;font-size:.85rem;'></i>
-            <input type='text'
-                   id='guestSearchInput'
-                   class='form-control'
+            <input type='text' id='guestSearchInput' class='form-control'
                    placeholder='Search guest name'
                    style='padding-left:36px;border-radius:12px;height:40px;font-size:.9rem;border-color:#fca5a5;'>
         </div>
-
         <div id='guestCheckoutList' style='max-height:300px;overflow-y:auto;padding-right:2px;'>
-            {$rows}
-            {$emptyState}
-            <div id='guestNoResults'
-                 class='text-center text-muted py-3'
-                 style='font-size:.85rem;display:none;'>
+            {$guestRows}
+            <div id='guestEmptyState' class='text-center text-muted py-4' style='font-size:.85rem;{$emptyStyle}'>
+                <i class='fas fa-users-slash mb-2 d-block' style='font-size:1.5rem;opacity:.35;'></i>
+                No guests currently checked in.
+            </div>
+            <div id='guestNoResults' class='text-center text-muted py-3' style='font-size:.85rem;display:none;'>
                 No guests match your search.
             </div>
         </div>
@@ -806,130 +645,89 @@ function GuestCheckoutModal(): void
 
 function GuestCheckout(): void
 {
-    $logID     = intval($_POST["logID"]     ?? 0);
-    $sectionID = intval($_POST["sectionID"] ?? 0);
+    global $now;
+    $logID     = int("logID");
+    $sectionID = int("sectionID");
+    if (!$logID || !$sectionID) sendResponse(["error" => "Missing log ID or section ID."]);
 
-    if (!$logID || !$sectionID) {
-        sendResponse(["error" => "Missing log ID or section ID."]);
-    }
-
-    $pdo = dbconES();
-    $pdo->prepare("
+    run(dbconES(), "
         UPDATE Library_logs
-        SET    checkout_time = ?
-        WHERE  id             = ?
-          AND  library        = ?
+        SET    checkout_time = :now
+        WHERE  id             = :logID
+          AND  library        = :sectionID
           AND  classification = 'GUEST'
           AND  checkout_time  IS NULL
-    ")->execute([date("Y-m-d H:i:s"), $logID, $sectionID]);
+    ", [":now" => $now, ":logID" => $logID, ":sectionID" => $sectionID]);
 
     sendResponse(["success" => true]);
 }
 
 function SaveAttendance(): void
 {
-    $idNumber        = trim($_POST["idNumber"]            ?? "");
-    $sectionID       = intval($_POST["sectionID"]         ?? 0);
-    $action          = trim($_POST["action"]              ?? "");
-    $classification  = trim($_POST["classification"]      ?? "STUDENT");
+    global $now, $today;
+
+    $idNumber       = str("idNumber");
+    $sectionID      = int("sectionID");
+    $action         = str("action");
+    $classification = str("classification", "STUDENT");
 
     $user = [
-        "name"                => trim($_POST["name"]                ?? ""),
+        "name"                => str("name"),
         "classification"      => $classification,
-        "college"             => trim($_POST["college"]             ?? ""),
-        "course"              => trim($_POST["course"]              ?? ""),
-        "sex"                 => trim($_POST["sex"]                 ?? ""),
-        "agency_organization" => trim($_POST["agency_organization"] ?? ""),
+        "college"             => str("college"),
+        "course"              => str("course"),
+        "sex"                 => str("sex"),
+        "agency_organization" => str("agency_organization"),
     ];
 
-    if ($classification !== "GUEST" && !$idNumber) sendResponse(["error" => "Missing required attendance data."]);
-    if (!$sectionID || !$action)                   sendResponse(["error" => "Missing required attendance data."]);
-    if ($idNumber && !validateIdFormat($idNumber))  sendResponse(["error" => "Invalid ID format."]);
+    if ($classification !== "GUEST" && !$idNumber)   sendResponse(["error" => "Missing required attendance data."]);
+    if (!$sectionID || !$action)                     sendResponse(["error" => "Missing required attendance data."]);
+    if ($idNumber && !validateId($idNumber))          sendResponse(["error" => "Invalid ID format."]);
     if (!in_array($action, ["checkin", "checkout"])) sendResponse(["error" => "Invalid attendance action: '{$action}'."]);
 
-    $now   = date("Y-m-d H:i:s");
-    $today = date("Y-m-d");
-    $pdo   = dbconES();
+    $pdo = dbconES();
 
     try {
         $pdo->beginTransaction();
 
-        if ($classification === "GUEST") {
-            performGuestCheckin($pdo, $sectionID, $now, $user);
-        } elseif ($action === "checkin") {
-            performCheckin($pdo, $idNumber, $sectionID, $now, $today, $user);
-        } else {
-            performCheckout($pdo, $idNumber, $sectionID, $now, $today);
-        }
+        if ($classification === "GUEST") performGuestCheckin($pdo, $sectionID, $now, $user);
+        elseif ($action === "checkin")   performCheckin($pdo, $idNumber, $sectionID, $now, $today, $user);
+        else                             performCheckout($pdo, $idNumber, $sectionID, $now, $today);
 
         $pdo->commit();
 
-    } catch (Exception $exception) {
+    } catch (Exception $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
-        error_log("[LibraryLogs] saveAttendance error: " . $exception->getMessage());
+        error_log("[LibraryLogs] SaveAttendance: " . $e->getMessage());
         sendResponse(["error" => "A database error occurred. Please try again."]);
     }
-    sendResponse([
-        "success" => true,
-        "action"  => $action,
-    ]);
+
+    sendResponse(["success" => true, "action" => $action]);
 }
 
 function ShowKPI(): void
 {
-    $sectionID = intval($_POST["sectionID"] ?? 0);
-
-    if (!$sectionID) {
-        sendResponse(["error" => "Missing or invalid sectionID."]);
-    }
-
-    $pdo = dbconES();
-    sendResponse(["success" => true, "data" => KPIData($pdo, $sectionID, date("Y-m-d"))]);
+    global $today;
+    $sectionID = int("sectionID");
+    if (!$sectionID) sendResponse(["error" => "Missing or invalid sectionID."]);
+    sendResponse(["success" => true, "data" => kpiData(dbconES(), $sectionID, $today)]);
 }
 
 // ============================================================
 // DISPATCH
 // ============================================================
 
-$request = trim($_POST["request"] ?? "");
+$request = str("request");
 
 switch ($request) {
-    case "getLibraries":
-        GetLibraries();
-        break;
-
-    case "getValidateUser":
-        ValidateUser();
-        break;
-
-    case "checkStatusToday":
-        CheckStatusToday();
-        break;
-
-    case "getAttendanceModal":
-        AttendanceModal();
-        break;
-
-    case "guestCheckIn":
-        GuestCheckInModal();
-        break;
-
-    case "getSaveAttendance":
-        SaveAttendance();
-        break;
-
-    case "getGuestCheckoutModal":
-        GuestCheckoutModal();
-        break;
-
-    case "guestCheckout":
-        GuestCheckout();
-        break;
-
-    case "getKPI":
-        ShowKPI();
-        break;
-
-    default:
-        sendResponse(["error" => "Unknown request: '{$request}'."]);
+    case "getLibraries":          GetLibraries();        break;
+    case "getValidateUser":       ValidateUser();        break;
+    case "checkStatusToday":      CheckStatusToday();    break;
+    case "getAttendanceModal":    AttendanceModal();     break;
+    case "guestCheckIn":          GuestCheckInModal();   break;
+    case "getSaveAttendance":     SaveAttendance();      break;
+    case "getGuestCheckoutModal": GuestCheckoutModal();  break;
+    case "guestCheckout":         GuestCheckout();       break;
+    case "getKPI":                ShowKPI();             break;
+    default: sendResponse(["error" => "Unknown request: '{$request}'."]);
 }
