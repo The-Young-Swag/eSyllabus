@@ -301,235 +301,294 @@ $(function () {
 
     // ── UTILITIES ─────────────────────────────────────────────────────────────
 
-    const escVal = (v) => $('<div>').text(v ?? '').html();
+    const escVal = (value) => $('<div>').text(value ?? '').html();
 
-    function resolveCollegeColor(name) {
-        const upper = (name || '').toUpperCase();
-        for (const [abbr, color] of Object.entries(Analytics.collegeColorMap)) {
-            if (upper.includes(abbr)) return color;
+
+function resolveCollegeColor(collegeName) {
+    const upper = (collegeName || '').toUpperCase();
+
+    for (const [abbr, color] of Object.entries(Analytics.collegeColorMap)) {
+        if (upper.includes(abbr)) return color;
+    }
+
+    return Analytics.collegeColorFallback;
+}
+
+
+function resolveRankMedal(rankItem, fallbackPosition) {
+    const medals = ['🥇', '🥈', '🥉'];
+
+    const rank = rankItem.rank ?? (fallbackPosition + 1);
+
+    const tied = rankItem.tied
+        ? `<span class="badge bg-secondary-subtle text-secondary rounded-pill ms-1"
+                 style="font-size:.55rem;vertical-align:middle;">tied</span>`
+        : '';
+
+    return (medals[rank - 1] ?? `${rank}.`) + tied;
+}
+
+
+function flattenUserRanking(source, valueKey, topN) {
+    const entries = [];
+
+    for (const userGroup of Object.values(source)) {
+        for (const userRecord of Object.values(userGroup)) {
+            entries.push({
+                label: userRecord.display_label,
+                value: userRecord[valueKey] ?? 0
+            });
         }
-        return Analytics.collegeColorFallback;
     }
 
-    function resolveRankMedal(item, fallbackIndex) {
-        const medals = ['🥇', '🥈', '🥉'];
-        const rank   = item.rank ?? (fallbackIndex + 1);
-        const medal  = medals[rank - 1] ?? `${rank}.`;
-        const tied   = item.tied
-            ? `<span class="badge bg-secondary-subtle text-secondary rounded-pill ms-1"
-                    style="font-size:.55rem;vertical-align:middle;">tied</span>`
-            : '';
-        return medal + tied;
-    }
+    return entries
+        .sort((a, b) => b.value - a.value)
+        .slice(0, topN);
+}
 
-    function flattenUserRanking(source, valueKey, topN) {
-        const entries = [];
-        for (const userMap of Object.values(source))
-            for (const user of Object.values(userMap))
-                entries.push({ label: user.display_label, value: user[valueKey] ?? 0 });
-        return entries.sort((a, b) => b.value - a.value).slice(0, topN);
-    }
 
-    function formatDateForExport(raw) {
-        if (!raw) return '—';
-        const d = new Date(raw.replace(' ', 'T'));
-        return isNaN(d)
-            ? raw
-            : d.toLocaleString('en-US', {
-                month: 'short', day: 'numeric', year: 'numeric',
-                hour: 'numeric', minute: '2-digit', hour12: true,
-              });
-    }
+function formatDateForExport(rawDate) {
+    if (!rawDate) return '—';
+
+    const parsedDate = new Date(rawDate.replace(' ', 'T'));
+
+    return isNaN(parsedDate)
+        ? rawDate
+        : parsedDate.toLocaleString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
+        });
+}
 
 
     // ── CHART MANAGER ─────────────────────────────────────────────────────────
 
     const ChartManager = {
+    _instances: {},
 
-        _instances: {},
+    destroy(chartId) {
+        if (this._instances[chartId]) {
+            this._instances[chartId].destroy();
+            delete this._instances[chartId];
+        }
+    },
 
-        destroy(id) {
-            if (this._instances[id]) { this._instances[id].destroy(); delete this._instances[id]; }
-        },
+    _register(chartId, config) {
+        const canvas = document.getElementById(chartId);
+        if (!canvas) return;
+        this.destroy(chartId);
+        this._instances[chartId] = new Chart(canvas, config);
+    },
 
-        _register(id, config) {
-            const canvas = document.getElementById(id);
-            if (!canvas) return;
-            this.destroy(id);
-            this._instances[id] = new Chart(canvas, config);
-        },
+    _tooltipDefaults: () => ({
+        backgroundColor: 'rgba(15,23,42,0.92)',
+        titleColor:      '#f8fafc',
+        bodyColor:       '#94a3b8',
+        borderColor:     'rgba(148,163,184,0.15)',
+        borderWidth:     1,
+        padding:         10,
+        cornerRadius:    6,
+    }),
 
-        _tooltipDefaults: () => ({
-            backgroundColor: 'rgba(15,23,42,0.92)',
-            titleColor:      '#f8fafc',
-            bodyColor:       '#94a3b8',
-            borderColor:     'rgba(148,163,184,0.15)',
-            borderWidth:     1,
-            padding:         10,
-            cornerRadius:    6,
-        }),
-
-        renderBarH(id, labels, values, colors, unit) {
-            this._register(id, {
-                type: 'bar',
-                data: {
-                    labels,
-                    datasets: [{
-                        label:           unit,
-                        data:            values,
-                        backgroundColor: colors,
-                        borderRadius:    5,
-                        borderSkipped:   false,
-                        barThickness:    36,
-                    }],
-                },
-                options: {
-                    indexAxis:           'y',
-                    responsive:          true,
-                    maintainAspectRatio: false,
-                    animation:           { duration: 500, easing: 'easeOutQuart' },
-                    plugins: {
-                        legend:  { display: false },
-                        tooltip: {
-                            ...this._tooltipDefaults(),
-                            callbacks: { label: ctx => `  ${unit}: ${ctx.parsed.x.toLocaleString()}` },
+    renderBarH(id, labels, values, colors, unit) {
+        this._register(id, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{
+                    label: unit,
+                    data: values,
+                    backgroundColor: colors,
+                    borderRadius: 5,
+                    borderSkipped: false,
+                    barThickness: 36,
+                }],
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 500, easing: 'easeOutQuart' },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        ...this._tooltipDefaults(),
+                        callbacks: { 
+                            label: chartContext => `  ${unit}: ${chartContext.parsed.x.toLocaleString()}` 
                         },
                     },
-                    scales: {
-                        x: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { color: '#6b7280', font: { size: 10 } } },
-                        y: { grid: { display: false },                                ticks: { color: '#374151', font: { size: 12 }, padding: 8 } },
+                },
+                scales: {
+                    x: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { color: '#6b7280', font: { size: 10 } } },
+                    y: { grid: { display: false }, ticks: { color: '#374151', font: { size: 12 }, padding: 8 } },
+                },
+                layout: { padding: { right: 8 } },
+            },
+        });
+    },
+
+    renderDonut(id, labels, values, colors, centerLabel) {
+        const total = values.reduce((sum, v) => sum + v, 0);
+
+        const centerTextPlugin = {
+            id: `centerText_${id}`,
+            afterDraw({ ctx: chartContext, chartArea }) {
+                if (!chartArea) return;
+                const cx = (chartArea.left + chartArea.right) / 2;
+                const cy = (chartArea.top + chartArea.bottom) / 2;
+
+                chartContext.save();
+                chartContext.textAlign = 'center';
+                chartContext.textBaseline = 'middle';
+
+                chartContext.font = 'bold 22px sans-serif';
+                chartContext.fillStyle = '#111827';
+                chartContext.fillText(total.toLocaleString(), cx, cy - 10);
+
+                chartContext.font = '12px sans-serif';
+                chartContext.fillStyle = '#6b7280';
+                chartContext.fillText(centerLabel, cx, cy + 14);
+
+                chartContext.restore();
+            },
+        };
+
+        this._register(id, {
+            type: 'doughnut',
+            data: {
+                labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: colors,
+                    borderWidth: 2,
+                    borderColor: '#ffffff',
+                    hoverOffset: 6,
+                }],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 600, easing: 'easeInOutQuart' },
+                cutout: '65%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            color: '#374151',
+                            font: { size: 11 },
+                            padding: 12,
+                            usePointStyle: true,
+                            pointStyle: 'circle',
+                            generateLabels: chart => chart.data.labels.map((lbl, i) => ({
+                                text: `${lbl} (${(chart.data.datasets[0].data[i] || 0).toLocaleString()})`,
+                                fillStyle: chart.data.datasets[0].backgroundColor[i],
+                                strokeStyle: chart.data.datasets[0].backgroundColor[i],
+                                hidden: false,
+                                index: i,
+                                pointStyle: 'circle',
+                            })),
+                        },
                     },
-                    layout: { padding: { right: 8 } },
-                },
-            });
-        },
-
-        renderDonut(id, labels, values, colors, centerLabel) {
-            const total = values.reduce((s, v) => s + v, 0);
-
-            const centerTextPlugin = {
-                id: `centerText_${id}`,
-                afterDraw({ ctx: c, chartArea: a }) {
-                    if (!a) return;
-                    const cx = (a.left + a.right) / 2, cy = (a.top + a.bottom) / 2;
-                    c.save();
-                    c.textAlign    = 'center';
-                    c.textBaseline = 'middle';
-                    c.font         = 'bold 22px sans-serif';
-                    c.fillStyle    = '#111827';
-                    c.fillText(total.toLocaleString(), cx, cy - 10);
-                    c.font         = '12px sans-serif';
-                    c.fillStyle    = '#6b7280';
-                    c.fillText(centerLabel, cx, cy + 14);
-                    c.restore();
-                },
-            };
-
-            this._register(id, {
-                type: 'doughnut',
-                data: {
-                    labels,
-                    datasets: [{ data: values, backgroundColor: colors, borderWidth: 2, borderColor: '#ffffff', hoverOffset: 6 }],
-                },
-                options: {
-                    responsive:          true,
-                    maintainAspectRatio: false,
-                    animation:           { duration: 600, easing: 'easeInOutQuart' },
-                    cutout:              '65%',
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                color: '#374151', font: { size: 11 }, padding: 12,
-                                usePointStyle: true, pointStyle: 'circle',
-                                generateLabels: chart => chart.data.labels.map((lbl, i) => ({
-                                    text:        `${lbl} (${(chart.data.datasets[0].data[i] || 0).toLocaleString()})`,
-                                    fillStyle:   chart.data.datasets[0].backgroundColor[i],
-                                    strokeStyle: chart.data.datasets[0].backgroundColor[i],
-                                    hidden: false, index: i, pointStyle: 'circle',
-                                })),
+                    tooltip: {
+                        ...this._tooltipDefaults(),
+                        callbacks: {
+                            label: chartContext => {
+                                const pct = total > 0 ? ((chartContext.parsed / total) * 100).toFixed(1) : 0;
+                                return ` ${chartContext.label}: ${chartContext.parsed.toLocaleString()} (${pct}%)`;
                             },
                         },
-                        tooltip: {
-                            ...this._tooltipDefaults(),
-                            callbacks: {
-                                label: ctx => {
-                                    const pct = total > 0 ? ((ctx.parsed / total) * 100).toFixed(1) : 0;
-                                    return ` ${ctx.label}: ${ctx.parsed.toLocaleString()} (${pct}%)`;
-                                },
-                            },
-                        },
                     },
                 },
-                plugins: [centerTextPlugin],
-            });
-        },
-    };
+            },
+            plugins: [centerTextPlugin],
+        });
+    },
+};
 
 
     // ── INLINE PAGINATION ─────────────────────────────────────────────────────
 
     function paginateInlineTable(cardId, tbodyId, pagerId, rowRenderer) {
-        const $card  = $(`#${cardId}`);
-        const $tbody = $(`#${tbodyId}`);
-        const $pager = $(`#${pagerId}`);
-        if (!$card.length || !$tbody.length) return;
+    const $card  = $(`#${cardId}`);
+    const $tbody = $(`#${tbodyId}`);
+    const $pager = $(`#${pagerId}`);
 
-        let rows = [];
-        try { rows = JSON.parse($card.attr('data-rows') || '[]'); } catch { return; }
+    if (!$card.length || !$tbody.length) return;
 
-        if (!rows.length) {
-            $tbody.html('<tr><td colspan="9" class="text-center text-muted py-3">No data</td></tr>');
-            return;
-        }
-
-        const pageSize   = parseInt($card.attr('data-per-page') || '10', 10);
-        const totalPages = Math.ceil(rows.length / pageSize);
-        let   current    = 1;
-
-        function showPage(page) {
-            current = Math.max(1, Math.min(page, totalPages));
-            $tbody.html(rows.slice((current - 1) * pageSize, current * pageSize).map(rowRenderer).join(''));
-            totalPages > 1 ? renderPagerNav() : $pager.empty();
-        }
-
-        function renderPagerNav() {
-            const winSize = 5;
-            const start   = Math.max(1, Math.min(current - Math.floor(winSize / 2), totalPages - winSize + 1));
-            const end     = Math.min(start + winSize - 1, totalPages);
-            const isFirst = current === 1;
-            const isLast  = current === totalPages;
-
-            const pageItem = (label, page, disabled, active) =>
-                `<li class="page-item ${disabled ? 'disabled' : ''} ${active ? 'active' : ''}">` +
-                `<a class="page-link" href="#" data-p="${page}">${label}</a></li>`;
-
-            let items = '';
-            items += pageItem('«', 1,           isFirst, false);
-            items += pageItem('‹', current - 1, isFirst, false);
-            for (let n = start; n <= end; n++) items += pageItem(n, n, false, n === current);
-            items += pageItem('›', current + 1, isLast,  false);
-            items += pageItem('»', totalPages,  isLast,  false);
-
-            const from = (current - 1) * pageSize + 1;
-            const to   = Math.min(current * pageSize, rows.length);
-
-            $pager.html(
-                `<small class="text-muted d-block text-center mb-1" style="font-size:.7rem;">
-                    Showing ${from}–${to} of ${rows.length}
-                </small>
-                <ul class="pagination pagination-sm mb-0 justify-content-center flex-wrap">${items}</ul>`
-            );
-
-            $pager.find('.page-link').off('click').on('click', function (e) {
-                e.preventDefault();
-                const p = parseInt($(this).data('p'), 10);
-                if (!isNaN(p) && p > 0) showPage(p);
-            });
-        }
-
-        showPage(1);
+    let rows = [];
+    try {
+        rows = JSON.parse($card.attr('data-rows') || '[]');
+    } catch {
+        return;
     }
+
+    if (!rows.length) {
+        $tbody.html('<tr><td colspan="9" class="text-center text-muted py-3">No data</td></tr>');
+        return;
+    }
+
+    const pageSize   = parseInt($card.attr('data-per-page') || '10', 10);
+    const totalPages = Math.ceil(rows.length / pageSize);
+    let currentPage  = 1;
+
+    function showPage(page) {
+        currentPage = Math.max(1, Math.min(page, totalPages));
+        const startIndex = (currentPage - 1) * pageSize;
+        const endIndex   = currentPage * pageSize;
+
+        $tbody.html(rows.slice(startIndex, endIndex).map(rowRenderer).join(''));
+        totalPages > 1 ? renderPager() : $pager.empty();
+    }
+
+    function renderPager() {
+        const windowSize = 5;
+        const startPage  = Math.max(1, Math.min(currentPage - Math.floor(windowSize / 2), totalPages - windowSize + 1));
+        const endPage    = Math.min(startPage + windowSize - 1, totalPages);
+        const isFirst    = currentPage === 1;
+        const isLast     = currentPage === totalPages;
+
+        const createPageItem = (label, page, disabled, active) =>
+            `<li class="page-item ${disabled ? 'disabled' : ''} ${active ? 'active' : ''}">
+                <a class="page-link" href="#" data-p="${page}">${label}</a>
+             </li>`;
+
+        let pageItems = '';
+        pageItems += createPageItem('«', 1, isFirst, false);
+        pageItems += createPageItem('‹', currentPage - 1, isFirst, false);
+
+        for (let pageNum = startPage; pageNum <= endPage; pageNum++) {
+            pageItems += createPageItem(pageNum, pageNum, false, pageNum === currentPage);
+        }
+
+        pageItems += createPageItem('›', currentPage + 1, isLast, false);
+        pageItems += createPageItem('»', totalPages, isLast, false);
+
+        const fromIndex = (currentPage - 1) * pageSize + 1;
+        const toIndex   = Math.min(currentPage * pageSize, rows.length);
+
+        $pager.html(`
+            <small class="text-muted d-block text-center mb-1" style="font-size:.7rem;">
+                Showing ${fromIndex}–${toIndex} of ${rows.length}
+            </small>
+            <ul class="pagination pagination-sm mb-0 justify-content-center flex-wrap">
+                ${pageItems}
+            </ul>
+        `);
+
+        $pager.find('.page-link').off('click').on('click', function (event) {
+            event.preventDefault();
+            const selectedPage = parseInt($(this).data('p'), 10);
+            if (!isNaN(selectedPage) && selectedPage > 0) showPage(selectedPage);
+        });
+    }
+
+    // show first page by default
+    showPage(1);
+}
 
 
     // ── ROW RENDERERS ─────────────────────────────────────────────────────────
