@@ -8,7 +8,10 @@ function sendResponse(array $payload): void {
 }
 
 function calcDurationMinutes(string $checkinTime, ?string $checkoutTime): float {
-    return $checkoutTime ? (strtotime($checkoutTime) - strtotime($checkinTime)) / 60 : 0.0;
+    if (!$checkoutTime) return 0.0;
+    $start = strtotime($checkinTime);
+    $end   = strtotime($checkoutTime);
+    return ($start && $end) ? ($end - $start) / 60 : 0.0;
 }
 
 function formatDateTime(string $datetime): string {
@@ -16,12 +19,14 @@ function formatDateTime(string $datetime): string {
 }
 
 function escHtml(mixed $value): string {
-    return htmlspecialchars((string)($value ?? ''), ENT_QUOTES, 'UTF-8');
+    return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+
 }
 
 function getUserDisplayLabel(array $log): string {
     $idNumber = $log['id_number'] ?? '';
-    return ($idNumber === '0' || $idNumber === '') ? ($log['name'] ?? 'Guest') : $idNumber;
+    // id_number is stored as '0' for walk-in guests with no system account
+    return ($idNumber === '' || $idNumber === '0') ? ($log['name'] ?? 'Guest') : $idNumber;
 }
 
 function buildWhereClause(array $postData): array {
@@ -42,8 +47,8 @@ function buildWhereClause(array $postData): array {
     }
     if (!empty($postData['library']) && $postData['library'] !== 'All') {
         $clauses[] = 'l.library = :libraryId';
-        $params[':libraryId'] = $postData['library'];
-    }
+        $params[':library'] = $postData['library'];
+        }
 
     return [$clauses ? ' AND ' . implode(' AND ', $clauses) : '', $params];
 }
