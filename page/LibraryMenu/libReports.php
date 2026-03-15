@@ -180,8 +180,11 @@ $(function () {
 
 // ── CONFIG ────────────────────────────────────────────────────────────────
 
-const TAB_BACKEND  = 'backend/bk_LibraryMenu/bk_tabReports.php';
-const VIEW_BACKEND = 'backend/bk_LibraryMenu/bk_libReports.php';
+const BACKEND = {
+    tab:  'backend/bk_LibraryMenu/bk_tabReports.php',
+    view: 'backend/bk_LibraryMenu/bk_viewReports.php',
+};
+
 const DEFAULT_DAYS = 7;
 
 const TAB_LABELS = {
@@ -271,11 +274,20 @@ const EXCEL = {
 // ── STATE ─────────────────────────────────────────────────────────────────
 
 const State = {
-    activeTab:      'logs',   // Logs is the landing tab
+    activeTab:      'logs',
     pendingRequest: null,
     viewAllTab:     'logs',
     viewAllPage:    1,
-    responses:      {},       // keyed by tab name, cached after first successful load
+    responses:      {},   // keyed by tab name, cached after first successful load
+};
+
+// ── MODAL HELPER ──────────────────────────────────────────────────────────
+// Bootstrap 4 uses $.fn.modal('show'/'hide').
+// Centralise all modal calls here so there's one place to update if needed.
+
+const Modal = {
+    show: (id) => $(id).modal('show'),
+    hide: (id) => $(id).modal('hide'),
 };
 
 // ── SPINNER ───────────────────────────────────────────────────────────────
@@ -405,9 +417,8 @@ const ChartManager = {
 };
 
 // ── PAGINATION ────────────────────────────────────────────────────────────
-// Shared pager HTML builder used by all inline tables and the view-all modal.
-// Renders:  «  ‹  1  2  3  4  5  ›  »   (sliding window of 5 pages max)
-// Page links use data-p="N" so callers bind a single delegated click handler.
+// Shared pager HTML builder — used by all inline tables.
+// Renders: «  ‹  1  2  3  4  5  ›  »  (sliding window of 5 pages max)
 
 function buildPagerHtml(currentPage, totalPages, totalRowCount, pageSize) {
     const windowSize  = 5;
@@ -505,14 +516,14 @@ function initCollegesTab(response) {
 
     ChartManager.donut('chartCollegeCheckin',
         checkinKeys,
-        checkinKeys.map(collegeName => response.top3CollegesCheckin[collegeName].count),
-        checkinKeys.map(collegeName => response.top3CollegesCheckin[collegeName].color),
+        checkinKeys.map(name => response.top3CollegesCheckin[name].count),
+        checkinKeys.map(name => response.top3CollegesCheckin[name].color),
         'Visitors');
 
     ChartManager.donut('chartCollegeDuration',
         durationKeys,
-        durationKeys.map(collegeName => Math.round(response.top3CollegesDuration[collegeName].minutes)),
-        durationKeys.map(collegeName => response.top3CollegesDuration[collegeName].color),
+        durationKeys.map(name => Math.round(response.top3CollegesDuration[name].minutes)),
+        durationKeys.map(name => response.top3CollegesDuration[name].color),
         'Minutes');
 }
 
@@ -553,11 +564,12 @@ function loadTab(tabName) {
     State.pendingRequest?.abort();
     showSpinner();
 
-    State.pendingRequest = $.post(TAB_BACKEND, { request: TAB_REQUEST_MAP[tabName], ...Filters.get() })
-        .done(response => {
+    State.pendingRequest = $.post(BACKEND.tab, { request: TAB_REQUEST_MAP[tabName], ...Filters.get() })
+        .done(raw => {
             hideSpinner();
-            if (response.status !== 'success') {
-                $('#tabContent').html(`<div class="alert alert-danger m-3">${response.message || 'Error'}</div>`);
+            const response = parseJsonResponse(raw);
+            if (!response || response.status !== 'success') {
+                $('#tabContent').html(`<div class="alert alert-danger m-3">${response?.message || 'Error loading tab.'}<br><pre class="mt-2 small text-muted">${typeof raw === 'string' ? raw.substring(0, 300) : ''}</pre></div>`);
                 return;
             }
             $('#tabContent').html(response.html);
@@ -575,29 +587,59 @@ function loadTab(tabName) {
 }
 
 // ── VIEW ALL ──────────────────────────────────────────────────────────────
+// Always opens the modal after the request completes — success or failure.
+// Parsing is done manually so stray PHP output doesn't silently kill the call.
 
 function loadViewAll(tabName, page) {
     showSpinner();
-    $.post(VIEW_BACKEND, { request: VIEW_REQUEST_MAP[tabName], page, ...Filters.get() })
-        .done(response => {
+
+    $.post(BACKEND.view, { request: VIEW_REQUEST_MAP[tabName], page, ...Filters.get() })
+        .always(raw => {
             hideSpinner();
-            if (response.status !== 'success') {
-                $('#viewAllModalBody').html('<div class="alert alert-danger m-3">Failed.</div>');
-                if (!$('#viewAllModal').hasClass('show')) $('#viewAllModal').modal('show');
+            const response = parseJsonResponse(raw);
+
+            if (!response || response.status !== 'success') {
+                const serverOutput = typeof raw === 'string' ? raw.substring(0, 500) : JSON.stringify(raw);
+                $('#viewAllModalTitle').text('Error');
+                $('#viewAllModalSubtitle').text('');
+                $('#viewAllModalBody').html(`
+                    <div class="alert alert-danger m-3">
+                        <strong>Failed to load records.</strong>
+                        ${response?.message ? `<br>${response.message}` : ''}
+                        ${serverOutput ? `<pre class="mt-2 small text-muted mb-0" style="white-space:pre-wrap;">${serverOutput}</pre>` : ''}
+                    </div>`);
+                $('#viewAllModalFooter').html('');
+                Modal.show('#viewAllModal');
                 return;
             }
+
             $('#viewAllModalTitle').text((TAB_LABELS[tabName] ?? 'All') + ' Records');
             $('#viewAllModalSubtitle').text(`Page ${response.page} of ${response.totalPages} · ${response.total} records`);
             $('#viewAllModalBody').html(response.tableHtml);
             $('#viewAllModalFooter').html(response.pagination);
-            if (!$('#viewAllModal').hasClass('show')) $('#viewAllModal').modal('show');
-        })
-        .fail(() => hideSpinner());
+            Modal.show('#viewAllModal');
+        });
+}
+
+// ── JSON PARSER ───────────────────────────────────────────────────────────
+// $.post auto-parses when Content-Type is correct, but returns a plain string
+// if there's any stray output (PHP notice, BOM, whitespace) before the JSON.
+// This handles both cases so the modal always shows something useful.
+
+function parseJsonResponse(raw) {
+    if (raw && typeof raw === 'object') return raw;   // already parsed by jQuery
+    if (typeof raw !== 'string') return null;
+    try {
+        // Strip any stray output before the first '{' (PHP notices, whitespace, etc.)
+        const jsonStart = raw.indexOf('{');
+        return jsonStart !== -1 ? JSON.parse(raw.slice(jsonStart)) : null;
+    } catch {
+        return null;
+    }
 }
 
 // ── EXPORT SCHEMA ─────────────────────────────────────────────────────────
-// rowMappers read from PHP flat arrays (flatLogs, flatUsers, etc.).
-// All dates arrive pre-formatted from the server.
+// rowMappers read from PHP flat arrays — all values and dates pre-computed server-side.
 
 const EXPORT_SCHEMA = {
     logs: {
@@ -637,38 +679,28 @@ const EXPORT_SCHEMA = {
         label:   'Colleges',
         headers: ['College', 'Unique Visitors', 'Total Duration (min)', 'Last Check-in'],
         rowMapper: (response) => (response.flatColleges || []).map(college => [
-            college.name,
-            college.visitors,
-            college.duration,
-            college.last_checkin,
+            college.name, college.visitors, college.duration, college.last_checkin,
         ]),
     },
     courses: {
         label:   'Courses',
         headers: ['College', 'Course', 'Unique Visitors', 'Duration (min)', 'Last Check-in'],
         rowMapper: (response) => (response.flatCourses || []).map(course => [
-            course.college,
-            course.course,
-            course.visitors,
-            course.duration,
-            course.last_checkin,
+            course.college, course.course, course.visitors, course.duration, course.last_checkin,
         ]),
     },
     demographics: {
         label:   'Demographics',
         headers: ['Sex', 'Visitors', '% of Total'],
         rowMapper: (response) => (response.flatDemographics || []).map(entry => [
-            entry.sex,
-            entry.count,
-            entry.pct + '%',
+            entry.sex, entry.count, entry.pct + '%',
         ]),
     },
 };
 
 // ── EXPORT: FETCH MISSING TABS ────────────────────────────────────────────
-// The user can select any tab for export regardless of whether they've visited it.
-// Fetches all selected-but-unloaded tabs in parallel before the export runs
-// so nothing is ever silently skipped.
+// Fetches any selected tab whose data isn't cached yet — in parallel —
+// so exports always include every selected section, not just visited tabs.
 
 async function fetchMissingTabsForExport(selectedTabs) {
     const unloadedTabs = selectedTabs.filter(tabName => !State.responses[tabName]);
@@ -676,19 +708,19 @@ async function fetchMissingTabsForExport(selectedTabs) {
 
     await Promise.all(unloadedTabs.map(tabName =>
         new Promise(resolve => {
-            $.post(TAB_BACKEND, { request: TAB_REQUEST_MAP[tabName], ...Filters.get() })
-                .done(response => {
-                    if (response.status === 'success') State.responses[tabName] = response;
+            $.post(BACKEND.tab, { request: TAB_REQUEST_MAP[tabName], ...Filters.get() })
+                .always(raw => {
+                    const response = parseJsonResponse(raw);
+                    if (response?.status === 'success') State.responses[tabName] = response;
                     resolve();
-                })
-                .fail(resolve);   // resolve even on failure — that tab will be skipped gracefully
+                });
         })
     ));
 }
 
 // ── OFFSCREEN CHART BUILDER ───────────────────────────────────────────────
-// Renders a Chart.js chart onto an offscreen canvas and returns a PNG data URL.
-// Used only during PDF export — never shown in the DOM.
+// Renders a Chart.js chart onto an offscreen canvas for PDF export only.
+// Never shown in the DOM.
 
 function buildOffscreenChart(type, labels, values, colors, unitLabel, title) {
     const isBar      = type === 'bar';
@@ -865,14 +897,8 @@ async function runExportPDF(selectedTabs, responses) {
     let   pageNumber    = 1;
     let   cursorY       = 0;
 
-    const drawDivider = (posY) => {
-        pdf.setDrawColor(226, 232, 240).setLineWidth(0.25);
-        pdf.line(margin, posY, pageWidth - margin, posY);
-    };
-    const drawHeading = (text, posY) => {
-        pdf.setFont('helvetica', 'bold').setFontSize(8.5).setTextColor(17, 24, 39);
-        pdf.text(text, margin, posY);
-    };
+    const drawDivider = (posY) => { pdf.setDrawColor(226, 232, 240).setLineWidth(0.25); pdf.line(margin, posY, pageWidth - margin, posY); };
+    const drawHeading = (text, posY) => { pdf.setFont('helvetica', 'bold').setFontSize(8.5).setTextColor(17, 24, 39); pdf.text(text, margin, posY); };
     const drawCaption = (text, posX, posY, width, centered = false) => {
         pdf.setFont('helvetica', 'normal').setFontSize(6.5).setTextColor(100, 116, 139);
         centered ? pdf.text(text, posX + width / 2, posY, { align: 'center' }) : pdf.text(text, posX, posY);
@@ -884,7 +910,6 @@ async function runExportPDF(selectedTabs, responses) {
         pdf.line(margin, pageHeight - 10, pageWidth - margin, pageHeight - 10);
     };
 
-    // Cover header bar
     pdf.setFillColor(17, 24, 39);
     pdf.rect(0, 0, pageWidth, 18, 'F');
     pdf.setFont('helvetica', 'bold').setFontSize(11).setTextColor(255, 255, 255);
@@ -1070,12 +1095,10 @@ $(document).off('.analytics')
         $('.export-format-option').removeClass('active-format');
         $(this).addClass('active-format').find('input[type="radio"]').prop('checked', true);
     })
-    // Sync "All Tabs" checkbox state every time the export modal opens,
-    // in case the user left it in a partial-check state from a previous open.
+    // Sync "All Tabs" state every time the export modal opens.
     .on('show.bs.modal', '#exportModal', function () {
-        const allCheckboxes     = $('#exportSectionIndividual .export-section-check');
-        const checkedCheckboxes = allCheckboxes.filter(':checked');
-        $('#exportCheckAll').prop('checked', allCheckboxes.length === checkedCheckboxes.length);
+        const allCheckboxes = $('#exportSectionIndividual .export-section-check');
+        $('#exportCheckAll').prop('checked', allCheckboxes.length === allCheckboxes.filter(':checked').length);
     })
     .on('change.analytics', '#exportCheckAll', function () {
         const isChecked = $(this).is(':checked');
@@ -1084,13 +1107,12 @@ $(document).off('.analytics')
             .closest('label').toggleClass('opacity-50', !isChecked);
     })
     .on('change.analytics', '#exportSectionIndividual .export-section-check', function () {
-        const allCheckboxes     = $('#exportSectionIndividual .export-section-check');
-        const checkedCheckboxes = allCheckboxes.filter(':checked');
-        $('#exportCheckAll').prop('checked', allCheckboxes.length === checkedCheckboxes.length);
+        const allCheckboxes = $('#exportSectionIndividual .export-section-check');
+        $('#exportCheckAll').prop('checked', allCheckboxes.length === allCheckboxes.filter(':checked').length);
     })
     .on('click.analytics', '#exportBtn', function () {
         if (!Filters.hasRange()) { alert('Please set a date range before exporting.'); return; }
-        $('#exportModal').modal('show');
+        Modal.show('#exportModal');
     })
     .on('click.analytics', '#exportConfirmBtn', async function () {
         const selectedSections = $('#exportSectionIndividual .export-section-check:checked')
@@ -1099,11 +1121,10 @@ $(document).off('.analytics')
         if (!selectedSections.length) { alert('Please select at least one section to export.'); return; }
 
         const exportFormat = $('input[name="exportFormat"]:checked').val() || 'xlsx';
-        $('#exportModal').modal('hide');
+        Modal.hide('#exportModal');
         showSpinner();
 
         try {
-            // Fetch data for any selected tab the user hasn't visited yet.
             await fetchMissingTabsForExport(selectedSections);
             await EXPORT_RUNNERS[exportFormat]?.(selectedSections, State.responses);
         } catch (error) {
