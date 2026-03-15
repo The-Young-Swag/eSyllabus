@@ -1,52 +1,16 @@
-<?php
-include "../../db/dbconnection.php";
-
-// Get all active (non-deleted) users
-$users = execsqlSRS("SELECT 
-                        UserID,
-                        EmpID,
-                        Name,
-                        EmailAddress
-                    FROM Sys_UserAccount
-                    WHERE IsDeleted = 0
-                    ORDER BY Name", "Search", []);
-
-// Get all active library sections
-$sections = execsqlSRS("SELECT SectionID, SectionName FROM LibrarySection WHERE IsActive = 1 ORDER BY SectionName", "Search", []);
-
-// Get current library access
-$accessRows = execsqlSRS("
-    SELECT UserID, SectionID
-    FROM LibraryAccess
-    WHERE IsActive = 1
-", "Search", []);
-$userAccess = [];
-foreach ($accessRows as $ar) {
-    $userAccess[$ar['UserID']] = $ar['SectionID'];
-}
-?>
-
 <div class="container-fluid mt-4">
 
     <div class="card border-success shadow-sm rounded-4">
 
-        <!-- Header -->
         <div class="card-header bg-success text-white rounded-top-4">
-            <div class="d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">
-                    <i class="fas fa-university mr-2"></i>
-                    Library Access Management
-                </h5>
-            </div>
+            <h5 class="mb-0">
+                <i class="fas fa-university me-2"></i>Library Access Management
+            </h5>
         </div>
 
-        <!-- Table -->
         <div class="card-body p-0">
-
             <div class="table-responsive">
-
                 <table class="table table-hover table-striped align-middle mb-0">
-
                     <thead class="table-success">
                         <tr>
                             <th>#</th>
@@ -57,77 +21,9 @@ foreach ($accessRows as $ar) {
                             <th>Actions</th>
                         </tr>
                     </thead>
-
-                    <tbody>
-
-                        <?php if(!empty($users)): ?>
-                            <?php foreach($users as $i => $user): 
-                                $currentSection = $userAccess[$user['UserID']] ?? '';
-                            ?>
-
-                            <tr>
-
-                                <td class="fw-semibold"><?= $i + 1 ?></td>
-
-                                <td class="fw-semibold">
-                                    <?= htmlspecialchars($user['EmpID']) ?>
-                                </td>
-
-                                <td>
-                                    <?= htmlspecialchars($user['Name']) ?>
-                                </td>
-
-                                <td class="text-muted">
-                                    <?= htmlspecialchars($user['EmailAddress']) ?>
-                                </td>
-
-                                <td style="max-width:220px;">
-                                    <select class="form-control select-access rounded-pill"
-                                            data-userid="<?= $user['UserID'] ?>">
-                                        <option value="">-- None --</option>
-
-                                        <?php foreach ($sections as $sec): ?>
-                                            <option value="<?= $sec['SectionID'] ?>"
-                                                <?= $sec['SectionID'] == $currentSection ? 'selected' : '' ?>>
-                                                <?= htmlspecialchars($sec['SectionName']) ?>
-                                            </option>
-                                        <?php endforeach; ?>
-
-                                    </select>
-                                </td>
-
-                                <td>
-
-                                    <button class="btn btn-success btn-sm rounded-pill btn-save-access"
-                                            data-userid="<?= $user['UserID'] ?>">
-
-                                        <i class="fas fa-save mr-1"></i>
-                                        Save
-
-                                    </button>
-
-                                </td>
-
-                            </tr>
-
-                            <?php endforeach; ?>
-
-                        <?php else: ?>
-
-                            <tr>
-                                <td colspan="6" class="text-center text-muted py-4">
-                                    No active users found
-                                </td>
-                            </tr>
-
-                        <?php endif; ?>
-
-                    </tbody>
-
+                    <tbody id="accessData"></tbody>
                 </table>
-
             </div>
-
         </div>
 
     </div>
@@ -135,29 +31,37 @@ foreach ($accessRows as $ar) {
 </div>
 
 <script>
-$(document).ready(function() {
-    // Save button click
-    $(document).off('click', '.btn-save-access').on('click', '.btn-save-access', function() {
-        const btn = $(this);
-        const userID = btn.data('userid');
-        const sectionID = $(`.select-access[data-userid="${userID}"]`).val(); // empty = null
+$(function () {
 
-btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
-$("#loadingSpinner").fadeIn(200);  // <-- add this line
+const BACKEND = "backend/bk_LibraryMenu/bk_libraryAccess.php";
 
-$.post("backend/bk_LibraryMenu/bk_libraryAccess.php", {
-    request: 'assignAccess',
-    userID: userID,
-    sectionID: sectionID
-}, function(resp) {
-    btn.prop('disabled', false).html('<i class="fas fa-save"></i> Save');
-    $("#loadingSpinner").fadeOut(200);
-    if(resp === 'SUCCESS') {
-        showToast('Library access updated!', 'success');
-    } else {
-        alert('Failed to update access: ' + resp);
-    }
+function loadAccess() {
+    $.post(BACKEND, { request: "getAccess" }, null, "json")
+        .done(res => $("#accessData").html(res.html))
+        .fail(err => console.error("Access load failed:", err));
+}
+
+$(document).on("click", ".btn-save-access", function () {
+    const btn       = $(this);
+    const userID    = btn.data("userid");
+    const sectionID = $(`.select-access[data-userid="${userID}"]`).val();
+
+    btn.prop("disabled", true).html('<i class="fas fa-spinner fa-spin"></i>');
+    $("#loadingSpinner").fadeIn(200);
+
+    $.post(BACKEND, { request: "assignAccess", userID, sectionID }, null, "json")
+        .done(res => {
+            if (res.success) showToast("Library access updated!", "success");
+            else             showToast(res.error || "Failed to update access.", "danger");
+        })
+        .fail(() => showToast("Request failed.", "danger"))
+        .always(() => {
+            btn.prop("disabled", false).html('<i class="fas fa-save me-1"></i>Save');
+            $("#loadingSpinner").fadeOut(200);
+        });
 });
-    });
+
+loadAccess();
+
 });
 </script>
