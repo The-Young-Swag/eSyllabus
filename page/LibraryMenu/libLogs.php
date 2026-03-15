@@ -239,45 +239,46 @@ style="background:linear-gradient(135deg,#ffffff,#ecfdf5);
 <script>
 $(function () {
 
-// ── UI (getters prevent caching stale AJAX-replaced elements) ─────────────
+// ── Static UI — cached once at boot (never replaced by AJAX) ──────────────
 const UI = {
     btn: {
-        get checkIn()  { return document.getElementById("guestCheckIn"); },
-        get checkOut() { return document.getElementById("guestCheckOut"); },
-        get toggleId() { return document.getElementById("toggleIdVisibility"); },
+        checkIn:  document.getElementById("guestCheckIn"),
+        checkOut: document.getElementById("guestCheckOut"),
+        toggleId: document.getElementById("toggleIdVisibility"),
     },
     input: {
-        get studentNum()  { return document.getElementById("inputStudentNumber"); },
-        get secretKey()   { return document.getElementById("modalSecretKey"); },
-        get guestName()   { return document.getElementById("guestName"); },
-        get guestAgency() { return document.getElementById("guestAgency"); },
-        get guestSex()    { return document.getElementById("guestSex"); },
+        studentNum: document.getElementById("inputStudentNumber"),
     },
     kpi: {
-        get time()     { return document.getElementById("kpiCurrentTime"); },
-        get library()  { return document.getElementById("currentLibraryDisplay"); },
-        get checkins() { return document.getElementById("kpiTotalCheckins"); },
-        get active()   { return document.getElementById("kpiActiveStudents"); },
-        get colleges() { return document.getElementById("topColleges"); },
-        get courses()  { return document.getElementById("topCourses"); },
+        time:     document.getElementById("kpiCurrentTime"),
+        library:  document.getElementById("currentLibraryDisplay"),
+        checkins: document.getElementById("kpiTotalCheckins"),
+        active:   document.getElementById("kpiActiveStudents"),
+        colleges: document.getElementById("topColleges"),
+        courses:  document.getElementById("topCourses"),
     },
     modal: {
-        get el()     { return document.getElementById("dynamicModal"); },
-        get title()  { return document.getElementById("dynamicModalTitle"); },
-        get body()   { return document.getElementById("dynamicModalBody"); },
-        get footer() { return document.getElementById("dynamicModalFooter"); },
+        el:     document.getElementById("dynamicModal"),
+        title:  document.getElementById("dynamicModalTitle"),
+        body:   document.getElementById("dynamicModalBody"),
+        footer: document.getElementById("dynamicModalFooter"),
     },
-    icon: {
-        get toggle() { return document.getElementById("toggleIcon"); },
-        get secret() { return document.getElementById("secretIcon"); },
-    },
-    guest: {
-        get nudge()     { return document.getElementById("guestNudge"); },
-        get list()      { return document.getElementById("guestCheckoutList"); },
-        get noResults() { return document.getElementById("guestNoResults"); },
-    },
-    get verified()  { return document.getElementById("verifiedStudentContainer"); },
-    get keyStatus() { return document.getElementById("secretKeyStatus"); },
+    icon:  document.getElementById("toggleIcon"),
+    nudge: document.getElementById("guestNudge"),
+};
+
+// ── Dynamic getters — elements inside PHP-injected modal HTML ─────────────
+// These are replaced on every modal open and must be looked up fresh each time.
+const live = {
+    get secretKey()   { return document.getElementById("modalSecretKey"); },
+    get guestName()   { return document.getElementById("guestName"); },
+    get guestAgency() { return document.getElementById("guestAgency"); },
+    get guestSex()    { return document.getElementById("guestSex"); },
+    get secretIcon()  { return document.getElementById("secretIcon"); },
+    get keyStatus()   { return document.getElementById("secretKeyStatus"); },
+    get verified()    { return document.getElementById("verifiedStudentContainer"); },
+    get guestList()   { return document.getElementById("guestCheckoutList"); },
+    get noResults()   { return document.getElementById("guestNoResults"); },
 };
 
 const State = {
@@ -292,9 +293,11 @@ const State = {
 const BACKEND = "backend/bk_LibraryMenu/bk_libLogs-Test.php";
 const post    = (request, data = {}) => $.post(BACKEND, { request, ...data });
 
-// Alert icon/class maps — used only by showModalMessage.
-const ALERT_ICONS   = { success: "fa-check-circle", error: "fa-exclamation-circle", info: "fa-info-circle" };
-const ALERT_CLASSES = { success: "alert-success",   error: "alert-danger",          info: "alert-info" };
+const ALERT = {
+    success: { icon: "fa-check-circle",       cls: "alert-success", title: "Success" },
+    error:   { icon: "fa-exclamation-circle", cls: "alert-danger",  title: "Error"   },
+    info:    { icon: "fa-info-circle",        cls: "alert-info",    title: "Info"    },
+};
 
 // ── Utilities ──────────────────────────────────────────────────────────────
 
@@ -311,13 +314,13 @@ function startClock() {
 
 function startNudge() {
     clearTimeout(State.timers.nudge);
-    const cycle = () => {
-        UI.guest.nudge.style.opacity = "1";
+    function cycle() {
+        UI.nudge.style.opacity = "1";
         State.timers.nudge = setTimeout(() => {
-            UI.guest.nudge.style.opacity = "0";
+            UI.nudge.style.opacity = "0";
             State.timers.nudge = setTimeout(cycle, 2000);
         }, 5000);
-    };
+    }
     State.timers.nudge = setTimeout(cycle, 2000);
 }
 
@@ -339,24 +342,19 @@ function hideModal() {
 function showModalMessage(type, message, timeout = 0) {
     clearTimeout(State.timers.success);
     State.timers.success = null;
-    showModal(
-        type.charAt(0).toUpperCase() + type.slice(1),
-        `<div class="alert ${ALERT_CLASSES[type]} text-center mb-0">
-            <i class="fas ${ALERT_ICONS[type]} me-2"></i>${message}
-         </div>`
-    );
+    const { icon, cls, title } = ALERT[type];
+    showModal(title, `<div class="alert ${cls} text-center mb-0"><i class="fas ${icon} me-2"></i>${message}</div>`);
     if (timeout) State.timers.success = setTimeout(hideModal, timeout);
 }
 
 function setKeyStatus(type, icon, text) {
     const cssClass = { success: "text-success", danger: "text-danger" }[type] ?? "text-muted";
-    $(UI.keyStatus).html(`<span class="${cssClass}"><i class="fas ${icon} me-1"></i>${text}</span>`);
+    $(live.keyStatus).html(`<span class="${cssClass}"><i class="fas ${icon} me-1"></i>${text}</span>`);
 }
 
 function togglePassword(inputEl, iconEl) {
-    const $inputField = $(inputEl);
-    const isHidden    = $inputField.attr("type") === "password";
-    $inputField.attr("type", isHidden ? "text" : "password");
+    const isHidden = $(inputEl).attr("type") === "password";
+    $(inputEl).attr("type", isHidden ? "text" : "password");
     $(iconEl).toggleClass("fa-eye", !isHidden).toggleClass("fa-eye-slash", isHidden);
 }
 
@@ -367,8 +365,8 @@ function applyHover(el, enterStyles, leaveStyles) {
 }
 
 function renderKPI(kpiData) {
-    $(UI.kpi.checkins).text(kpiData.totalToday     ?? 0);
-    $(UI.kpi.active).text(kpiData.currentlyInside  ?? 0);
+    $(UI.kpi.checkins).text(kpiData.totalToday    ?? 0);
+    $(UI.kpi.active).text(kpiData.currentlyInside ?? 0);
 
     const buildRankedList = (items, colorClass) =>
         (items || ["-", "-", "-"]).map((label, index) =>
@@ -379,7 +377,7 @@ function renderKPI(kpiData) {
     $(UI.kpi.courses).html(buildRankedList(kpiData.topCourses,   "text-info"));
 }
 
-// ── Data / actions ─────────────────────────────────────────────────────────
+// ── Data / Actions ─────────────────────────────────────────────────────────
 
 function loadKPI() {
     if (!State.libraryID) return;
@@ -432,17 +430,14 @@ function validateUser() {
 // PHP owns ACTION_CONFIG (color/icon/btnText/message) — JS sends only the
 // action key and sectionName, which is all the server needs to build the HTML.
 function determineAction(user, status) {
-    let action      = "checkin";
-    let sectionName = "";
-
-    if (status.checkedIn) {
-        action      = Number(status.sectionID) === Number(State.libraryID) ? "checkout" : "switch";
-        sectionName = status.sectionName || "";
-    }
+    const action      = !status.checkedIn                                    ? "checkin"
+                      : Number(status.sectionID) === Number(State.libraryID) ? "checkout"
+                      :                                                        "switch";
+    const sectionName = status.sectionName || "";
 
     State.action = action;
     post("getAttendanceModal", {
-        user: JSON.stringify(user),
+        user:        JSON.stringify(user),
         action,
         sectionName,
         libraryName: State.libraryName,
@@ -454,12 +449,12 @@ function validateSecretKey(rawDigits) {
     if (match) {
         State.user = match;
         setKeyStatus("success", "fa-check-circle", "Identity verified");
-        $(UI.verified).show();
+        $(live.verified).show();
         post("checkStatusToday", { idNumber: match.id_number, name: match.name })
             .done(status => determineAction(match, status));
     } else {
         setKeyStatus("danger", "fa-exclamation-circle", "Invalid key — try again");
-        $(UI.verified).hide().empty();
+        $(live.verified).hide().empty();
     }
 }
 
@@ -515,26 +510,26 @@ function checkoutGuest(logID, guestName) {
             updateGuestUI();
         });
 
-        const $successAlert = $(`<div class="alert alert-success py-2 px-3 mb-2 text-center">
+        const $alert = $(`<div class="alert alert-success py-2 px-3 mb-2 text-center">
             <i class="fas fa-check-circle me-1"></i><strong>${guestName}</strong> successfully checked out.
-        </div>`).prependTo(UI.guest.list);
-        setTimeout(() => $successAlert.fadeOut(400, () => $successAlert.remove()), 2000);
+        </div>`).prependTo(live.guestList);
+        setTimeout(() => $alert.fadeOut(400, () => $alert.remove()), 2000);
 
         loadKPI();
     }).fail(() => alert("Connection error."));
 }
 
 function updateGuestUI() {
-    const guestCount = $(UI.guest.list).find(".guest-row").length;
+    const guestCount = $(live.guestList).find(".guest-row").length;
     $("#dynamicModal .badge.rounded-pill").text(`${guestCount} ${guestCount === 1 ? "guest" : "guests"}`);
     $("#guestEmptyState").toggle(guestCount === 0);
     $("#guestSearchInput").trigger("input");
 }
 
 function confirmGuestCheckIn() {
-    const name         = $(UI.input.guestName).val().trim();
-    const sex          = $(UI.input.guestSex).val();
-    const organization = $(UI.input.guestAgency).val().trim();
+    const name         = $(live.guestName).val().trim();
+    const sex          = $(live.guestSex).val();
+    const organization = $(live.guestAgency).val().trim();
     if (!name)         return alert("Guest name is required.");
     if (!sex)          return alert("Please select a sex.");
     if (!organization) return alert("Agency / Organization required.");
@@ -559,17 +554,17 @@ applyHover(UI.btn.checkOut,
 
 $(UI.btn.checkIn).off("click.libLogs").on("click.libLogs",  openGuestCheckIn);
 $(UI.btn.checkOut).off("click.libLogs").on("click.libLogs", openGuestCheckOut);
-$(UI.btn.toggleId).off("click.libLogs").on("click.libLogs", () => togglePassword(UI.input.studentNum, UI.icon.toggle));
+$(UI.btn.toggleId).off("click.libLogs").on("click.libLogs", () => togglePassword(UI.input.studentNum, UI.icon));
 
 $(document)
-    .on("submit.libLogs", "#logForm",               event => { event.preventDefault(); validateUser(); })
-    .on("click.libLogs",  "#confirmAttendance",     () => State.user && State.action && saveAttendance(State.user, State.action))
-    .on("click.libLogs",  "#confirmGuestCheckIn",   confirmGuestCheckIn)
-    .on("click.libLogs",  ".btn-guest-checkout",    function () { checkoutGuest($(this).data("logid"), $(this).data("name")); })
-    .on("click.libLogs",  "#toggleSecretKey",       () => togglePassword(UI.input.secretKey, UI.icon.secret))
+    .on("submit.libLogs", "#logForm",              event => { event.preventDefault(); validateUser(); })
+    .on("click.libLogs",  "#confirmAttendance",    () => State.user && State.action && saveAttendance(State.user, State.action))
+    .on("click.libLogs",  "#confirmGuestCheckIn",  confirmGuestCheckIn)
+    .on("click.libLogs",  ".btn-guest-checkout",   function () { checkoutGuest($(this).data("logid"), $(this).data("name")); })
+    .on("click.libLogs",  "#toggleSecretKey",      () => togglePassword(live.secretKey, live.secretIcon))
     .on("click.libLogs",  "#dynamicModal .btn-close, #dynamicModal [data-dismiss='modal'], #dynamicModal [data-bs-dismiss='modal']", hideModal)
     .on("input.libLogs",  "#modalSecretKey", function () {
-        const digits = $(this).val().replace(/\D/g, "").substring(0, 8);
+        const digits    = $(this).val().replace(/\D/g, "").substring(0, 8);
         const formatted = digits.length > 4 ? `${digits.slice(0,2)}/${digits.slice(2,4)}/${digits.slice(4)}`
                         : digits.length > 2 ? `${digits.slice(0,2)}/${digits.slice(2)}`
                         : digits;
@@ -577,19 +572,19 @@ $(document)
         if (digits.length === 8) {
             validateSecretKey(digits);
         } else {
-            $(UI.verified).hide().empty();
+            $(live.verified).hide().empty();
             setKeyStatus("muted", "fa-info-circle", "Enter birth date (MM/DD/YYYY)");
         }
     })
     .on("input.libLogs", "#guestSearchInput", function () {
         const query   = $(this).val().toLowerCase().trim();
         let   visible = 0;
-        $(UI.guest.list).find(".guest-row").each(function () {
+        $(live.guestList).find(".guest-row").each(function () {
             const matches = ($(this).data("name") || "").toLowerCase().includes(query);
             $(this).toggle(matches);
             if (matches) visible++;
         });
-        $(UI.guest.noResults).toggle(visible === 0 && query !== "");
+        $(live.noResults).toggle(visible === 0 && query !== "");
     });
 
 });

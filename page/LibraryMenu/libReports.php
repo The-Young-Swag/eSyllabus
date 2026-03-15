@@ -180,12 +180,51 @@ $(function () {
 
 // ── CONFIG ────────────────────────────────────────────────────────────────
 
-const BACKEND      = 'backend/bk_LibraryMenu/bk_libReports.php';
+const TAB_BACKEND  = 'backend/bk_LibraryMenu/bk_tabReports.php';
+const VIEW_BACKEND = 'backend/bk_LibraryMenu/bk_libReports.php';
 const DEFAULT_DAYS = 7;
 
 const TAB_LABELS = {
     logs: 'Logs', users: 'Users', colleges: 'Colleges',
     courses: 'Courses', demographics: 'Demographics',
+};
+
+const TAB_REQUEST_MAP = {
+    logs:         'getTabLogs',
+    users:        'getTabUsers',
+    colleges:     'getTabColleges',
+    courses:      'getTabCourses',
+    demographics: 'getTabDemographics',
+};
+
+const VIEW_REQUEST_MAP = {
+    logs:         'viewAllLogs',
+    users:        'viewAllUsers',
+    colleges:     'viewAllColleges',
+    courses:      'viewAllCourses',
+    demographics: 'viewAllDemographics',
+};
+
+// Called after tab HTML is injected — wires up charts and paginated tables.
+const TAB_INITIALIZERS = {
+    logs:         initLogsTab,
+    users:        initUsersTab,
+    colleges:     initCollegesTab,
+    courses:      initCoursesTab,
+    demographics: initDemographicsTab,
+};
+
+// autotable must load after jsPDF (it extends it) — sequential awaits are intentional.
+const EXPORT_RUNNERS = {
+    pdf: async (selectedTabs, responses) => {
+        await loadScript(EXPORT_LIBS.jspdf);
+        await loadScript(EXPORT_LIBS.autotable);
+        await runExportPDF(selectedTabs, responses);
+    },
+    xlsx: async (selectedTabs, responses) => {
+        await loadScript(EXPORT_LIBS.exceljs);
+        await runExportExcel(selectedTabs, responses);
+    },
 };
 
 const COLORS = {
@@ -210,28 +249,39 @@ const CHART_TOOLTIP = {
     borderWidth: 1, padding: 10, cornerRadius: 6,
 };
 
+const EXCEL = {
+    fill: {
+        title:  { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF111827' } },
+        meta:   { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFf3f4f6' } },
+        header: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF059669' } },
+        white:  { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } },
+        zebra:  { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFf0fdf4' } },
+    },
+    border: {
+        header: { top: { style: 'thin', color: { argb: 'FF047857' } }, bottom: { style: 'thin', color: { argb: 'FF047857' } }, left: { style: 'thin', color: { argb: 'FF047857' } }, right: { style: 'thin', color: { argb: 'FF047857' } } },
+        data:   { top: { style: 'hair', color: { argb: 'FFe5e7eb' } }, bottom: { style: 'hair', color: { argb: 'FFe5e7eb' } }, left: { style: 'hair', color: { argb: 'FFe5e7eb' } }, right: { style: 'hair', color: { argb: 'FFe5e7eb' } } },
+    },
+    align: {
+        center: { horizontal: 'center', vertical: 'middle' },
+        left:   { horizontal: 'left',   vertical: 'middle' },
+        right:  { horizontal: 'right',  vertical: 'middle' },
+    },
+};
+
 // ── STATE ─────────────────────────────────────────────────────────────────
 
 const State = {
-    activeTab:      'users',
+    activeTab:      'logs',   // Logs is the landing tab
     pendingRequest: null,
-    viewAllTab:     'users',
-    lastResponse:   null,
+    viewAllTab:     'logs',
+    viewAllPage:    1,
+    responses:      {},       // keyed by tab name, cached after first successful load
 };
 
-let currentViewAllPage = 1;
+// ── SPINNER ───────────────────────────────────────────────────────────────
 
-// ── CORE HELPERS ──────────────────────────────────────────────────────────
-
-const apiPost    = (data) => $.ajax({ url: BACKEND, type: 'POST', dataType: 'json', data });
-const escapeHtml = (value) => $('<div>').text(value ?? '').html();
-
-function renderTypeBadge(value) {
-    return `<span class="badge bg-secondary-subtle text-secondary rounded-pill" style="font-size:.68rem;">${escapeHtml(value)}</span>`;
-}
-
-function showSpinner() { $('#loadingSpinner').stop(true).css('display', 'flex').hide().fadeIn(150); }
-function hideSpinner() { $('#loadingSpinner').fadeOut(200); }
+const showSpinner = () => $('#loadingSpinner').stop(true).css('display', 'flex').hide().fadeIn(150);
+const hideSpinner = () => $('#loadingSpinner').fadeOut(200);
 
 // ── FILTERS ───────────────────────────────────────────────────────────────
 
@@ -257,29 +307,6 @@ const Filters = {
     },
 };
 
-// ── UTILITIES ─────────────────────────────────────────────────────────────
-
-function resolveRankMedal(rankIndex, isTied) {
-    const medals = ['🥇', '🥈', '🥉'];
-    const medal  = medals[rankIndex] ?? `${rankIndex + 1}.`;
-    return isTied
-        ? medal + `<span class="badge bg-secondary-subtle text-secondary rounded-pill ms-1" style="font-size:.55rem;vertical-align:middle;">tied</span>`
-        : medal;
-}
-
-function chartDonutFromObject(chartId, dataObject, colors, centerLabel) {
-    ChartManager.donut(chartId, Object.keys(dataObject), Object.values(dataObject), colors, centerLabel);
-}
-
-const formatDateForExport = (rawDate) => {
-    if (!rawDate) return '—';
-    const parsedDate = new Date(rawDate.replace(' ', 'T'));
-    return isNaN(parsedDate) ? rawDate : parsedDate.toLocaleString('en-US', {
-        month: 'short', day: 'numeric', year: 'numeric',
-        hour: 'numeric', minute: '2-digit', hour12: true,
-    });
-};
-
 // ── CHART MANAGER ─────────────────────────────────────────────────────────
 
 const ChartManager = {
@@ -301,9 +328,10 @@ const ChartManager = {
         this._register(chartId, {
             type: 'bar',
             data: {
-                labels:   entries.map(({label}) => label),
+                labels:   entries.map(entry => entry.label),
                 datasets: [{
-                    label: unitLabel, data: entries.map(({value}) => value),
+                    label:           unitLabel,
+                    data:            entries.map(entry => entry.value),
                     backgroundColor: colors.slice(0, entries.length),
                     borderRadius: 5, borderSkipped: false, barThickness: 36,
                 }],
@@ -313,7 +341,10 @@ const ChartManager = {
                 animation: { duration: 500, easing: 'easeOutQuart' },
                 plugins: {
                     legend: { display: false },
-                    tooltip: { ...CHART_TOOLTIP, callbacks: { label: chartContext => `  ${unitLabel}: ${chartContext.parsed.x.toLocaleString()}` } },
+                    tooltip: {
+                        ...CHART_TOOLTIP,
+                        callbacks: { label: context => `  ${unitLabel}: ${context.parsed.x.toLocaleString()}` },
+                    },
                 },
                 scales: {
                     x: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { color: '#6b7280', font: { size: 10 } } },
@@ -338,17 +369,19 @@ const ChartManager = {
                         labels: {
                             color: '#374151', font: { size: 11 }, padding: 12,
                             usePointStyle: true, pointStyle: 'circle',
-                            generateLabels: chartInstance => chartInstance.data.labels.map((label, index) => ({
-                                text:        `${label} (${(chartInstance.data.datasets[0].data[index] || 0).toLocaleString()})`,
-                                fillStyle:   chartInstance.data.datasets[0].backgroundColor[index],
-                                strokeStyle: chartInstance.data.datasets[0].backgroundColor[index],
+                            generateLabels: chart => chart.data.labels.map((label, index) => ({
+                                text:        `${label} (${(chart.data.datasets[0].data[index] || 0).toLocaleString()})`,
+                                fillStyle:   chart.data.datasets[0].backgroundColor[index],
+                                strokeStyle: chart.data.datasets[0].backgroundColor[index],
                                 hidden: false, index, pointStyle: 'circle',
                             })),
                         },
                     },
                     tooltip: {
                         ...CHART_TOOLTIP,
-                        callbacks: { label: chartContext => ` ${chartContext.label}: ${chartContext.parsed.toLocaleString()} (${total > 0 ? (chartContext.parsed / total * 100).toFixed(1) : 0}%)` },
+                        callbacks: {
+                            label: context => ` ${context.label}: ${context.parsed.toLocaleString()} (${total > 0 ? (context.parsed / total * 100).toFixed(1) : 0}%)`,
+                        },
                     },
                 },
             },
@@ -371,9 +404,44 @@ const ChartManager = {
     },
 };
 
-// ── INLINE PAGINATION ─────────────────────────────────────────────────────
+// ── PAGINATION ────────────────────────────────────────────────────────────
+// Shared pager HTML builder used by all inline tables and the view-all modal.
+// Renders:  «  ‹  1  2  3  4  5  ›  »   (sliding window of 5 pages max)
+// Page links use data-p="N" so callers bind a single delegated click handler.
 
-function paginateInlineTable(cardId, tbodyId, pagerId, rowRenderer) {
+function buildPagerHtml(currentPage, totalPages, totalRowCount, pageSize) {
+    const windowSize  = 5;
+    const windowStart = Math.max(1, Math.min(currentPage - Math.floor(windowSize / 2), totalPages - windowSize + 1));
+    const windowEnd   = Math.min(windowStart + windowSize - 1, totalPages);
+    const isFirstPage = currentPage === 1;
+    const isLastPage  = currentPage === totalPages;
+    const fromRecord  = (currentPage - 1) * pageSize + 1;
+    const toRecord    = Math.min(currentPage * pageSize, totalRowCount);
+
+    const pageItem = (label, targetPage, isDisabled, isActive) =>
+        `<li class="page-item ${isDisabled ? 'disabled' : ''} ${isActive ? 'active' : ''}">
+            <a class="page-link" href="#" data-p="${targetPage}">${label}</a>
+         </li>`;
+
+    let pageItems = pageItem('«', 1, isFirstPage, false) + pageItem('‹', currentPage - 1, isFirstPage, false);
+    for (let pageNum = windowStart; pageNum <= windowEnd; pageNum++) {
+        pageItems += pageItem(pageNum, pageNum, false, pageNum === currentPage);
+    }
+    pageItems += pageItem('›', currentPage + 1, isLastPage, false) + pageItem('»', totalPages, isLastPage, false);
+
+    return `
+        <small class="text-muted d-block text-center mb-1" style="font-size:.7rem;">
+            Showing ${fromRecord}–${toRecord} of ${totalRowCount}
+        </small>
+        <ul class="pagination pagination-sm mb-0 justify-content-center flex-wrap">${pageItems}</ul>
+    `;
+}
+
+// ── INLINE PAGINATION ─────────────────────────────────────────────────────
+// PHP pre-renders rows as HTML strings and JSON-encodes them into data-rows.
+// This function slices and injects them — no client-side row rendering needed.
+
+function paginateInlineTable(cardId, tbodyId, pagerId) {
     const $card  = $(`#${cardId}`);
     const $tbody = $(`#${tbodyId}`);
     const $pager = $(`#${pagerId}`);
@@ -383,7 +451,7 @@ function paginateInlineTable(cardId, tbodyId, pagerId, rowRenderer) {
     try { rows = JSON.parse($card.attr('data-rows') || '[]'); } catch { return; }
 
     if (!rows.length) {
-        $tbody.html('<tr><td colspan="9" class="text-center text-muted py-3">No data</td></tr>');
+        $tbody.html('<tr><td colspan="99" class="text-center text-muted py-3">No data</td></tr>');
         return;
     }
 
@@ -391,181 +459,87 @@ function paginateInlineTable(cardId, tbodyId, pagerId, rowRenderer) {
     const totalPages = Math.ceil(rows.length / pageSize);
     let   currentPage = 1;
 
-    const showPage = (page) => {
+    function showPage(page) {
         currentPage      = Math.max(1, Math.min(page, totalPages));
         const startIndex = (currentPage - 1) * pageSize;
-        $tbody.html(rows.slice(startIndex, startIndex + pageSize).map(rowRenderer).join(''));
-        totalPages > 1 ? renderPager() : $pager.empty();
-    };
+        $tbody.html(rows.slice(startIndex, startIndex + pageSize).join(''));
 
-    const renderPager = () => {
-        const windowSize  = 5;
-        const windowStart = Math.max(1, Math.min(currentPage - Math.floor(windowSize / 2), totalPages - windowSize + 1));
-        const windowEnd   = Math.min(windowStart + windowSize - 1, totalPages);
-        const isFirstPage = currentPage === 1;
-        const isLastPage  = currentPage === totalPages;
-
-        const pageItem = (label, targetPage, disabled, active) =>
-            `<li class="page-item ${disabled ? 'disabled' : ''} ${active ? 'active' : ''}">
-                <a class="page-link" href="#" data-p="${targetPage}">${label}</a>
-             </li>`;
-
-        let items = pageItem('«', 1, isFirstPage, false) + pageItem('‹', currentPage - 1, isFirstPage, false);
-        for (let pageNum = windowStart; pageNum <= windowEnd; pageNum++) {
-            items += pageItem(pageNum, pageNum, false, pageNum === currentPage);
+        if (totalPages > 1) {
+            $pager.html(buildPagerHtml(currentPage, totalPages, rows.length, pageSize));
+            $pager.find('.page-link').off('click').on('click', function (event) {
+                event.preventDefault();
+                const targetPage = parseInt($(this).data('p'), 10);
+                if (!isNaN(targetPage) && targetPage > 0) showPage(targetPage);
+            });
+        } else {
+            $pager.empty();
         }
-        items += pageItem('›', currentPage + 1, isLastPage, false) + pageItem('»', totalPages, isLastPage, false);
-
-        const fromRecord = (currentPage - 1) * pageSize + 1;
-        const toRecord   = Math.min(currentPage * pageSize, rows.length);
-        $pager.html(`
-            <small class="text-muted d-block text-center mb-1" style="font-size:.7rem;">Showing ${fromRecord}–${toRecord} of ${rows.length}</small>
-            <ul class="pagination pagination-sm mb-0 justify-content-center flex-wrap">${items}</ul>
-        `);
-        $pager.find('.page-link').off('click').on('click', function (event) {
-            event.preventDefault();
-            const targetPage = parseInt($(this).data('p'), 10);
-            if (!isNaN(targetPage) && targetPage > 0) showPage(targetPage);
-        });
-    };
+    }
 
     showPage(1);
 }
 
-// ── ROW RENDERERS ─────────────────────────────────────────────────────────
-
-const renderCheckinRow = (row) => `<tr>
-    <td class="ps-3 fw-semibold">${escapeHtml(row.display_label)}</td>
-    <td class="text-muted">${escapeHtml(row.college  || '—')}</td>
-    <td class="text-muted">${escapeHtml(row.course   || '—')}</td>
-    <td>${renderTypeBadge(row.type)}</td>
-    <td class="text-muted">${escapeHtml(row.library  || '—')}</td>
-    <td class="text-end fw-semibold text-primary">${Number(row.count).toLocaleString()}</td>
-    <td class="text-muted">${escapeHtml(row.agency_organization || '—')}</td>
-    <td class="text-end text-muted pe-3">${escapeHtml(row.last_checkin)}</td>
-</tr>`;
-
-const renderDurationRow = (row) => `<tr>
-    <td class="ps-3 fw-semibold">${escapeHtml(row.display_label)}</td>
-    <td class="text-muted">${escapeHtml(row.college || '—')}</td>
-    <td class="text-muted">${escapeHtml(row.course  || '—')}</td>
-    <td>${renderTypeBadge(row.type)}</td>
-    <td class="text-end fw-semibold text-success">${Math.round(row.minutes).toLocaleString()}</td>
-    <td class="text-muted pe-3">${escapeHtml(row.agency_organization || '—')}</td>
-</tr>`;
-
-const renderLogRow = (row) => `<tr>
-    <td class="ps-3 fw-semibold">${escapeHtml(row.id_number)}</td>
-    <td class="text-muted">${escapeHtml(row.name                || '—')}</td>
-    <td class="text-muted">${escapeHtml(row.college             || '—')}</td>
-    <td class="text-muted">${escapeHtml(row.course              || '—')}</td>
-    <td>${renderTypeBadge(row.classification || '—')}</td>
-    <td class="text-muted">${escapeHtml(row.library             || '—')}</td>
-    <td class="text-muted">${escapeHtml(row.sex                 || '—')}</td>
-    <td class="text-muted">${escapeHtml(row.checkin_time        || '—')}</td>
-    <td class="text-muted">${escapeHtml(row.checkout_time       || '—')}</td>
-    <td class="text-muted">${escapeHtml(row.agency_organization || '—')}</td>
-    <td class="text-end pe-3">${row.duration_minutes != null ? Math.round(row.duration_minutes) : '—'}</td>
-</tr>`;
-
 // ── TAB INITIALIZERS ──────────────────────────────────────────────────────
 
 function initLogsTab() {
-    paginateInlineTable('allLogsCard', 'allLogsTbody', 'allLogsPager', renderLogRow);
+    paginateInlineTable('allLogsCard', 'allLogsTbody', 'allLogsPager');
 }
 
 function initUsersTab(response) {
-    // PHP pre-computes and sends chartTopCheckins / chartTopDuration as flat sorted arrays.
     ChartManager.bar('chartTopUserCheckins', response.chartTopCheckins, COLORS.rankCheckins, 'Check-ins');
     ChartManager.bar('chartTopUserDuration',
-        response.chartTopDuration.map(({label, value}) => ({ label, value: Math.round(value) })),
+        response.chartTopDuration.map(entry => ({ label: entry.label, value: Math.round(entry.value) })),
         COLORS.rankDuration, 'Minutes');
+    ChartManager.donut('chartVisitorTypeDonut',
+        Object.keys(response.classificationDistribution),
+        Object.values(response.classificationDistribution),
+        COLORS.visitorType, 'Visitors');
 
-    chartDonutFromObject('chartVisitorTypeDonut', response.classificationDistribution, COLORS.visitorType, 'Visitors');
-
-    paginateInlineTable('checkinDetailsCard',  'checkinDetailsTbody',  'checkinDetailsPager',  renderCheckinRow);
-    paginateInlineTable('durationDetailsCard', 'durationDetailsTbody', 'durationDetailsPager', renderDurationRow);
+    paginateInlineTable('checkinDetailsCard',  'checkinDetailsTbody',  'checkinDetailsPager');
+    paginateInlineTable('durationDetailsCard', 'durationDetailsTbody', 'durationDetailsPager');
 }
 
 function initCollegesTab(response) {
-    // College colors are already computed server-side and included in the response.
     const checkinKeys  = Object.keys(response.top3CollegesCheckin);
     const durationKeys = Object.keys(response.top3CollegesDuration);
 
     ChartManager.donut('chartCollegeCheckin',
         checkinKeys,
-        checkinKeys.map(name => response.top3CollegesCheckin[name].count),
-        checkinKeys.map(name => response.top3CollegesCheckin[name].color), 'Visitors');
+        checkinKeys.map(collegeName => response.top3CollegesCheckin[collegeName].count),
+        checkinKeys.map(collegeName => response.top3CollegesCheckin[collegeName].color),
+        'Visitors');
 
     ChartManager.donut('chartCollegeDuration',
         durationKeys,
-        durationKeys.map(name => Math.round(response.top3CollegesDuration[name].minutes)),
-        durationKeys.map(name => response.top3CollegesDuration[name].color), 'Minutes');
+        durationKeys.map(collegeName => Math.round(response.top3CollegesDuration[collegeName].minutes)),
+        durationKeys.map(collegeName => response.top3CollegesDuration[collegeName].color),
+        'Minutes');
 }
 
 function initCoursesTab(response) {
-    // PHP pre-flattens course data into courseChartData: [{label, checkins, duration}].
     const { courseChartData } = response;
     if (!courseChartData.length) return;
+    const labels = courseChartData.map(entry => entry.label);
     const colors = courseChartData.map((_, index) => COLORS.course[index % COLORS.course.length]);
-    ChartManager.donut('chartCoursesCheckin',  courseChartData.map(({label}) => label), courseChartData.map(({checkins}) => checkins), colors, 'Visitors');
-    ChartManager.donut('chartCoursesDuration', courseChartData.map(({label}) => label), courseChartData.map(({duration}) => duration), colors, 'Minutes');
+    ChartManager.donut('chartCoursesCheckin',  labels, courseChartData.map(entry => entry.checkins), colors, 'Visitors');
+    ChartManager.donut('chartCoursesDuration', labels, courseChartData.map(entry => entry.duration), colors, 'Minutes');
 }
 
 function initDemographicsTab(response) {
-    chartDonutFromObject('chartSexDonut', response.sexDistribution, COLORS.sex, 'Visitors');
+    ChartManager.donut('chartSexDonut',
+        Object.keys(response.sexDistribution),
+        Object.values(response.sexDistribution),
+        COLORS.sex, 'Visitors');
 }
 
-// ── KPI RENDERING ─────────────────────────────────────────────────────────
+// ── KPI UPDATER ───────────────────────────────────────────────────────────
+// PHP pre-renders all KPI HTML via renderKpiSections() — just inject it here.
 
 function updateKpi(response) {
-    const noData = '<div class="text-muted small fst-italic">No data</div>';
-
-    const kpiRow = (index, itemCount, medal, leftHtml, rightHtml) =>
-        `<div class="d-flex align-items-center justify-content-between gap-2 py-1 ${index < itemCount - 1 ? 'border-bottom' : ''}">
-            <div class="d-flex align-items-center gap-2 min-w-0">
-                <span style="font-size:.9rem;flex-shrink:0;">${medal}</span>${leftHtml}
-            </div>
-            <div class="d-flex flex-column align-items-end" style="flex-shrink:0;">${rightHtml}</div>
-         </div>`;
-
-    $('#kpiTopStudents').html(!response.top3Students?.length ? noData :
-        response.top3Students.map((student, index) => kpiRow(index, response.top3Students.length,
-            resolveRankMedal(index, student.tied),
-            `<div class="min-w-0">
-                <div class="fw-bold text-dark" style="font-size:.85rem;line-height:1.2;">${escapeHtml(student.id_number)}</div>
-                <div class="text-muted" style="font-size:.68rem;">${escapeHtml(student.college || '—')}${student.course ? ' · ' + escapeHtml(student.course) : ''}</div>
-             </div>`,
-            `<span class="badge rounded-pill bg-primary-subtle text-primary fw-semibold" style="font-size:.72rem;">${Number(student.count).toLocaleString()}</span>
-             <span class="text-muted" style="font-size:.62rem;">check-ins</span>`
-        )).join('')
-    );
-
-    $('#kpiTopColleges').html(!response.top3Colleges?.length ? noData :
-        response.top3Colleges.map((college, index) => kpiRow(index, response.top3Colleges.length,
-            resolveRankMedal(index, college.tied),
-            `<div class="fw-bold text-dark text-truncate" style="font-size:.85rem;">${escapeHtml(college.name)}</div>`,
-            `<span class="badge rounded-pill bg-success-subtle text-success fw-semibold" style="font-size:.72rem;">${Number(college.count).toLocaleString()}</span>
-             <span class="text-muted" style="font-size:.62rem;">students</span>`
-        )).join('')
-    );
-
-    $('#kpiTopCourses').html(!response.top3Courses?.length ? noData :
-        response.top3Courses.map((course, index) => kpiRow(index, response.top3Courses.length,
-            resolveRankMedal(index, course.tied),
-            `<div class="min-w-0">
-                <div class="fw-bold text-dark" style="font-size:.85rem;line-height:1.2;">${escapeHtml(course.course)}</div>
-                <div style="font-size:.68rem;"><span class="badge rounded-pill bg-secondary-subtle text-secondary px-2 py-0">${escapeHtml(course.college || '—')}</span></div>
-             </div>`,
-            `<span class="badge rounded-pill bg-warning-subtle text-warning fw-semibold" style="font-size:.72rem;">${Number(course.count).toLocaleString()}</span>
-             <span class="text-muted" style="font-size:.62rem;">students</span>`
-        )).join('')
-    );
-
-    $('#lastUpdatedLabel').html(
-        '<i class="fas fa-sync-alt me-1"></i>Last updated: ' +
-        new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
-    );
+    $('#kpiTopStudents').html(response.kpiStudentsHtml);
+    $('#kpiTopColleges').html(response.kpiCollegesHtml);
+    $('#kpiTopCourses').html(response.kpiCoursesHtml);
+    $('#lastUpdatedLabel').html(response.kpiLastUpdatedHtml);
 }
 
 // ── TAB LOADER ────────────────────────────────────────────────────────────
@@ -575,10 +549,11 @@ function loadTab(tabName) {
     document.querySelectorAll('#analyticsTabs .nav-link').forEach(button =>
         button.classList.toggle('active', button.dataset.tab === tabName)
     );
+
     State.pendingRequest?.abort();
     showSpinner();
 
-    State.pendingRequest = apiPost({ action: 'tab', tab: tabName, ...Filters.get() })
+    State.pendingRequest = $.post(TAB_BACKEND, { request: TAB_REQUEST_MAP[tabName], ...Filters.get() })
         .done(response => {
             hideSpinner();
             if (response.status !== 'success') {
@@ -586,21 +561,13 @@ function loadTab(tabName) {
                 return;
             }
             $('#tabContent').html(response.html);
-
-            switch (tabName) {
-                case 'logs':         initLogsTab();                 break;
-                case 'users':        initUsersTab(response);        break;
-                case 'colleges':     initCollegesTab(response);     break;
-                case 'courses':      initCoursesTab(response);      break;
-                case 'demographics': initDemographicsTab(response); break;
-            }
-
+            TAB_INITIALIZERS[tabName]?.(response);
             updateKpi(response);
-            State.lastResponse = response;
+            State.responses[tabName] = response;
             preloadExportLibraries();
             $('#exportBtn').prop('disabled', false);
         })
-        .fail((_, status) => {
+        .fail((unusedXhr, status) => {
             hideSpinner();
             if (status !== 'abort')
                 $('#tabContent').html('<div class="alert alert-danger m-3">Failed to load analytics. Please try again.</div>');
@@ -611,7 +578,7 @@ function loadTab(tabName) {
 
 function loadViewAll(tabName, page) {
     showSpinner();
-    apiPost({ action: 'viewAll', tab: tabName, page, ...Filters.get() })
+    $.post(VIEW_BACKEND, { request: VIEW_REQUEST_MAP[tabName], page, ...Filters.get() })
         .done(response => {
             hideSpinner();
             if (response.status !== 'success') {
@@ -629,17 +596,24 @@ function loadViewAll(tabName, page) {
 }
 
 // ── EXPORT SCHEMA ─────────────────────────────────────────────────────────
+// rowMappers read from PHP flat arrays (flatLogs, flatUsers, etc.).
+// All dates arrive pre-formatted from the server.
 
 const EXPORT_SCHEMA = {
     logs: {
         label:            'Visit Logs',
         headers:          ['ID Number', 'Name', 'College', 'Course', 'Type', 'Section', 'Sex', 'Check-in', 'Check-out', 'Agency / Organization', 'Duration (min)'],
         columnAlignments: [null, null, null, null, null, null, null, null, null, null, 'center'],
-        rowMapper: (response) => (response.allLogs || []).map(log => [
-            log.id_number, log.name || '—', log.college || '—', log.course || '—',
-            log.classification || '—', log.library || '—', log.sex || '—',
-            formatDateForExport(log.checkin_time),
-            log.checkout_time ? formatDateForExport(log.checkout_time) : '—',
+        rowMapper: (response) => (response.flatLogs || []).map(log => [
+            log.id_number,
+            log.name              || '—',
+            log.college           || '—',
+            log.course            || '—',
+            log.classification    || '—',
+            log.library           || '—',
+            log.sex               || '—',
+            log.checkin_formatted,
+            log.checkout_formatted,
             log.agency_organization || '—',
             log.duration_minutes != null ? Math.round(log.duration_minutes) : '—',
         ]),
@@ -647,72 +621,88 @@ const EXPORT_SCHEMA = {
     users: {
         label:   'Users',
         headers: ['ID Number', 'Name', 'College', 'Course', 'Type', 'Library Section', 'Check-ins', 'Duration (min)', 'Last Check-in'],
-        rowMapper: (response) => {
-            const rows = [];
-            for (const [classification, userGroup] of Object.entries(response.topCheckins))
-                for (const [userId, userRecord] of Object.entries(userGroup)) {
-                    const durationEntry = response.topDuration?.[classification]?.[userId];
-                    rows.push([
-                        userRecord.display_label, userRecord.name ?? '—', userRecord.college ?? '—', userRecord.course ?? '—',
-                        classification, userRecord.library ?? '—', userRecord.count,
-                        durationEntry ? Math.round(durationEntry.minutes) : '—',
-                        formatDateForExport(userRecord.last_checkin),
-                    ]);
-                }
-            return rows;
-        },
+        rowMapper: (response) => (response.flatUsers || []).map(user => [
+            user.display_label,
+            user.name    || '—',
+            user.college || '—',
+            user.course  || '—',
+            user.type,
+            user.library || '—',
+            user.checkins,
+            Math.round(user.duration),
+            user.last_checkin_formatted,
+        ]),
     },
     colleges: {
         label:   'Colleges',
         headers: ['College', 'Unique Visitors', 'Total Duration (min)', 'Last Check-in'],
-        rowMapper: (response) => {
-            const merged = {};
-            for (const [collegeName, data] of Object.entries(response.top3CollegesCheckin))
-                merged[collegeName] = { count: data.count, minutes: '—', last: data.last_checkin };
-            for (const [collegeName, data] of Object.entries(response.top3CollegesDuration)) {
-                merged[collegeName] ??= { count: '—', minutes: '—', last: data.last_checkin };
-                merged[collegeName].minutes = Math.round(data.minutes);
-            }
-            return Object.entries(merged).map(([collegeName, row]) => [collegeName, row.count, row.minutes, formatDateForExport(row.last)]);
-        },
+        rowMapper: (response) => (response.flatColleges || []).map(college => [
+            college.name,
+            college.visitors,
+            college.duration,
+            college.last_checkin,
+        ]),
     },
     courses: {
         label:   'Courses',
         headers: ['College', 'Course', 'Unique Visitors', 'Duration (min)', 'Last Check-in'],
-        rowMapper: (response) => {
-            const rows = [];
-            for (const [college, courses] of Object.entries(response.topCoursesCheckin))
-                for (const [course, data] of Object.entries(courses)) {
-                    const durationEntry = response.topCoursesDuration?.[college]?.[course];
-                    rows.push([college, course, data.count, durationEntry ? Math.round(durationEntry.minutes) : '—', formatDateForExport(data.last_checkin)]);
-                }
-            return rows;
-        },
+        rowMapper: (response) => (response.flatCourses || []).map(course => [
+            course.college,
+            course.course,
+            course.visitors,
+            course.duration,
+            course.last_checkin,
+        ]),
     },
     demographics: {
         label:   'Demographics',
         headers: ['Sex', 'Visitors', '% of Total'],
-        rowMapper: (response) => {
-            const total = Object.values(response.sexDistribution).reduce((sum, count) => sum + count, 0);
-            return Object.entries(response.sexDistribution).map(([sex, count]) => [
-                sex, count, total > 0 ? (count / total * 100).toFixed(1) + '%' : '0%',
-            ]);
-        },
+        rowMapper: (response) => (response.flatDemographics || []).map(entry => [
+            entry.sex,
+            entry.count,
+            entry.pct + '%',
+        ]),
     },
 };
 
+// ── EXPORT: FETCH MISSING TABS ────────────────────────────────────────────
+// The user can select any tab for export regardless of whether they've visited it.
+// Fetches all selected-but-unloaded tabs in parallel before the export runs
+// so nothing is ever silently skipped.
+
+async function fetchMissingTabsForExport(selectedTabs) {
+    const unloadedTabs = selectedTabs.filter(tabName => !State.responses[tabName]);
+    if (!unloadedTabs.length) return;
+
+    await Promise.all(unloadedTabs.map(tabName =>
+        new Promise(resolve => {
+            $.post(TAB_BACKEND, { request: TAB_REQUEST_MAP[tabName], ...Filters.get() })
+                .done(response => {
+                    if (response.status === 'success') State.responses[tabName] = response;
+                    resolve();
+                })
+                .fail(resolve);   // resolve even on failure — that tab will be skipped gracefully
+        })
+    ));
+}
+
 // ── OFFSCREEN CHART BUILDER ───────────────────────────────────────────────
+// Renders a Chart.js chart onto an offscreen canvas and returns a PNG data URL.
+// Used only during PDF export — never shown in the DOM.
 
 function buildOffscreenChart(type, labels, values, colors, unitLabel, title) {
-    const isBar  = type === 'bar';
-    const width  = isBar ? OFFSCREEN.barW  : OFFSCREEN.donutW;
-    const height = isBar ? OFFSCREEN.barH  : OFFSCREEN.donutH;
-    const total  = isBar ? 0 : values.reduce((sum, value) => sum + value, 0);
-    const canvas = Object.assign(document.createElement('canvas'), { width, height });
+    const isBar      = type === 'bar';
+    const canvasW    = isBar ? OFFSCREEN.barW  : OFFSCREEN.donutW;
+    const canvasH    = isBar ? OFFSCREEN.barH  : OFFSCREEN.donutH;
+    const donutTotal = isBar ? 0 : values.reduce((sum, value) => sum + value, 0);
+    const canvas     = Object.assign(document.createElement('canvas'), { width: canvasW, height: canvasH });
 
     const config = isBar ? {
         type: 'bar',
-        data: { labels, datasets: [{ label: unitLabel, data: values, backgroundColor: colors, borderRadius: 5, borderSkipped: false, barThickness: 50 }] },
+        data: {
+            labels,
+            datasets: [{ label: unitLabel, data: values, backgroundColor: colors, borderRadius: 5, borderSkipped: false, barThickness: 50 }],
+        },
         options: {
             indexAxis: 'y', responsive: false, animation: false, devicePixelRatio: 2,
             plugins: { legend: { display: false } },
@@ -732,10 +722,10 @@ function buildOffscreenChart(type, labels, values, colors, unitLabel, title) {
                     position: 'bottom',
                     labels: {
                         font: { size: 13 }, padding: 14, usePointStyle: true, pointStyle: 'circle',
-                        generateLabels: chartInstance => chartInstance.data.labels.map((label, index) => ({
-                            text:        `${label}  (${(chartInstance.data.datasets[0].data[index] || 0).toLocaleString()})`,
-                            fillStyle:   chartInstance.data.datasets[0].backgroundColor[index],
-                            strokeStyle: chartInstance.data.datasets[0].backgroundColor[index],
+                        generateLabels: chart => chart.data.labels.map((label, index) => ({
+                            text:        `${label}  (${(chart.data.datasets[0].data[index] || 0).toLocaleString()})`,
+                            fillStyle:   chart.data.datasets[0].backgroundColor[index],
+                            strokeStyle: chart.data.datasets[0].backgroundColor[index],
                             hidden: false, index, pointStyle: 'circle',
                         })),
                     },
@@ -751,7 +741,7 @@ function buildOffscreenChart(type, labels, values, colors, unitLabel, title) {
                 chartContext.save();
                 chartContext.textAlign = 'center'; chartContext.textBaseline = 'middle';
                 chartContext.font = 'bold 34px sans-serif'; chartContext.fillStyle = '#111827';
-                chartContext.fillText(total.toLocaleString(), centerX, centerY - 14);
+                chartContext.fillText(donutTotal.toLocaleString(), centerX, centerY - 14);
                 chartContext.font = '17px sans-serif'; chartContext.fillStyle = '#6b7280';
                 chartContext.fillText(unitLabel, centerX, centerY + 18);
                 chartContext.restore();
@@ -772,9 +762,9 @@ function buildChartsForTab(tabName, response) {
         case 'users': {
             const { chartTopCheckins, chartTopDuration } = response;
             return [
-                buildOffscreenChart('bar',   chartTopCheckins.map(({label}) => label), chartTopCheckins.map(({value}) => value),               COLORS.rankCheckins.slice(0, chartTopCheckins.length), 'Check-ins', 'Top Visitors by Check-ins'),
-                buildOffscreenChart('bar',   chartTopDuration.map(({label}) => label), chartTopDuration.map(({value}) => Math.round(value)),   COLORS.rankDuration.slice(0, chartTopDuration.length), 'Minutes',   'Top Visitors by Duration'),
-                buildOffscreenChart('donut', Object.keys(response.classificationDistribution), Object.values(response.classificationDistribution), COLORS.visitorType, 'Visitors', 'Visitor Type Breakdown'),
+                buildOffscreenChart('bar',   chartTopCheckins.map(entry => entry.label), chartTopCheckins.map(entry => entry.value),              COLORS.rankCheckins.slice(0, chartTopCheckins.length), 'Check-ins', 'Top Visitors by Check-ins'),
+                buildOffscreenChart('bar',   chartTopDuration.map(entry => entry.label), chartTopDuration.map(entry => Math.round(entry.value)),   COLORS.rankDuration.slice(0, chartTopDuration.length), 'Minutes',   'Top Visitors by Duration'),
+                buildOffscreenChart('donut', Object.keys(response.classificationDistribution), Object.values(response.classificationDistribution), COLORS.visitorType,                                    'Visitors',  'Visitor Type Breakdown'),
             ];
         }
 
@@ -789,11 +779,12 @@ function buildChartsForTab(tabName, response) {
 
         case 'courses': {
             const { courseChartData } = response;
-            if (!courseChartData.length) return [];
+            if (!courseChartData?.length) return [];
+            const labels = courseChartData.map(entry => entry.label);
             const colors = courseChartData.map((_, index) => COLORS.course[index % COLORS.course.length]);
             return [
-                buildOffscreenChart('donut', courseChartData.map(({label}) => label), courseChartData.map(({checkins}) => checkins), colors, 'Visitors', 'Top Courses by Check-ins'),
-                buildOffscreenChart('donut', courseChartData.map(({label}) => label), courseChartData.map(({duration}) => duration), colors, 'Minutes',  'Top Courses by Duration'),
+                buildOffscreenChart('donut', labels, courseChartData.map(entry => entry.checkins), colors, 'Visitors', 'Top Courses by Check-ins'),
+                buildOffscreenChart('donut', labels, courseChartData.map(entry => entry.duration), colors, 'Minutes',  'Top Courses by Duration'),
             ];
         }
 
@@ -801,7 +792,7 @@ function buildChartsForTab(tabName, response) {
             return [buildOffscreenChart('donut',
                 Object.keys(response.sexDistribution),
                 Object.values(response.sexDistribution),
-                COLORS.sex, 'Visitors', 'Sex Distribution'
+                COLORS.sex, 'Visitors', 'Sex Distribution',
             )];
 
         default: return [];
@@ -841,8 +832,11 @@ async function saveBlob(blob, filename, mimeType, extension) {
             await writable.write(blob);
             await writable.close();
             return;
-        } catch (error) { if (error.name === 'AbortError') return; }
+        } catch (error) {
+            if (error.name === 'AbortError') return;
+        }
     }
+    // Fallback for browsers without the File System Access API (Firefox, older Safari).
     const url    = URL.createObjectURL(blob);
     const anchor = Object.assign(document.createElement('a'), { href: url, download: filename });
     document.body.appendChild(anchor);
@@ -858,7 +852,7 @@ const buildExportFilename = (tabs, extension) => {
 
 // ── PDF EXPORT ────────────────────────────────────────────────────────────
 
-async function runExportPDF(tabs, response) {
+async function runExportPDF(selectedTabs, responses) {
     const { jsPDF }     = window.jspdf;
     const pdf           = new jsPDF('l', 'mm', 'a4');
     const margin        = 16;
@@ -871,8 +865,14 @@ async function runExportPDF(tabs, response) {
     let   pageNumber    = 1;
     let   cursorY       = 0;
 
-    const drawDivider = (posY) => { pdf.setDrawColor(226, 232, 240).setLineWidth(0.25); pdf.line(margin, posY, pageWidth - margin, posY); };
-    const drawHeading = (text, posY) => { pdf.setFont('helvetica', 'bold').setFontSize(8.5).setTextColor(17, 24, 39); pdf.text(text, margin, posY); };
+    const drawDivider = (posY) => {
+        pdf.setDrawColor(226, 232, 240).setLineWidth(0.25);
+        pdf.line(margin, posY, pageWidth - margin, posY);
+    };
+    const drawHeading = (text, posY) => {
+        pdf.setFont('helvetica', 'bold').setFontSize(8.5).setTextColor(17, 24, 39);
+        pdf.text(text, margin, posY);
+    };
     const drawCaption = (text, posX, posY, width, centered = false) => {
         pdf.setFont('helvetica', 'normal').setFontSize(6.5).setTextColor(100, 116, 139);
         centered ? pdf.text(text, posX + width / 2, posY, { align: 'center' }) : pdf.text(text, posX, posY);
@@ -884,25 +884,29 @@ async function runExportPDF(tabs, response) {
         pdf.line(margin, pageHeight - 10, pageWidth - margin, pageHeight - 10);
     };
 
+    // Cover header bar
     pdf.setFillColor(17, 24, 39);
     pdf.rect(0, 0, pageWidth, 18, 'F');
     pdf.setFont('helvetica', 'bold').setFontSize(11).setTextColor(255, 255, 255);
     pdf.text('Library Analytics Report', margin, 12);
     pdf.setFont('helvetica', 'normal').setFontSize(8).setTextColor(148, 163, 184);
-    pdf.text(tabs.map(tabName => TAB_LABELS[tabName]).join(' · ') + '   ·   ' + Filters.dateLabel(), pageWidth - margin, 12, { align: 'right' });
+    pdf.text(selectedTabs.map(tabName => TAB_LABELS[tabName]).join(' · ') + '   ·   ' + Filters.dateLabel(), pageWidth - margin, 12, { align: 'right' });
 
     cursorY = 24;
     pdf.setFont('helvetica', 'normal').setFontSize(7.5).setTextColor(100, 116, 139);
     pdf.text('Generated: ' + new Date().toLocaleString(), margin, cursorY);
     cursorY += 5; drawDivider(cursorY); cursorY += 6;
 
-    for (const tabName of tabs) {
+    for (const tabName of selectedTabs) {
+        const tabResponse = responses[tabName];
+        if (!tabResponse) continue;
+
         if (!isFirstTab) { pdf.addPage(); cursorY = margin; pageNumber++; }
         isFirstTab = false;
 
         const schema    = EXPORT_SCHEMA[tabName];
         if (!schema) continue;
-        const tableRows = schema.rowMapper(response);
+        const tableRows = schema.rowMapper(tabResponse);
 
         pdf.setFillColor(248, 250, 252);
         pdf.rect(margin, cursorY - 2, contentWidth, 8, 'F');
@@ -910,11 +914,11 @@ async function runExportPDF(tabs, response) {
         pdf.text(schema.label, margin + 3, cursorY + 4);
         cursorY += 12;
 
-        const charts      = buildChartsForTab(tabName, response);
-        const barCharts   = charts.filter(chart => chart.type === 'bar');
-        const donutCharts = charts.filter(chart => chart.type === 'donut');
+        const allCharts   = buildChartsForTab(tabName, tabResponse);
+        const barCharts   = allCharts.filter(chart => chart.type === 'bar');
+        const donutCharts = allCharts.filter(chart => chart.type === 'donut');
 
-        if (charts.length) {
+        if (allCharts.length) {
             drawHeading('Charts', cursorY); cursorY += 5;
 
             if (barCharts.length) {
@@ -967,37 +971,23 @@ async function runExportPDF(tabs, response) {
 
     await saveBlob(
         new Blob([pdf.output('arraybuffer')], { type: 'application/pdf' }),
-        buildExportFilename(tabs, 'pdf'), 'application/pdf', 'pdf'
+        buildExportFilename(selectedTabs, 'pdf'), 'application/pdf', 'pdf'
     );
 }
 
 // ── EXCEL EXPORT ──────────────────────────────────────────────────────────
 
-async function runExportExcel(tabs, response) {
+async function runExportExcel(selectedTabs, responses) {
     const workbook  = new window.ExcelJS.Workbook();
     const dateRange = Filters.dateLabel();
 
-    const FILL = {
-        title:  { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF111827' } },
-        meta:   { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFf3f4f6' } },
-        header: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF059669' } },
-        white:  { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } },
-        zebra:  { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFf0fdf4' } },
-    };
-    const BORDER = {
-        header: { top: { style: 'thin', color: { argb: 'FF047857' } }, bottom: { style: 'thin', color: { argb: 'FF047857' } }, left: { style: 'thin', color: { argb: 'FF047857' } }, right: { style: 'thin', color: { argb: 'FF047857' } } },
-        data:   { top: { style: 'hair', color: { argb: 'FFe5e7eb' } }, bottom: { style: 'hair', color: { argb: 'FFe5e7eb' } }, left: { style: 'hair', color: { argb: 'FFe5e7eb' } }, right: { style: 'hair', color: { argb: 'FFe5e7eb' } } },
-    };
-    const ALIGN = {
-        center: { horizontal: 'center', vertical: 'middle' },
-        left:   { horizontal: 'left',   vertical: 'middle' },
-        right:  { horizontal: 'right',  vertical: 'middle' },
-    };
+    for (const tabName of selectedTabs) {
+        const tabResponse = responses[tabName];
+        if (!tabResponse) continue;
 
-    for (const tabName of tabs) {
         const schema   = EXPORT_SCHEMA[tabName];
         if (!schema) continue;
-        const dataRows = schema.rowMapper(response);
+        const dataRows = schema.rowMapper(tabResponse);
         const colCount = schema.headers.length;
         const sheet    = workbook.addWorksheet(schema.label.substring(0, 31));
         sheet.views    = [{ state: 'frozen', ySplit: 5 }];
@@ -1007,10 +997,10 @@ async function runExportExcel(tabs, response) {
             const worksheetRow = sheet.lastRow;
             worksheetRow.height = rowHeight;
             worksheetRow.getCell(1).font      = fontOptions;
-            worksheetRow.getCell(1).fill      = FILL[fillKey];
-            worksheetRow.getCell(1).alignment = ALIGN.center;
+            worksheetRow.getCell(1).fill      = EXCEL.fill[fillKey];
+            worksheetRow.getCell(1).alignment = EXCEL.align.center;
             sheet.mergeCells(worksheetRow.number, 1, worksheetRow.number, colCount);
-            for (let colIndex = 2; colIndex <= colCount; colIndex++) worksheetRow.getCell(colIndex).fill = FILL[fillKey];
+            for (let colIndex = 2; colIndex <= colCount; colIndex++) worksheetRow.getCell(colIndex).fill = EXCEL.fill[fillKey];
         };
 
         addMetaRow(`Library Analytics Report — ${schema.label}`, 30, { bold: true, color: { argb: 'FFFFFFFF' }, size: 14 }, 'title');
@@ -1022,29 +1012,29 @@ async function runExportExcel(tabs, response) {
         sheet.lastRow.height = 22;
         sheet.lastRow.eachCell(cell => {
             cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
-            cell.fill = FILL.header; cell.alignment = ALIGN.center; cell.border = BORDER.header;
+            cell.fill = EXCEL.fill.header; cell.alignment = EXCEL.align.center; cell.border = EXCEL.border.header;
         });
 
         sheet.addRows(dataRows);
         const firstDataRowIndex = 6;
-        for (let rowIndex = firstDataRowIndex; rowIndex <= firstDataRowIndex + dataRows.length - 1; rowIndex++) {
+        for (let rowIndex = firstDataRowIndex; rowIndex < firstDataRowIndex + dataRows.length; rowIndex++) {
             const worksheetRow = sheet.getRow(rowIndex);
             const isZebra      = (rowIndex - firstDataRowIndex) % 2 !== 0;
             worksheetRow.height = 18;
             worksheetRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
                 const alignOverride = schema.columnAlignments?.[colNumber - 1];
-                cell.fill      = isZebra ? FILL.zebra : FILL.white;
-                cell.border    = BORDER.data;
+                cell.fill      = isZebra ? EXCEL.fill.zebra : EXCEL.fill.white;
+                cell.border    = EXCEL.border.data;
                 cell.font      = { size: 10 };
-                cell.alignment = alignOverride === 'center' ? ALIGN.center
-                               : alignOverride === 'right'  ? ALIGN.right
-                               : alignOverride === 'left'   ? ALIGN.left
-                               : typeof cell.value === 'number' ? ALIGN.right : ALIGN.left;
+                cell.alignment = alignOverride === 'center' ? EXCEL.align.center
+                               : alignOverride === 'right'  ? EXCEL.align.right
+                               : alignOverride === 'left'   ? EXCEL.align.left
+                               : typeof cell.value === 'number' ? EXCEL.align.right : EXCEL.align.left;
             });
         }
 
         schema.headers.forEach((header, index) => {
-            const maxLength = dataRows.reduce((max, dataRow) => Math.max(max, String(dataRow[index] ?? '').length), header.length);
+            const maxLength = dataRows.reduce((max, row) => Math.max(max, String(row[index] ?? '').length), header.length);
             sheet.getColumn(index + 1).width = Math.min(50, maxLength + 4);
         });
     }
@@ -1052,33 +1042,40 @@ async function runExportExcel(tabs, response) {
     const buffer = await workbook.xlsx.writeBuffer();
     await saveBlob(
         new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
-        buildExportFilename(tabs, 'xlsx'), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'xlsx'
+        buildExportFilename(selectedTabs, 'xlsx'), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'xlsx'
     );
 }
 
 // ── EVENT BINDINGS ────────────────────────────────────────────────────────
 
-$(document).off('.analytics');
-
-$(document)
+$(document).off('.analytics')
     .on('click.analytics', '#analyticsTabs .nav-link', function (event) {
         event.preventDefault();
         loadTab($(this).data('tab'));
     })
-    .on('click.analytics', '#refreshBtn', () => { if (Filters.hasRange()) loadTab(State.activeTab); })
+    .on('click.analytics', '#refreshBtn', () => {
+        if (Filters.hasRange()) { State.responses = {}; loadTab(State.activeTab); }
+    })
     .on('click.analytics', '.view-all-btn', function () {
-        State.viewAllTab   = $(this).data('tab');
-        currentViewAllPage = 1;
-        loadViewAll(State.viewAllTab, currentViewAllPage);
+        State.viewAllTab  = $(this).data('tab');
+        State.viewAllPage = 1;
+        loadViewAll(State.viewAllTab, State.viewAllPage);
     })
     .on('click.analytics', '#viewAllModalFooter .page-link', function (event) {
         event.preventDefault();
         const targetPage = parseInt($(this).data('page'), 10);
-        if (!isNaN(targetPage)) { currentViewAllPage = targetPage; loadViewAll(State.viewAllTab, currentViewAllPage); }
+        if (!isNaN(targetPage)) { State.viewAllPage = targetPage; loadViewAll(State.viewAllTab, State.viewAllPage); }
     })
     .on('click.analytics', '.export-format-option', function () {
         $('.export-format-option').removeClass('active-format');
         $(this).addClass('active-format').find('input[type="radio"]').prop('checked', true);
+    })
+    // Sync "All Tabs" checkbox state every time the export modal opens,
+    // in case the user left it in a partial-check state from a previous open.
+    .on('show.bs.modal', '#exportModal', function () {
+        const allCheckboxes     = $('#exportSectionIndividual .export-section-check');
+        const checkedCheckboxes = allCheckboxes.filter(':checked');
+        $('#exportCheckAll').prop('checked', allCheckboxes.length === checkedCheckboxes.length);
     })
     .on('change.analytics', '#exportCheckAll', function () {
         const isChecked = $(this).is(':checked');
@@ -1087,11 +1084,12 @@ $(document)
             .closest('label').toggleClass('opacity-50', !isChecked);
     })
     .on('change.analytics', '#exportSectionIndividual .export-section-check', function () {
-        const $allChecks = $('#exportSectionIndividual .export-section-check');
-        $('#exportCheckAll').prop('checked', $allChecks.length === $allChecks.filter(':checked').length);
+        const allCheckboxes     = $('#exportSectionIndividual .export-section-check');
+        const checkedCheckboxes = allCheckboxes.filter(':checked');
+        $('#exportCheckAll').prop('checked', allCheckboxes.length === checkedCheckboxes.length);
     })
     .on('click.analytics', '#exportBtn', function () {
-        if (!State.lastResponse) { alert('No data loaded. Please generate analytics first.'); return; }
+        if (!Filters.hasRange()) { alert('Please set a date range before exporting.'); return; }
         $('#exportModal').modal('show');
     })
     .on('click.analytics', '#exportConfirmBtn', async function () {
@@ -1099,21 +1097,15 @@ $(document)
             .map(function () { return $(this).val(); }).get();
 
         if (!selectedSections.length) { alert('Please select at least one section to export.'); return; }
-        if (!State.lastResponse)      { alert('No data available. Please generate analytics first.'); return; }
 
         const exportFormat = $('input[name="exportFormat"]:checked').val() || 'xlsx';
         $('#exportModal').modal('hide');
         showSpinner();
 
         try {
-            if (exportFormat === 'pdf') {
-                await loadScript(EXPORT_LIBS.jspdf);
-                await loadScript(EXPORT_LIBS.autotable); // must be sequential — autotable extends jsPDF
-                await runExportPDF(selectedSections, State.lastResponse);
-            } else {
-                await loadScript(EXPORT_LIBS.exceljs);
-                await runExportExcel(selectedSections, State.lastResponse);
-            }
+            // Fetch data for any selected tab the user hasn't visited yet.
+            await fetchMissingTabsForExport(selectedSections);
+            await EXPORT_RUNNERS[exportFormat]?.(selectedSections, State.responses);
         } catch (error) {
             console.error('Export error:', error);
             alert('Export failed: ' + error.message);
@@ -1123,12 +1115,14 @@ $(document)
     });
 
 $('#startDate, #endDate, #classificationFilter, #libraryFilter')
-    .on('change.analytics', () => { if (Filters.hasRange()) loadTab(State.activeTab); });
+    .on('change.analytics', () => {
+        if (Filters.hasRange()) { State.responses = {}; loadTab(State.activeTab); }
+    });
 
 // ── BOOT ──────────────────────────────────────────────────────────────────
 
 Filters.setDefaults();
-if (Filters.hasRange()) loadTab('users');
+if (Filters.hasRange()) loadTab('logs');
 
 });
 </script>
