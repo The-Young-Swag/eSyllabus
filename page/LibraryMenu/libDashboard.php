@@ -64,6 +64,7 @@
     </div>
 </div>
 
+
     <!-- Daily Logs Table -->
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center py-3 px-4">

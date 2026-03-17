@@ -91,33 +91,33 @@ function resolveUserById(string $id): array
     $mapper  = $group === "employees" ? "mapEmployee" : "mapStudent";
     $matches = [];
 
-    foreach ($records as $r) {
-        $user = $mapper($r);
+    foreach ($records as $record) {
+        $user = $mapper($record);
         if ($user["id_number"] === $id) $matches[] = $user;
     }
 
     return $matches;
 }
 
-function mapStudent(array $s): array
+function mapStudent(array $student): array
 {
     return [
-        "id_number"      => $s["id_number"] ?? "",
-        "name"           => $s["name"]      ?? "",
-        "sex"            => $s["sex"]        ?? null,
-        "college"        => $s["college"]    ?? null,
-        "course"         => $s["course"]     ?? null,
+        "id_number"      => $student["id_number"] ?? "",
+        "name"           => $student["name"]      ?? "",
+        "sex"            => $student["sex"]        ?? null,
+        "college"        => $student["college"]    ?? null,
+        "course"         => $student["course"]     ?? null,
         "classification" => "STUDENT",
-        "secretKey"      => $s["birthDate"]  ?? null,
+        "secretKey"      => $student["birthDate"]  ?? null,
     ];
 }
 
-function mapEmployee(array $e): array
+function mapEmployee(array $employee): array
 {
     return [
-        "id_number"      => $e["employee_number"] ?? $e["id_number"] ?? "",
-        "name"           => $e["name"] ?? "",
-        "sex"            => $e["sex"]  ?? null,
+        "id_number"      => $employee["employee_number"] ?? $employee["id_number"] ?? "",
+        "name"           => $employee["name"] ?? "",
+        "sex"            => $employee["sex"]  ?? null,
         "college"        => "",
         "course"         => "",
         "classification" => "EMPLOYEE",
