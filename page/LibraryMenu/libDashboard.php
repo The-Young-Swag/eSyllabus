@@ -94,7 +94,16 @@
                         </tr>
                     </thead>
                     <tbody id="dailyLogs">
+                        <tr><td colspan="7" class="text-center text-muted py-4">LORDES</td></tr>
+                        <tr><td colspan="7" class="text-center text-muted py-4">HONEY</td></tr>
+                        <tr><td colspan="7" class="text-center text-muted py-4">AIM</td></tr>
                         <tr><td colspan="7" class="text-center text-muted py-4">Loading...</td></tr>
+                        <tr><td colspan="7" class="text-center text-muted py-4">Loading...</td></tr>
+                        <tr><td colspan="7" class="text-center text-muted py-4">Loading...</td></tr>
+
+
+
+
                     </tbody>
                 </table>
             </div>

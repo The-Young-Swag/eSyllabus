@@ -46,6 +46,15 @@
       "course": "BSABE",
       "enrollment_status": "ENROLLED",
       "birthDate": null
+    },
+    {
+      "id_number": "SHS2024001",
+      "name": "Yuta Okkotsu",
+      "sex": "Male",
+      "college": "CED",
+      "course": "LS-STEM-12-A",
+      "enrollment_status": "ENROLLED",
+      "birthDate": null
     }
   ]
 }

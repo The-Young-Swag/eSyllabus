@@ -8,7 +8,9 @@ include "../../db/dbconnection.php";
 date_default_timezone_set("Asia/Manila");
 header("Content-Type: application/json");
 
-if ($_SERVER["REQUEST_METHOD"] !== "POST") sendResponse(["error" => "Invalid request method."]);
+if ($_SERVER["REQUEST_METHOD"] !== "POST") {
+    sendResponse(["error" => "Invalid request method."]);
+}
 
 // ============================================================
 // BOOTSTRAP
@@ -25,8 +27,6 @@ $USER_SOURCE = [
 // CONFIG
 // ============================================================
 
-// Action config lives here — not in JS — since PHP is the sole consumer of
-// color/icon/btnText when building the attendance modal HTML.
 const ACTION_CONFIG = [
     "checkin"  => ["color" => "success", "icon" => "fa-sign-in-alt",  "btnText" => "Check In",         "message" => "Not checked in yet"],
     "checkout" => ["color" => "danger",  "icon" => "fa-sign-out-alt", "btnText" => "Check Out",         "message" => "Currently in this library"],
@@ -37,8 +37,15 @@ const ACTION_CONFIG = [
 // UTILITIES
 // ============================================================
 
-function sendResponse(array $payload): void { echo json_encode($payload); exit; }
-function fail(string $msg): void            { sendResponse(["error" => $msg]); }
+// Clearer: responseData instead of payload
+function sendResponse(array $responseData): void {
+    echo json_encode($responseData);
+    exit;
+}
+
+function fail(string $message): void {
+    sendResponse(["error" => $message]);
+}
 
 function escHtml(mixed $value): string
 {
@@ -80,20 +87,28 @@ function resolveUserById(string $id): array
 
     if (!$file || !file_exists($file)) return [];
 
-    $payload = json_decode(file_get_contents($file), true);
-    if (!is_array($payload)) return [];
+    // Clearer: jsonData instead of payload
+    $jsonData = json_decode(file_get_contents($file), true);
+    if (!is_array($jsonData)) return [];
 
-    // Unwrap known envelope keys; fall back to root (flat) array
-    $records = isset($payload[0])
-        ? $payload
-        : ($payload["data"] ?? $payload["employees"] ?? $payload["students"] ?? $payload["records"] ?? $payload["items"] ?? []);
+    // Clearer: records instead of reusing payload
+    $records = isset($jsonData[0])
+        ? $jsonData
+        : ($jsonData["data"]
+        ?? $jsonData["employees"]
+        ?? $jsonData["students"]
+        ?? $jsonData["records"]
+        ?? $jsonData["items"]
+        ?? []);
 
     $mapper  = $group === "employees" ? "mapEmployee" : "mapStudent";
     $matches = [];
 
     foreach ($records as $record) {
         $user = $mapper($record);
-        if ($user["id_number"] === $id) $matches[] = $user;
+        if ($user["id_number"] === $id) {
+            $matches[] = $user;
+        }
     }
 
     return $matches;
@@ -104,11 +119,11 @@ function mapStudent(array $student): array
     return [
         "id_number"      => $student["id_number"] ?? "",
         "name"           => $student["name"]      ?? "",
-        "sex"            => $student["sex"]        ?? null,
-        "college"        => $student["college"]    ?? null,
-        "course"         => $student["course"]     ?? null,
+        "sex"            => $student["sex"]       ?? null,
+        "college"        => $student["college"]   ?? null,
+        "course"         => $student["course"]    ?? null,
         "classification" => "STUDENT",
-        "secretKey"      => $student["birthDate"]  ?? null,
+        "secretKey"      => $student["birthDate"] ?? null,
     ];
 }
 
