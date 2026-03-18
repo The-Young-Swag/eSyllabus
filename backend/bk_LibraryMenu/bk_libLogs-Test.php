@@ -23,6 +23,12 @@ $USER_SOURCE = [
     "employees" => __DIR__ . "/../../API_requests/employees.json",
 ];
 
+// $USER_SOURCE = [
+//     "students"  => "https://api.yourschool.com/students",
+//     "employees" => "https://api.yourschool.com/employees",
+// ];
+
+
 // ============================================================
 // CONFIG
 // ============================================================
@@ -88,8 +94,32 @@ function resolveUserById(string $id): array
     if (!$file || !file_exists($file)) return [];
 
     // Clearer: jsonData instead of payload
-    $jsonData = json_decode(file_get_contents($file), true);
+    //replace this when API is ready
+    $jsonData = json_decode(file_get_contents($file), true); //replace this when API is ready
     if (!is_array($jsonData)) return [];
+
+        //API READY CODE
+    // $apiUrl = $USER_SOURCE[$group] ?? null;
+    // if (!$apiUrl) return [];
+    
+    // $jsonData = json_decode(file_get_contents($apiUrl), true);
+    
+    // if (!is_array($jsonData)) return [];
+        //
+
+        
+        //API READY CODE
+    // $source = $USER_SOURCE[$group] ?? null;
+    // if (!$source) return [];
+    
+    // $rawData = $source["type"] === "file"
+    //     ? file_get_contents($source["path"])
+    //     : file_get_contents($source["url"]);
+    
+    // $jsonData = json_decode($rawData, true);
+    
+    // if (!is_array($jsonData)) return [];
+        //
 
     // Clearer: records instead of reusing payload
     $records = isset($jsonData[0])
