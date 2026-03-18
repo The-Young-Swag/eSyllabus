@@ -282,21 +282,21 @@ const live = {
 };
 
 const State = {
-    libraryID:   null,
+    libraryID: null,
     libraryName: "",
-    user:        null,
-    dupes:       [],
-    action:      "checkin",
-    timers:      { clock: null, nudge: null, success: null },
+    user: null,
+    dupes: [],
+    action: "checkin",
+    timers: { clock: null, nudge: null, success: null },
 };
 
 const BACKEND = "backend/bk_LibraryMenu/bk_libLogs-Test.php";
-const post    = (request, data = {}) => $.post(BACKEND, { request, ...data });
+const post = (request, data = {}) => $.post(BACKEND, { request, ...data });
 
 const ALERT = {
-    success: { icon: "fa-check-circle",       cls: "alert-success", title: "Success" },
-    error:   { icon: "fa-exclamation-circle", cls: "alert-danger",  title: "Error"   },
-    info:    { icon: "fa-info-circle",        cls: "alert-info",    title: "Info"    },
+    success: { icon: "fa-check-circle", cls: "alert-success", title: "Success" },
+    error: { icon: "fa-exclamation-circle", cls: "alert-danger", title: "Error"   },
+    info: { icon: "fa-info-circle", cls: "alert-info", title: "Info"    },
 };
 
 // ── Utilities ──────────────────────────────────────────────────────────────
@@ -305,7 +305,7 @@ function startClock() {
     clearInterval(State.timers.clock);
     const clockFormat = {
         hour: "2-digit", minute: "2-digit", second: "2-digit",
-        year: "numeric", month: "short",    day: "numeric", hour12: true,
+        year: "numeric", month: "short", day: "numeric", hour12: true,
     };
     const tick = () => $(UI.kpi.time).text(new Date().toLocaleString("en-US", clockFormat));
     tick();
@@ -374,7 +374,7 @@ function renderKPI(kpiData) {
         ).join("");
 
     $(UI.kpi.colleges).html(buildRankedList(kpiData.topColleges, "text-warning"));
-    $(UI.kpi.courses).html(buildRankedList(kpiData.topCourses,   "text-info"));
+    $(UI.kpi.courses).html(buildRankedList(kpiData.topCourses, "text-info"));
 }
 
 // ── Data / Actions ─────────────────────────────────────────────────────────
@@ -430,14 +430,14 @@ function validateUser() {
 // PHP owns ACTION_CONFIG (color/icon/btnText/message) — JS sends only the
 // action key and sectionName, which is all the server needs to build the HTML.
 function determineAction(user, status) {
-    const action      = !status.checkedIn                                    ? "checkin"
-                      : Number(status.sectionID) === Number(State.libraryID) ? "checkout"
-                      :                                                        "switch";
+    const action  = !status.checkedIn ? "checkin"
+                  : Number(status.sectionID) === Number(State.libraryID) ? "checkout"
+                  : "switch";
     const sectionName = status.sectionName || "";
 
     State.action = action;
     post("getAttendanceModal", {
-        user:        JSON.stringify(user),
+        user: JSON.stringify(user),
         action,
         sectionName,
         libraryName: State.libraryName,
@@ -461,19 +461,19 @@ function validateSecretKey(rawDigits) {
 function saveAttendance(user, action) {
     if (!State.libraryID || (user.classification !== "GUEST" && !user.id_number)) return;
     const resolvedAction = action === "switch" ? "checkin" : action;
-    const statusLabel    = resolvedAction === "checkin" ? "checked in" : "checked out";
+    const statusLabel = resolvedAction === "checkin" ? "checked in" : "checked out";
 
     showModalMessage("success", `<strong>${user.name}</strong> successfully ${statusLabel}.`, 2000);
 
     post("getSaveAttendance", {
-        action:              resolvedAction,
-        idNumber:            user.id_number,
-        sectionID:           State.libraryID,
-        classification:      user.classification      || "STUDENT",
-        name:                user.name,
-        college:             user.college             || "",
-        course:              user.course              || "",
-        sex:                 user.sex                 || "",
+        action: resolvedAction,
+        idNumber: user.id_number,
+        sectionID: State.libraryID,
+        classification: user.classification || "STUDENT",
+        name: user.name,
+        college: user.college || "",
+        course: user.course || "",
+        sex: user.sex || "",
         agency_organization: user.agency_organization || "",
     }).done(response => {
         if (response.error) { showModalMessage("error", response.error); return; }
@@ -527,11 +527,11 @@ function updateGuestUI() {
 }
 
 function confirmGuestCheckIn() {
-    const name         = $(live.guestName).val().trim();
-    const sex          = $(live.guestSex).val();
+    const name = $(live.guestName).val().trim();
+    const sex = $(live.guestSex).val();
     const organization = $(live.guestAgency).val().trim();
-    if (!name)         return alert("Guest name is required.");
-    if (!sex)          return alert("Please select a sex.");
+    if (!name) return alert("Guest name is required.");
+    if (!sex) return alert("Please select a sex.");
     if (!organization) return alert("Agency / Organization required.");
     saveAttendance({ id_number: "", name, classification: "GUEST", college: "", course: "", sex, agency_organization: organization }, "checkin");
 }
@@ -544,27 +544,27 @@ startNudge();
 loadLibraries();
 
 applyHover(UI.btn.checkIn,
-    { background: "#d1fae5", boxShadow: "0 4px 14px rgba(6,78,59,.15)",    transform: "translateY(-1px)" },
-    { background: "#f0fdf9", boxShadow: "",                                 transform: "" }
+    { background: "#d1fae5", boxShadow: "0 4px 14px rgba(6,78,59,.15)", transform: "translateY(-1px)" },
+    { background: "#f0fdf9", boxShadow: "", transform: "" }
 );
 applyHover(UI.btn.checkOut,
     { background: "#fee2e2", boxShadow: "0 4px 14px rgba(220,38,38,.15)", transform: "translateY(-1px)" },
-    { background: "#fff5f5", boxShadow: "",                                 transform: "" }
+    { background: "#fff5f5", boxShadow: "", transform: "" }
 );
 
-$(UI.btn.checkIn).off("click.libLogs").on("click.libLogs",  openGuestCheckIn);
-$(UI.btn.checkOut).off("click.libLogs").on("click.libLogs", openGuestCheckOut);
+$(UI.btn.checkIn).off("click.libLogs").on("click.libLogs", openGuestCheckIn);
+$(UI.btn.checkOut).off("click.libLogs").on("click.libLogs",openGuestCheckOut);
 $(UI.btn.toggleId).off("click.libLogs").on("click.libLogs", () => togglePassword(UI.input.studentNum, UI.icon));
 
 $(document)
-    .on("submit.libLogs", "#logForm",              event => { event.preventDefault(); validateUser(); })
-    .on("click.libLogs",  "#confirmAttendance",    () => State.user && State.action && saveAttendance(State.user, State.action))
-    .on("click.libLogs",  "#confirmGuestCheckIn",  confirmGuestCheckIn)
-    .on("click.libLogs",  ".btn-guest-checkout",   function () { checkoutGuest($(this).data("logid"), $(this).data("name")); })
-    .on("click.libLogs",  "#toggleSecretKey",      () => togglePassword(live.secretKey, live.secretIcon))
-    .on("click.libLogs",  "#dynamicModal .btn-close, #dynamicModal [data-dismiss='modal'], #dynamicModal [data-bs-dismiss='modal']", hideModal)
-    .on("input.libLogs",  "#modalSecretKey", function () {
-        const digits    = $(this).val().replace(/\D/g, "").substring(0, 8);
+    .on("submit.libLogs","#logForm", event => { event.preventDefault(); validateUser(); })
+    .on("click.libLogs","#confirmAttendance", () => State.user && State.action && saveAttendance(State.user, State.action))
+    .on("click.libLogs","#confirmGuestCheckIn", confirmGuestCheckIn)
+    .on("click.libLogs",".btn-guest-checkout", function () { checkoutGuest($(this).data("logid"), $(this).data("name")); })
+    .on("click.libLogs","#toggleSecretKey", () => togglePassword(live.secretKey, live.secretIcon))
+    .on("click.libLogs","#dynamicModal .btn-close, #dynamicModal [data-dismiss='modal'], #dynamicModal [data-bs-dismiss='modal']", hideModal)
+    .on("input.libLogs","#modalSecretKey", function () {
+        const digits = $(this).val().replace(/\D/g, "").substring(0, 8);
         const formatted = digits.length > 4 ? `${digits.slice(0,2)}/${digits.slice(2,4)}/${digits.slice(4)}`
                         : digits.length > 2 ? `${digits.slice(0,2)}/${digits.slice(2)}`
                         : digits;
@@ -577,8 +577,8 @@ $(document)
         }
     })
     .on("input.libLogs", "#guestSearchInput", function () {
-        const query   = $(this).val().toLowerCase().trim();
-        let   visible = 0;
+        const query = $(this).val().toLowerCase().trim();
+        let visible = 0;
         $(live.guestList).find(".guest-row").each(function () {
             const matches = ($(this).data("name") || "").toLowerCase().includes(query);
             $(this).toggle(matches);
