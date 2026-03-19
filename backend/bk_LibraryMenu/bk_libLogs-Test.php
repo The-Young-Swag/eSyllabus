@@ -3,8 +3,12 @@
 // Handles: user validation, attendance logging, KPI reporting
 // Database: Library_logs (id, id_number, name, college, course, library,
 //           checkin_time, checkout_time, sex, classification)
+session_start();
+
+
 
 include "../../db/dbconnection.php";
+/* include "../../API.php"; */
 date_default_timezone_set("Asia/Manila");
 header("Content-Type: application/json");
 
@@ -12,38 +16,13 @@ if ($_SERVER["REQUEST_METHOD"] !== "POST") {
     sendResponse(["error" => "Invalid request method."]);
 }
 
-$curl = curl_init();
 
-curl_setopt_array($curl, array(
-  CURLOPT_URL => 'tau.edu.ph:8087/ProxyTAUService/studentLibrary',
-  CURLOPT_RETURNTRANSFER => true,
-  CURLOPT_ENCODING => '',
-  CURLOPT_MAXREDIRS => 10,
-  CURLOPT_TIMEOUT => 0,
-  CURLOPT_FOLLOWLOCATION => true,
-  CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-  CURLOPT_CUSTOMREQUEST => 'POST',
-  CURLOPT_POSTFIELDS =>'{
-    "UserAccount" : "LibrarySys",
-    "Password" : "libraryAPI",
-    "deviceUUID": "LibSys"
-}
-',
-  CURLOPT_HTTPHEADER => array(
-    'Content-Type: application/json',
-    'Authorization: Bearer accessLibrary'
-  ),
-));
-
-$response = curl_exec($curl);
-
-curl_close($curl);
-
+$apivaluess = $_SESSION["API"];
 
 $now = date("Y-m-d H:i:s");
 
 $USER_SOURCE = [
-    "students"  => json_decode($response, true),
+    "students"  => json_decode($apivaluess, true),
     "employees" => [] // adjust if you have employee API
 ];
 

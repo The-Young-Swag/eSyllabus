@@ -123,3 +123,4 @@ function exeLiveDb()
 	$dbh->setAttribute(PDO::SQLSRV_ATTR_ENCODING, PDO::SQLSRV_ENCODING_SYSTEM);
 	return $dbh;
 }
+
