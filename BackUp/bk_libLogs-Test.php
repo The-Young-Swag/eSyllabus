@@ -12,40 +12,15 @@ if ($_SERVER["REQUEST_METHOD"] !== "POST") {
     sendResponse(["error" => "Invalid request method."]);
 }
 
-$curl = curl_init();
 
-curl_setopt_array($curl, array(
-  CURLOPT_URL => 'tau.edu.ph:8087/ProxyTAUService/studentLibrary',
-  CURLOPT_RETURNTRANSFER => true,
-  CURLOPT_ENCODING => '',
-  CURLOPT_MAXREDIRS => 10,
-  CURLOPT_TIMEOUT => 0,
-  CURLOPT_FOLLOWLOCATION => true,
-  CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-  CURLOPT_CUSTOMREQUEST => 'POST',
-  CURLOPT_POSTFIELDS =>'{
-    "UserAccount" : "LibrarySys",
-    "Password" : "libraryAPI",
-    "deviceUUID": "LibSys"
-}
-',
-  CURLOPT_HTTPHEADER => array(
-    'Content-Type: application/json',
-    'Authorization: Bearer accessLibrary'
-  ),
-));
-
-$response = curl_exec($curl);
-
-curl_close($curl);
-
+// BOOTSTRAP
  
 
 $now = date("Y-m-d H:i:s");
 
 $USER_SOURCE = [
-    "students"  => json_decode($response, true),
-    "employees" => [] // adjust if you have employee API
+    "students"  => __DIR__ . "/../../API_requests/students.json",
+    "employees" => __DIR__ . "/../../API_requests/employees.json",
 ];
 
 // $USER_SOURCE = [
@@ -108,10 +83,39 @@ function resolveUserById(string $id): array
     global $USER_SOURCE;
 
     $group = str_starts_with(strtoupper($id), "TAU") ? "employees" : "students";
-    $jsonData = $USER_SOURCE[$group] ?? null;
+    $file  = $USER_SOURCE[$group] ?? null;
 
+    if (!$file || !file_exists($file)) return [];
+
+    // Clearer: jsonData instead of payload
+    //replace this when API is ready
+    $jsonData = json_decode(file_get_contents($file), true); //replace this when API is ready
     if (!is_array($jsonData)) return [];
 
+        //API READY CODE
+    // $apiUrl = $USER_SOURCE[$group] ?? null;
+    // if (!$apiUrl) return [];
+    
+    // $jsonData = json_decode(file_get_contents($apiUrl), true);
+    
+    // if (!is_array($jsonData)) return [];
+        //
+
+
+        //API READY CODE
+    // $source = $USER_SOURCE[$group] ?? null;
+    // if (!$source) return [];
+    
+    // $rawData = $source["type"] === "file"
+    //     ? file_get_contents($source["path"])
+    //     : file_get_contents($source["url"]);
+    
+    // $jsonData = json_decode($rawData, true);
+    
+    // if (!is_array($jsonData)) return [];
+        //
+
+    // Clearer: records instead of reusing payload
     $records = isset($jsonData[0])
         ? $jsonData
         : ($jsonData["data"]
@@ -137,9 +141,9 @@ function resolveUserById(string $id): array
 function mapStudent(array $student): array
 {
     return [
-        "id_number"  => $student["id_number"] ?? "",
+        "id_number" => $student["id_number"] ?? "",
         "name" => $student["name"] ?? "",
-        "sex"  => $student["sex"] ?? null,
+        "sex" => $student["sex"] ?? null,
         "college" => $student["college"] ?? null,
         "course" => $student["course"] ?? null,
         "classification" => "STUDENT",
@@ -710,9 +714,9 @@ function buildGuestRow(array $guest): string
         </button>
     </div>";
 }
-// $request = $_POST["request"] ?? "";
+
 // DISPATCH
-switch ($_POST["request"]) {
+switch (trim($_POST["request"] ?? "")) {
     case "getLibraries":          
         GetLibraries();        
         break;
@@ -749,6 +753,5 @@ switch ($_POST["request"]) {
         ShowKPI();             
         break;
 
-   
     default: fail("Unknown request: '" . trim($_POST["request"] ?? "") . "'.");
 }

@@ -83,7 +83,7 @@ case "updateUser":
         $sqlUser = "UPDATE Sys_UserAccount SET $setFields WHERE UserID = ?";
         execsqlSRS($sqlUser, "Update", $params);
 
-        // 🔄 Sync tbl_OfficeStaff (unchanged)
+        // Sync tbl_OfficeStaff (unchanged)
         $checkStaff = execsqlSRS(
             "SELECT COUNT(*) as count FROM tbl_OfficeStaff WHERE EmpID = ?",
             "Search",

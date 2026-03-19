@@ -235,274 +235,297 @@ style="background:linear-gradient(135deg,#ffffff,#ecfdf5);
 
 <?php include '../modalContainer.php'; ?>
 <?php include 'LibModals.php'; ?>
-
 <script>
 $(function () {
 
-// ── Static UI — cached once at boot (never replaced by AJAX) ──────────────
-const UI = {
-    btn: {
-        checkIn:  document.getElementById("guestCheckIn"),
-        checkOut: document.getElementById("guestCheckOut"),
-        toggleId: document.getElementById("toggleIdVisibility"),
-    },
-    input: {
-        studentNum: document.getElementById("inputStudentNumber"),
-    },
-    kpi: {
-        time:     document.getElementById("kpiCurrentTime"),
-        library:  document.getElementById("currentLibraryDisplay"),
-        checkins: document.getElementById("kpiTotalCheckins"),
-        active:   document.getElementById("kpiActiveStudents"),
-        colleges: document.getElementById("topColleges"),
-        courses:  document.getElementById("topCourses"),
-    },
-    modal: {
-        el:     document.getElementById("dynamicModal"),
-        title:  document.getElementById("dynamicModalTitle"),
-        body:   document.getElementById("dynamicModalBody"),
-        footer: document.getElementById("dynamicModalFooter"),
-    },
-    icon:  document.getElementById("toggleIcon"),
-    nudge: document.getElementById("guestNudge"),
-};
-
-// ── Dynamic getters — elements inside PHP-injected modal HTML ─────────────
-// These are replaced on every modal open and must be looked up fresh each time.
-const live = {
-    get secretKey()   { return document.getElementById("modalSecretKey"); },
-    get guestName()   { return document.getElementById("guestName"); },
-    get guestAgency() { return document.getElementById("guestAgency"); },
-    get guestSex()    { return document.getElementById("guestSex"); },
-    get secretIcon()  { return document.getElementById("secretIcon"); },
-    get keyStatus()   { return document.getElementById("secretKeyStatus"); },
-    get verified()    { return document.getElementById("verifiedStudentContainer"); },
-    get guestList()   { return document.getElementById("guestCheckoutList"); },
-    get noResults()   { return document.getElementById("guestNoResults"); },
-};
-
-const State = {
-    libraryID: null,
-    libraryName: "",
-    user: null,
-    dupes: [],
-    action: "checkin",
-    timers: { clock: null, nudge: null, success: null },
-};
-
 const BACKEND = "backend/bk_LibraryMenu/bk_libLogs-Test.php";
-const post = (request, data = {}) => $.post(BACKEND, { request, ...data });
 
-const ALERT = {
-    success: { icon: "fa-check-circle", cls: "alert-success", title: "Success" },
-    error: { icon: "fa-exclamation-circle", cls: "alert-danger", title: "Error"   },
-    info: { icon: "fa-info-circle", cls: "alert-info", title: "Info"    },
-};
+let libraryID = null;
+let libraryName = "";
+let currentUser = null;
+let duplicates = [];
+let action = "checkin";
+let successTimer = null;
 
-// ── Utilities ──────────────────────────────────────────────────────────────
+// Prevent duplicate listeners on AJAX reload
+$(document).off(".libLogs");
 
-function startClock() {
-    clearInterval(State.timers.clock);
-    const clockFormat = {
-        hour: "2-digit", minute: "2-digit", second: "2-digit",
-        year: "numeric", month: "short", day: "numeric", hour12: true,
-    };
-    const tick = () => $(UI.kpi.time).text(new Date().toLocaleString("en-US", clockFormat));
-    tick();
-    State.timers.clock = setInterval(tick, 1000);
-}
-
-function startNudge() {
-    clearTimeout(State.timers.nudge);
-    function cycle() {
-        UI.nudge.style.opacity = "1";
-        State.timers.nudge = setTimeout(() => {
-            UI.nudge.style.opacity = "0";
-            State.timers.nudge = setTimeout(cycle, 2000);
-        }, 5000);
-    }
-    State.timers.nudge = setTimeout(cycle, 2000);
-}
-
-function showModal(title, body, footer = "") {
-    clearTimeout(State.timers.success);
-    State.timers.success = null;
-    $(UI.modal.title).html(title);
-    $(UI.modal.body).html(body);
-    $(UI.modal.footer).html(footer);
-    $(UI.modal.el).modal("show");
-}
-
-function hideModal() {
-    clearTimeout(State.timers.success);
-    State.timers.success = null;
-    $(UI.modal.el).modal("hide");
-}
-
-function showModalMessage(type, message, timeout = 0) {
-    clearTimeout(State.timers.success);
-    State.timers.success = null;
-    const { icon, cls, title } = ALERT[type];
-    showModal(title, `<div class="alert ${cls} text-center mb-0"><i class="fas ${icon} me-2"></i>${message}</div>`);
-    if (timeout) State.timers.success = setTimeout(hideModal, timeout);
-}
-
-function setKeyStatus(type, icon, text) {
-    const cssClass = { success: "text-success", danger: "text-danger" }[type] ?? "text-muted";
-    $(live.keyStatus).html(`<span class="${cssClass}"><i class="fas ${icon} me-1"></i>${text}</span>`);
-}
-
-function togglePassword(inputEl, iconEl) {
-    const isHidden = $(inputEl).attr("type") === "password";
-    $(inputEl).attr("type", isHidden ? "text" : "password");
-    $(iconEl).toggleClass("fa-eye", !isHidden).toggleClass("fa-eye-slash", isHidden);
-}
-
-function applyHover(el, enterStyles, leaveStyles) {
-    $(el).off("mouseenter.libLogs mouseleave.libLogs")
-         .on("mouseenter.libLogs", function () { $(this).css(enterStyles); })
-         .on("mouseleave.libLogs", function () { $(this).css(leaveStyles); });
-}
-
-function renderKPI(kpiData) {
-    $(UI.kpi.checkins).text(kpiData.totalToday    ?? 0);
-    $(UI.kpi.active).text(kpiData.currentlyInside ?? 0);
-
-    const buildRankedList = (items, colorClass) =>
-        (items || ["-", "-", "-"]).map((label, index) =>
-            `<div class="mb-1"><span class="fw-bold">${index + 1}.</span> <span class="${colorClass}">${label}</span></div>`
-        ).join("");
-
-    $(UI.kpi.colleges).html(buildRankedList(kpiData.topColleges, "text-warning"));
-    $(UI.kpi.courses).html(buildRankedList(kpiData.topCourses, "text-info"));
-}
-
-// ── Data / Actions ─────────────────────────────────────────────────────────
-
-function loadKPI() {
-    if (!State.libraryID) return;
-    post("getKPI", { sectionID: State.libraryID })
-        .done(response => response.success && response.data && renderKPI(response.data));
-}
-
-function loadLibraries() {
-    if (typeof UserInfo === "undefined" || !UserInfo.UserID)
-        return $(UI.kpi.library).text("User not logged in");
-
-    post("getLibraries", { userID: UserInfo.UserID })
-        .done(response => {
-            if (!response.success || !response.data?.length) {
-                State.libraryName = response.error ?? "No Library Access";
-                State.libraryID   = null;
-                $(UI.kpi.library).text(State.libraryName);
-                return;
-            }
-            State.libraryID   = response.data[0].SectionID;
-            State.libraryName = response.data[0].SectionName;
-            $(UI.kpi.library).text(State.libraryName);
-            loadKPI();
-        })
-        .fail(() => $(UI.kpi.library).text("Connection error"));
-}
-
-function validateUser() {
-    const idNumber = $(UI.input.studentNum).val().trim();
-    if (!idNumber) return alert("Please enter an Identification Number.");
-
-    post("getValidateUser", { idNumber }).done(response => {
-        if (response.error) {
-            alert("No record found for that ID number.");
-            $(UI.input.studentNum).val("").focus();
-            return;
-        }
-        if (response.duplicate) {
-            State.dupes = response.matches;
-            showModal("Identity Verification", response.modalHTML);
-            return;
-        }
-        State.user = response.data;
-        post("checkStatusToday", { idNumber: State.user.id_number, name: State.user.name })
-            .done(status => determineAction(State.user, status));
+function post(request, data, callback) {
+    $.ajax({
+        type: "POST",
+        url: BACKEND,
+        data: { request, ...data },
+        success: callback,
+        error: function () { alert("Connection error."); }
     });
 }
 
-// Determines the attendance action and delegates all modal rendering to PHP.
-// PHP owns ACTION_CONFIG (color/icon/btnText/message) — JS sends only the
-// action key and sectionName, which is all the server needs to build the HTML.
-function determineAction(user, status) {
-    const action  = !status.checkedIn ? "checkin"
-                  : Number(status.sectionID) === Number(State.libraryID) ? "checkout"
-                  : "switch";
-    const sectionName = status.sectionName || "";
+// Clock
+setInterval(function () {
+    $("#kpiCurrentTime").text(new Date().toLocaleString("en-US", {
+        hour: "2-digit", minute: "2-digit", second: "2-digit",
+        year: "numeric", month: "short", day: "numeric", hour12: true
+    }));
+}, 1000);
 
-    State.action = action;
-    post("getAttendanceModal", {
-        user: JSON.stringify(user),
-        action,
-        sectionName,
-        libraryName: State.libraryName,
-    }).done(response => response.success && showModal("Attendance Confirmation", response.body, response.footer));
+// Nudge animation
+setTimeout(function cycle() {
+    $("#guestNudge").css("opacity", "1");
+    setTimeout(function () {
+        $("#guestNudge").css("opacity", "0");
+        setTimeout(cycle, 2000);
+    }, 5000);
+}, 2000);
+
+// Hover effects
+function applyHover(selector, enterStyles, leaveStyles) {
+    $(selector)
+        .on("mouseenter", function () { $(this).css(enterStyles); })
+        .on("mouseleave", function () { $(this).css(leaveStyles); });
 }
 
-function validateSecretKey(rawDigits) {
-    const match = State.dupes.find(candidate => candidate.secretKey?.replace(/\D/g, "") === rawDigits);
-    if (match) {
-        State.user = match;
-        setKeyStatus("success", "fa-check-circle", "Identity verified");
-        $(live.verified).show();
-        post("checkStatusToday", { idNumber: match.id_number, name: match.name })
-            .done(status => determineAction(match, status));
-    } else {
-        setKeyStatus("danger", "fa-exclamation-circle", "Invalid key — try again");
-        $(live.verified).hide().empty();
+applyHover("#guestCheckIn",
+    { background: "#d1fae5", boxShadow: "0 4px 14px rgba(6,78,59,.15)",   
+	transform: "translateY(-1px)" },
+    { background: "#f0fdf9", boxShadow: "",                                
+	transform: "" }
+);
+applyHover("#guestCheckOut",
+    { background: "#fee2e2", boxShadow: "0 4px 14px rgba(220,38,38,.15)", 
+	transform: "translateY(-1px)" },
+    { background: "#fff5f5", boxShadow: "",                                
+	transform: "" }
+);
+
+// Modal helpers
+function showModal(title, body, footer) {
+    clearTimeout(successTimer);
+    successTimer = null;
+    $("#dynamicModalTitle").html(title);
+    $("#dynamicModalBody").html(body);
+    $("#dynamicModalFooter").html(footer || "");
+    $("#dynamicModal").modal("show");
+}
+
+function hideModal() {
+    clearTimeout(successTimer);
+    successTimer = null;
+    $("#dynamicModal").modal("hide");
+}
+
+function showMessage(type, message, autoClose) {
+    const styles = {
+        success: ["fa-check-circle", "alert-success", "Success"],
+        error:   ["fa-exclamation-circle", "alert-danger",  "Error"],
+        info:    ["fa-info-circle", "alert-info", "Info"]
+    };
+    const [icon, colorClass, title] = styles[type];
+    showModal(title, `
+        <div class="alert ${colorClass} text-center mb-0">
+            <i class="fas ${icon} me-2"></i>${message}
+        </div>
+    `);
+    if (autoClose) successTimer = setTimeout(hideModal, autoClose);
+}
+
+// Load library on boot
+post("getLibraries", { userID: UserInfo.UserID }, function (response) {
+    if (!response.success || !response.data?.length) {
+        $("#currentLibraryDisplay").text(response.error || "No Library Access");
+        return;
     }
+    libraryID = response.data[0].SectionID;
+    libraryName = response.data[0].SectionName;
+    $("#currentLibraryDisplay").text(libraryName);
+    loadKPI();
+});
+
+function loadKPI() {
+    if (!libraryID) return;
+    post("getKPI", { sectionID: libraryID }, function (response) {
+        if (!response.success || !response.data) return;
+        $("#kpiTotalCheckins").text(response.data.totalToday || 0);
+        $("#kpiActiveStudents").text(response.data.currentlyInside || 0);
+
+        const rankList = (items, colorClass) =>
+            (items || ["-", "-", "-"]).map((label, index) => `
+                <div class="mb-1">
+                    <span class="fw-bold">${index + 1}.</span>
+                    <span class="${colorClass}">${label}</span>
+                </div>
+            `).join("");
+
+        $("#topColleges").html(rankList(response.data.topColleges, "text-warning"));
+        $("#topCourses").html(rankList(response.data.topCourses, "text-info"));
+    });
 }
 
-function saveAttendance(user, action) {
-    if (!State.libraryID || (user.classification !== "GUEST" && !user.id_number)) return;
-    const resolvedAction = action === "switch" ? "checkin" : action;
-    const statusLabel = resolvedAction === "checkin" ? "checked in" : "checked out";
+function checkAndShowAttendance(user) {
+    post("checkStatusToday", { idNumber: user.id_number, name: user.name }, function (status) {
+        action = !status.checkedIn                              ? "checkin"
+               : Number(status.sectionID) === Number(libraryID) ? "checkout"
+               : "switch";
 
-    showModalMessage("success", `<strong>${user.name}</strong> successfully ${statusLabel}.`, 2000);
+        post("getAttendanceModal", {
+            user: JSON.stringify(user),
+            action,
+            sectionName: status.sectionName || "",
+            libraryName
+        }, function (modal) {
+            if (modal.success) showModal("Attendance Confirmation", modal.body, modal.footer);
+        });
+    });
+}
+
+function saveAttendance(user, resolvedAction) {
+    if (!libraryID || (user.classification !== "GUEST" && !user.id_number)) return;
+
+    const label = resolvedAction === "checkin" ? "checked in" : "checked out";
+    showMessage("success", `<strong>${user.name}</strong> successfully ${label}.`, 2000);
 
     post("getSaveAttendance", {
         action: resolvedAction,
         idNumber: user.id_number,
-        sectionID: State.libraryID,
+        sectionID: libraryID,
         classification: user.classification || "STUDENT",
         name: user.name,
         college: user.college || "",
         course: user.course || "",
         sex: user.sex || "",
-        agency_organization: user.agency_organization || "",
-    }).done(response => {
-        if (response.error) { showModalMessage("error", response.error); return; }
+        agency_organization: user.agency_organization || ""
+    }, function (response) {
+        if (response.error) { showMessage("error", response.error); return; }
         loadKPI();
-        $(UI.input.studentNum).val("");
+        $("#inputStudentNumber").val("");
     });
 }
 
-function openGuestCheckIn() {
-    if (!State.libraryID) return alert("Library section not loaded yet.");
-    post("guestCheckIn", { libraryName: State.libraryName })
-        .done(response => response.success
-            ? showModal("Guest Check-In", response.body, response.footer)
-            : alert(response.error || "Failed to load guest form."))
-        .fail(() => alert("Connection error."));
+function updateGuestUI() {
+    const count = $("#guestCheckoutList .guest-row").length;
+    $("#dynamicModal .badge.rounded-pill").text(`${count} ${count === 1 ? "guest" : "guests"}`);
+    $("#guestEmptyState").toggle(count === 0);
+    $("#guestSearchInput").trigger("input");
 }
 
-function openGuestCheckOut() {
-    if (!State.libraryID) return alert("Library section not loaded yet.");
-    post("getGuestCheckoutModal", { sectionID: State.libraryID, libraryName: State.libraryName })
-        .done(response => response.success
-            ? showModal("Guest Check-Out", response.body, response.footer)
-            : alert(response.error || "Failed to load guest list."))
-        .fail(() => alert("Connection error."));
-}
+// ID form
+$(document).on("submit.libLogs", "#logForm", function (event) {
+    event.preventDefault();
+    const idNumber = $("#inputStudentNumber").val().trim();
+    if (!idNumber) { alert("Please enter an Identification Number."); return; }
 
-function checkoutGuest(logID, guestName) {
+    post("getValidateUser", { idNumber }, function (response) {
+        if (response.error) {
+            alert("No record found for that ID number.");
+            $("#inputStudentNumber").val("").focus();
+            return;
+        }
+        if (response.duplicate) {
+            duplicates = response.matches;
+            showModal("Identity Verification", response.modalHTML);
+            return;
+        }
+        currentUser = response.data;
+        checkAndShowAttendance(response.data);
+    });
+});
+
+// Confirm attendance
+$(document).on("click.libLogs", "#confirmAttendance", function () {
+    if (!currentUser || !action) return;
+    const resolved = action === "switch" ? "checkin" : action;
+    saveAttendance(currentUser, resolved);
+});
+
+// Secret key for duplicate users
+$(document).on("input.libLogs", "#modalSecretKey", function () {
+    const digits = $(this).val().replace(/\D/g, "").substring(0, 8);
+    const formatted = digits.length > 4 ? `${digits.slice(0,2)}/${digits.slice(2,4)}/${digits.slice(4)}`
+                    : digits.length > 2 ? `${digits.slice(0,2)}/${digits.slice(2)}`
+                    : digits;
+    $(this).val(formatted);
+
+    if (digits.length < 8) {
+        $("#verifiedStudentContainer").hide().empty();
+        $("#secretKeyStatus").html(`<span class="text-muted"><i class="fas fa-info-circle me-1"></i>Enter birth date (MM/DD/YYYY)</span>`);
+        return;
+    }
+
+    const match = duplicates.find(candidate => candidate.secretKey?.replace(/\D/g, "") === digits);
+    if (match) {
+        currentUser = match;
+        $("#secretKeyStatus").html(`<span class="text-success"><i class="fas fa-check-circle me-1"></i>Identity verified</span>`);
+        $("#verifiedStudentContainer").show();
+        checkAndShowAttendance(match);
+    } else {
+        $("#secretKeyStatus").html(`<span class="text-danger"><i class="fas fa-exclamation-circle me-1"></i>Invalid key — try again</span>`);
+        $("#verifiedStudentContainer").hide().empty();
+    }
+});
+
+// Toggle ID visibility
+$(document).on("click.libLogs", "#toggleIdVisibility", function () {
+    const $input = $("#inputStudentNumber");
+    const isHidden = $input.attr("type") === "password";
+    $input.attr("type", isHidden ? "text" : "password");
+    $("#toggleIcon").toggleClass("fa-eye", !isHidden).toggleClass("fa-eye-slash", isHidden);
+});
+
+// Toggle secret key visibility
+$(document).on("click.libLogs", "#toggleSecretKey", function () {
+    const $input = $("#modalSecretKey");
+    const isHidden = $input.attr("type") === "password";
+    $input.attr("type", isHidden ? "text" : "password");
+    $("#secretIcon").toggleClass("fa-eye", !isHidden).toggleClass("fa-eye-slash", isHidden);
+});
+
+// Guest check-in
+$(document).on("click.libLogs", "#guestCheckIn", function () {
+    if (!libraryID) { 
+	alert("Library section not loaded yet."); 
+	return; 
+	}
+    post("guestCheckIn", { 
+	libraryName 
+	}, 
+	function (response) {
+        response.success ? showModal("Guest Check-In", response.body, response.footer)
+                         : alert(response.error || "Failed to load guest form.");
+    });
+});
+
+$(document).on("click.libLogs", "#confirmGuestCheckIn", function () {
+    const name = $("#guestName").val().trim();
+    const sex = $("#guestSex").val();
+    const organization = $("#guestAgency").val().trim();
+    if (!name){ alert("Guest name is required.");         
+	return; 
+	}
+    if (!sex){ 
+	alert("Please select a sex.");            
+	return; 
+	}
+    if (!organization) { alert("Agency / Organization required."); return; }
+    saveAttendance({
+        id_number: "", name, classification: "GUEST",
+        college: "", course: "", sex, agency_organization: organization
+    }, "checkin");
+});
+
+// Guest check-out
+$(document).on("click.libLogs", "#guestCheckOut", function () {
+    if (!libraryID) { alert("Library section not loaded yet."); return; }
+    post("getGuestCheckoutModal", { sectionID: libraryID, libraryName }, function (response) {
+        response.success ? showModal("Guest Check-Out", response.body, response.footer)
+                         : alert(response.error || "Failed to load guest list.");
+    });
+});
+
+$(document).on("click.libLogs", ".btn-guest-checkout", function () {
+    const logID = $(this).data("logid");
+    const guestName = $(this).data("name");
     if (!logID) return;
-    post("guestCheckout", { logID, sectionID: State.libraryID }).done(response => {
+
+    post("guestCheckout", { logID, sectionID: libraryID }, function (response) {
         if (response.error) { alert(response.error); return; }
 
         $(`.btn-guest-checkout[data-logid="${logID}"]`).closest(".guest-row").fadeOut(200, function () {
@@ -510,82 +533,34 @@ function checkoutGuest(logID, guestName) {
             updateGuestUI();
         });
 
-        const $alert = $(`<div class="alert alert-success py-2 px-3 mb-2 text-center">
-            <i class="fas fa-check-circle me-1"></i><strong>${guestName}</strong> successfully checked out.
-        </div>`).prependTo(live.guestList);
-        setTimeout(() => $alert.fadeOut(400, () => $alert.remove()), 2000);
+        const $alert = $(`
+            <div class="alert alert-success py-2 px-3 mb-2 text-center">
+                <i class="fas fa-check-circle me-1"></i><strong>${guestName}</strong> successfully checked out.
+            </div>
+        `).prependTo("#guestCheckoutList");
+        setTimeout(function () { $alert.fadeOut(400, function () { $alert.remove(); }); }, 2000);
 
         loadKPI();
-    }).fail(() => alert("Connection error."));
-}
-
-function updateGuestUI() {
-    const guestCount = $(live.guestList).find(".guest-row").length;
-    $("#dynamicModal .badge.rounded-pill").text(`${guestCount} ${guestCount === 1 ? "guest" : "guests"}`);
-    $("#guestEmptyState").toggle(guestCount === 0);
-    $("#guestSearchInput").trigger("input");
-}
-
-function confirmGuestCheckIn() {
-    const name = $(live.guestName).val().trim();
-    const sex = $(live.guestSex).val();
-    const organization = $(live.guestAgency).val().trim();
-    if (!name) return alert("Guest name is required.");
-    if (!sex) return alert("Please select a sex.");
-    if (!organization) return alert("Agency / Organization required.");
-    saveAttendance({ id_number: "", name, classification: "GUEST", college: "", course: "", sex, agency_organization: organization }, "checkin");
-}
-
-// ── Boot ───────────────────────────────────────────────────────────────────
-
-$(document).off(".libLogs");
-startClock();
-startNudge();
-loadLibraries();
-
-applyHover(UI.btn.checkIn,
-    { background: "#d1fae5", boxShadow: "0 4px 14px rgba(6,78,59,.15)", transform: "translateY(-1px)" },
-    { background: "#f0fdf9", boxShadow: "", transform: "" }
-);
-applyHover(UI.btn.checkOut,
-    { background: "#fee2e2", boxShadow: "0 4px 14px rgba(220,38,38,.15)", transform: "translateY(-1px)" },
-    { background: "#fff5f5", boxShadow: "", transform: "" }
-);
-
-$(UI.btn.checkIn).off("click.libLogs").on("click.libLogs", openGuestCheckIn);
-$(UI.btn.checkOut).off("click.libLogs").on("click.libLogs",openGuestCheckOut);
-$(UI.btn.toggleId).off("click.libLogs").on("click.libLogs", () => togglePassword(UI.input.studentNum, UI.icon));
-
-$(document)
-    .on("submit.libLogs","#logForm", event => { event.preventDefault(); validateUser(); })
-    .on("click.libLogs","#confirmAttendance", () => State.user && State.action && saveAttendance(State.user, State.action))
-    .on("click.libLogs","#confirmGuestCheckIn", confirmGuestCheckIn)
-    .on("click.libLogs",".btn-guest-checkout", function () { checkoutGuest($(this).data("logid"), $(this).data("name")); })
-    .on("click.libLogs","#toggleSecretKey", () => togglePassword(live.secretKey, live.secretIcon))
-    .on("click.libLogs","#dynamicModal .btn-close, #dynamicModal [data-dismiss='modal'], #dynamicModal [data-bs-dismiss='modal']", hideModal)
-    .on("input.libLogs","#modalSecretKey", function () {
-        const digits = $(this).val().replace(/\D/g, "").substring(0, 8);
-        const formatted = digits.length > 4 ? `${digits.slice(0,2)}/${digits.slice(2,4)}/${digits.slice(4)}`
-                        : digits.length > 2 ? `${digits.slice(0,2)}/${digits.slice(2)}`
-                        : digits;
-        $(this).val(formatted);
-        if (digits.length === 8) {
-            validateSecretKey(digits);
-        } else {
-            $(live.verified).hide().empty();
-            setKeyStatus("muted", "fa-info-circle", "Enter birth date (MM/DD/YYYY)");
-        }
-    })
-    .on("input.libLogs", "#guestSearchInput", function () {
-        const query = $(this).val().toLowerCase().trim();
-        let visible = 0;
-        $(live.guestList).find(".guest-row").each(function () {
-            const matches = ($(this).data("name") || "").toLowerCase().includes(query);
-            $(this).toggle(matches);
-            if (matches) visible++;
-        });
-        $(live.noResults).toggle(visible === 0 && query !== "");
     });
+});
+
+// Guest search
+$(document).on("input.libLogs", "#guestSearchInput", function () {
+    const query = $(this).val().toLowerCase().trim();
+    let visible = 0;
+    $("#guestCheckoutList .guest-row").each(function () {
+        const matches = ($(this).data("name") || "").toLowerCase().includes(query);
+        $(this).toggle(matches);
+        if (matches) visible++;
+    });
+    $("#guestNoResults").toggle(visible === 0 && query !== "");
+});
+
+// Close modal
+$(document).on("click.libLogs",
+    "#dynamicModal .btn-close, #dynamicModal [data-dismiss='modal'], #dynamicModal [data-bs-dismiss='modal']",
+    hideModal
+);
 
 });
 </script>

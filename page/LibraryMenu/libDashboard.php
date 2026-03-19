@@ -182,9 +182,9 @@
 <script>
 $(document).ready(function () {
 
-    // =========================================================
+  
     //  CONFIG
-    // =========================================================
+  
     const BACKEND_URL = "backend/bk_LibraryMenu/bk_libDashboard.php";
 
     const PALETTE = [
@@ -208,9 +208,9 @@ $(document).ready(function () {
     let trendChartInst    = null;
     let activityChartInst = null;
 
-    // =========================================================
+  
     //  INIT
-    // =========================================================
+  
     setDefaultTrendDates();
     loadKPI();
     loadLogs();
@@ -218,9 +218,9 @@ $(document).ready(function () {
     loadCollegeCourseActivity();
 
 
-    // =========================================================
+  
     //  KPI
-    // =========================================================
+  
     function loadKPI() {
         $.ajax({
             type: 'POST', url: BACKEND_URL, data: { request: 'kpiData' }, dataType: 'json',
@@ -236,9 +236,9 @@ $(document).ready(function () {
     }
 
 
-    // =========================================================
+  
     //  DAILY LOGS + PAGINATION
-    // =========================================================
+  
     function loadLogs(page, sectionID) {
         page      = page      ?? 1;
         sectionID = sectionID ?? $('#sectionFilter').val();
@@ -304,9 +304,8 @@ function renderPagination(totalRows, totalPages, current, limit, sectionID) {
 }
 
 
-    // =========================================================
+  
     //  USAGE TREND — Chart.js vertical bar
-    // =========================================================
     function setDefaultTrendDates() {
         const today = new Date();
         const start = new Date(today.getFullYear(), today.getMonth() - 5, 1);
@@ -405,9 +404,9 @@ function renderPagination(totalRows, totalPages, current, limit, sectionID) {
     }
 
 
-    // =========================================================
+  
     //  COLLEGE & COURSE ACTIVITY — Chart.js horizontal stacked bar
-    // =========================================================
+  
     let sectionFilterPopulated = false;
 
     function populateSectionFilter(sections) {
@@ -557,9 +556,9 @@ function renderPagination(totalRows, totalPages, current, limit, sectionID) {
     }
 
 
-    // =========================================================
+  
     //  FILTER — section dropdown drives logs + charts
-    // =========================================================
+  
     $('#sectionFilter').on('change', function () {
         const sid = $(this).val();
         loadLogs(1, sid);
@@ -574,9 +573,9 @@ function renderPagination(totalRows, totalPages, current, limit, sectionID) {
     });
 
 
-    // =========================================================
+  
     //  UTIL
-    // =========================================================
+  
     function escHtml(str) {
         return $('<div>').text(str).html();
     }
