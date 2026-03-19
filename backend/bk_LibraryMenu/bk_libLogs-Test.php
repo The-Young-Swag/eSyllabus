@@ -39,7 +39,6 @@ $response = curl_exec($curl);
 
 curl_close($curl);
 
- 
 
 $now = date("Y-m-d H:i:s");
 

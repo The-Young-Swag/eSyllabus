@@ -113,7 +113,6 @@ function assignAccess(): void {
         }
 
     } elseif ($hasRecord) {
-
         // Reassign
         execsqlSRS(
             "UPDATE LibraryAccess SET SectionID = ?, AccessGrantedDate = GETDATE(), IsActive = 1 WHERE UserID = ?",
@@ -121,7 +120,6 @@ function assignAccess(): void {
         );
 
     } else {
-
         // New record
         execsqlSRS(
             "INSERT INTO LibraryAccess (UserID, SectionID, AccessGrantedDate, IsActive) VALUES (?, ?, GETDATE(), 1)",
@@ -136,7 +134,7 @@ function assignAccess(): void {
 // DISPATCH
 // ============================================================
 
-switch (trim($_POST["request"] ?? "")) {
+switch ($_POST["request"]) {
     case "getAccess":    showAccess();    break;
     case "assignAccess": assignAccess();  break;
     default: sendResponse(["error" => "Unknown request: '" . trim($_POST["request"] ?? "") . "'."]);

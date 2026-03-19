@@ -150,7 +150,6 @@ function getDeleteModal(): void {
 }
 
 function saveSection(): void {
-
     $id   = (int)($_POST["sectionID"]  ?? 0);
     $code = trim($_POST["sectionCode"] ?? "");
     $name = trim($_POST["sectionName"] ?? "");
@@ -170,13 +169,11 @@ function saveSection(): void {
             VALUES (?, ?, ?, 1, GETDATE())
         ", "Insert", [$code, $name, $desc]);
     }
-
     sendResponse(["success" => true]);
 }
 
 
 function toggleStatus(): void {
-
     $id     = (int)($_POST["sectionID"] ?? 0);
     $active = (int)($_POST["isActive"]  ?? 0);
     if (!$id) sendResponse(["error" => "Missing section ID."]);
@@ -192,7 +189,7 @@ function toggleStatus(): void {
 // DISPATCH
 // ============================================================
 
-switch (trim($_POST["request"] ?? "")) {
+switch ($_POST["request"]) {
     case "getSection":      showSection();     break;
     case "getSectionModal": getSectionModal(); break;
     case "getDeleteModal":  getDeleteModal();  break;

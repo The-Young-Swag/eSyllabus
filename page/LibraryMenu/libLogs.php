@@ -244,21 +244,10 @@ let libraryID = null;
 let libraryName = "";
 let currentUser = null;
 let duplicates = [];
-let action = "checkin";
 let successTimer = null;
 
 // Prevent duplicate listeners on AJAX reload
 $(document).off(".libLogs");
-
-function post(request, data, callback) {
-    $.ajax({
-        type: "POST",
-        url: BACKEND,
-        data: { request, ...data },
-        success: callback,
-        error: function () { alert("Connection error."); }
-    });
-}
 
 // Clock
 setInterval(function () {
@@ -329,74 +318,151 @@ function showMessage(type, message, autoClose) {
 }
 
 // Load library on boot
-post("getLibraries", { userID: UserInfo.UserID }, function (response) {
-    if (!response.success || !response.data?.length) {
-        $("#currentLibraryDisplay").text(response.error || "No Library Access");
-        return;
+$.ajax({
+    type: "POST",
+    url: BACKEND,
+    data: {
+        request: "getLibraries",
+        userID: UserInfo.UserID
+    },
+    success: function (response) {
+
+        if (!response.success || !response.data || !response.data.length) {
+            $("#currentLibraryDisplay").text(response.error || "No Library Access");
+            return;
+        }
+
+        libraryID = response.data[0].SectionID;
+        libraryName = response.data[0].SectionName;
+
+        $("#currentLibraryDisplay").text(libraryName);
+
+        loadKPI();
+    },
+    error: function () {
+        alert("Connection error.");
     }
-    libraryID = response.data[0].SectionID;
-    libraryName = response.data[0].SectionName;
-    $("#currentLibraryDisplay").text(libraryName);
-    loadKPI();
 });
 
 function loadKPI() {
+
     if (!libraryID) return;
-    post("getKPI", { sectionID: libraryID }, function (response) {
-        if (!response.success || !response.data) return;
-        $("#kpiTotalCheckins").text(response.data.totalToday || 0);
-        $("#kpiActiveStudents").text(response.data.currentlyInside || 0);
 
-        const rankList = (items, colorClass) =>
-            (items || ["-", "-", "-"]).map((label, index) => `
-                <div class="mb-1">
-                    <span class="fw-bold">${index + 1}.</span>
-                    <span class="${colorClass}">${label}</span>
-                </div>
-            `).join("");
+    $.ajax({
+        type: "POST",
+        url: BACKEND,
+        data: {
+            request: "getKPI",
+            sectionID: libraryID
+        },
+        success: function (response) {
 
-        $("#topColleges").html(rankList(response.data.topColleges, "text-warning"));
-        $("#topCourses").html(rankList(response.data.topCourses, "text-info"));
+            if (!response.success || !response.data) return;
+
+            $("#kpiTotalCheckins").text(response.data.totalToday || 0);
+            $("#kpiActiveStudents").text(response.data.currentlyInside || 0);
+
+            function renderRankList(items, colorClass) {
+                if (!items) items = ["-", "-", "-"];
+
+                let html = "";
+
+                items.forEach(function (label, index) {
+                    html += `
+                        <div class="mb-1">
+                            <span class="fw-bold">${index + 1}.</span>
+                            <span class="${colorClass}">${label}</span>
+                        </div>
+                    `;
+                });
+
+                return html;
+            }
+
+            $("#topColleges").html(renderRankList(response.data.topColleges, "text-warning"));
+            $("#topCourses").html(renderRankList(response.data.topCourses, "text-info"));
+        },
+        error: function () {
+            alert("Connection error.");
+        }
     });
 }
 
 function checkAndShowAttendance(user) {
-    post("checkStatusToday", { idNumber: user.id_number, name: user.name }, function (status) {
-        action = !status.checkedIn                              ? "checkin"
-               : Number(status.sectionID) === Number(libraryID) ? "checkout"
-               : "switch";
+    let resolvedAction;
 
-        post("getAttendanceModal", {
+    $.post(BACKEND, {
+        request: "checkStatusToday",
+        idNumber: user.id_number,
+        name: user.name
+    })
+    .then(function (status) {
+        const resolved = !status.checkedIn ? "checkin"
+                       : Number(status.sectionID) === Number(libraryID) ? "checkout"
+                       : "switch";
+
+        resolvedAction = resolved === "switch" ? "checkin" : resolved;
+
+        return $.post(BACKEND, {
+            request: "getAttendanceModal",
             user: JSON.stringify(user),
-            action,
+            action: resolved,
             sectionName: status.sectionName || "",
-            libraryName
-        }, function (modal) {
-            if (modal.success) showModal("Attendance Confirmation", modal.body, modal.footer);
+            libraryName: libraryName
         });
+    })
+    .then(function (modal) {
+        if (modal.success) {
+            showModal("Attendance Confirmation", modal.body, modal.footer);
+            $("#confirmAttendance").data("resolved-action", resolvedAction);
+        }
+    })
+    .fail(function () {
+        alert("Connection error.");
     });
 }
 
 function saveAttendance(user, resolvedAction) {
-    if (!libraryID || (user.classification !== "GUEST" && !user.id_number)) return;
 
-    const label = resolvedAction === "checkin" ? "checked in" : "checked out";
-    showMessage("success", `<strong>${user.name}</strong> successfully ${label}.`, 2000);
+    if (!libraryID) return;
+    if (user.classification !== "GUEST" && !user.id_number) return;
 
-    post("getSaveAttendance", {
-        action: resolvedAction,
-        idNumber: user.id_number,
-        sectionID: libraryID,
-        classification: user.classification || "STUDENT",
-        name: user.name,
-        college: user.college || "",
-        course: user.course || "",
-        sex: user.sex || "",
-        agency_organization: user.agency_organization || ""
-    }, function (response) {
-        if (response.error) { showMessage("error", response.error); return; }
-        loadKPI();
-        $("#inputStudentNumber").val("");
+    let label = resolvedAction === "checkin" ? "checked in" : "checked out";
+
+    showMessage("success",
+        `<strong>${user.name}</strong> successfully ${label}.`,
+        2000
+    );
+
+    $.ajax({
+        type: "POST",
+        url: BACKEND,
+        data: {
+            request: "getSaveAttendance",
+            action: resolvedAction,
+            idNumber: user.id_number,
+            sectionID: libraryID,
+            classification: user.classification || "STUDENT",
+            name: user.name,
+            college: user.college || "",
+            course: user.course || "",
+            sex: user.sex || "",
+            agency_organization: user.agency_organization || ""
+        },
+        success: function (response) {
+
+            if (response.error) {
+                showMessage("error", response.error);
+                return;
+            }
+
+            loadKPI();
+            $("#inputStudentNumber").val("");
+
+        },
+        error: function () {
+            alert("Connection error.");
+        }
     });
 }
 
@@ -409,31 +475,47 @@ function updateGuestUI() {
 
 // ID form
 $(document).on("submit.libLogs", "#logForm", function (event) {
-    event.preventDefault();
-    const idNumber = $("#inputStudentNumber").val().trim();
-    if (!idNumber) { alert("Please enter an Identification Number."); return; }
 
-    post("getValidateUser", { idNumber }, function (response) {
-        if (response.error) {
-            alert("No record found for that ID number.");
-            $("#inputStudentNumber").val("").focus();
-            return;
+    event.preventDefault();
+
+    let idNumber = $("#inputStudentNumber").val().trim();
+
+    if (!idNumber) {
+        alert("Please enter an Identification Number.");
+        return;
+    }
+
+    $.ajax({
+        type: "POST",
+        url: BACKEND,
+        data: {
+            request: "getValidateUser",
+            idNumber: idNumber
+        },
+        success: function (response) {
+            if (response.error) {
+                alert("No record found for that ID number.");
+                $("#inputStudentNumber").val("").focus();
+                return;
+            }
+            if (response.duplicate) {
+                duplicates = response.matches;
+                showModal("Identity Verification", response.modalHTML);
+                return;
+            }
+            currentUser = response.data;
+            checkAndShowAttendance(response.data);
+        },
+        error: function () {
+            alert("Connection error.");
         }
-        if (response.duplicate) {
-            duplicates = response.matches;
-            showModal("Identity Verification", response.modalHTML);
-            return;
-        }
-        currentUser = response.data;
-        checkAndShowAttendance(response.data);
     });
 });
 
 // Confirm attendance
 $(document).on("click.libLogs", "#confirmAttendance", function () {
-    if (!currentUser || !action) return;
-    const resolved = action === "switch" ? "checkin" : action;
-    saveAttendance(currentUser, resolved);
+    if (!currentUser) return;
+    saveAttendance(currentUser, $(this).data("resolved-action"));
 });
 
 // Secret key for duplicate users
@@ -449,7 +531,6 @@ $(document).on("input.libLogs", "#modalSecretKey", function () {
         $("#secretKeyStatus").html(`<span class="text-muted"><i class="fas fa-info-circle me-1"></i>Enter birth date (MM/DD/YYYY)</span>`);
         return;
     }
-
     const match = duplicates.find(candidate => candidate.secretKey?.replace(/\D/g, "") === digits);
     if (match) {
         currentUser = match;
@@ -480,16 +561,30 @@ $(document).on("click.libLogs", "#toggleSecretKey", function () {
 
 // Guest check-in
 $(document).on("click.libLogs", "#guestCheckIn", function () {
-    if (!libraryID) { 
-	alert("Library section not loaded yet."); 
-	return; 
-	}
-    post("guestCheckIn", { 
-	libraryName 
-	}, 
-	function (response) {
-        response.success ? showModal("Guest Check-In", response.body, response.footer)
-                         : alert(response.error || "Failed to load guest form.");
+
+    if (!libraryID) {
+        alert("Library section not loaded yet.");
+        return;
+    }
+
+    $.ajax({
+        type: "POST",
+        url: BACKEND,
+        data: {
+            request: "guestCheckIn",
+            libraryName: libraryName
+        },
+        success: function (response) {
+
+            if (response.success) {
+                showModal("Guest Check-In", response.body, response.footer);
+            } else {
+                alert(response.error || "Failed to load guest form.");
+            }
+        },
+        error: function () {
+            alert("Connection error.");
+        }
     });
 });
 
@@ -513,34 +608,73 @@ $(document).on("click.libLogs", "#confirmGuestCheckIn", function () {
 
 // Guest check-out
 $(document).on("click.libLogs", "#guestCheckOut", function () {
-    if (!libraryID) { alert("Library section not loaded yet."); return; }
-    post("getGuestCheckoutModal", { sectionID: libraryID, libraryName }, function (response) {
-        response.success ? showModal("Guest Check-Out", response.body, response.footer)
-                         : alert(response.error || "Failed to load guest list.");
+    if (!libraryID) {
+        alert("Library section not loaded yet.");
+        return;
+    }
+    $.ajax({
+        type: "POST",
+        url: BACKEND,
+        data: {
+            request: "getGuestCheckoutModal",
+            sectionID: libraryID,
+            libraryName: libraryName
+        },
+        success: function (response) {
+
+            if (response.success) {
+                showModal("Guest Check-Out", response.body, response.footer);
+            } else {
+                alert(response.error || "Failed to load guest list.");
+            }
+        },
+        error: function () {
+            alert("Connection error.");
+        }
     });
 });
 
+//Guest Check Out Action
 $(document).on("click.libLogs", ".btn-guest-checkout", function () {
-    const logID = $(this).data("logid");
-    const guestName = $(this).data("name");
+    let logID = $(this).data("logid");
+    let guestName = $(this).data("name");
     if (!logID) return;
+    $.ajax({
+        type: "POST",
+        url: BACKEND,
+        data: {
+            request: "guestCheckout",
+            logID: logID,
+            sectionID: libraryID
+        },
+        success: function (response) {
 
-    post("guestCheckout", { logID, sectionID: libraryID }, function (response) {
-        if (response.error) { alert(response.error); return; }
-
-        $(`.btn-guest-checkout[data-logid="${logID}"]`).closest(".guest-row").fadeOut(200, function () {
-            $(this).remove();
-            updateGuestUI();
-        });
-
-        const $alert = $(`
-            <div class="alert alert-success py-2 px-3 mb-2 text-center">
-                <i class="fas fa-check-circle me-1"></i><strong>${guestName}</strong> successfully checked out.
-            </div>
-        `).prependTo("#guestCheckoutList");
-        setTimeout(function () { $alert.fadeOut(400, function () { $alert.remove(); }); }, 2000);
-
-        loadKPI();
+            if (response.error) {
+                alert(response.error);
+                return;
+            }
+            $(`.btn-guest-checkout[data-logid="${logID}"]`)
+                .closest(".guest-row")
+                .fadeOut(200, function () {
+                    $(this).remove();
+                    updateGuestUI();
+                });
+            let $alert = $(`
+                <div class="alert alert-success py-2 px-3 mb-2 text-center">
+                    <i class="fas fa-check-circle me-1"></i>
+                    <strong>${guestName}</strong> successfully checked out.
+                </div>
+            `).prependTo("#guestCheckoutList");
+            setTimeout(function () {
+                $alert.fadeOut(400, function () {
+                    $alert.remove();
+                });
+            }, 2000);
+            loadKPI();
+        },
+        error: function () {
+            alert("Connection error.");
+        }
     });
 });
 
