@@ -17,7 +17,7 @@
       "sex": "Male",
       "college": "CET",
       "course": "BSIT",
-      "enrollment_status": "ENROLLED",
+	  "enrollment_status": "NOT ENROLLED",
       "birthDate": "12/07/1989"
     },
     {
