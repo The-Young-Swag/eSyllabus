@@ -55,6 +55,17 @@ function getSingleSectionKPI()
     echo json_encode($row[0]);
 }
 
+function librarySections()
+{
+    return execsqlSRS("
+        SELECT SectionID, SectionCode, SectionName
+        FROM LibrarySection
+        WHERE IsActive = 1
+        ORDER BY SectionName
+    ", "Search", []);
+}
+
+
 
 // ============================================================
 //  DAILY LOGS — Paginated today's check-in / check-out records
@@ -268,11 +279,24 @@ function loadCollegeCourseActivity()
 $request = $_POST["request"] ?? "";
 
 switch ($request) {
-    case "kpiData":               loadKPI();                    break;
-    case "singleSectionKPI":      getSingleSectionKPI();        break;
-    case "dailyLogs":             loadDailyLogs();              break;
-    case "monthlyTrend":          loadMonthlyTrend();           break;
-    case "collegeCourseActivity": loadCollegeCourseActivity();  break;
+    case "kpiData":
+	loadKPI();
+	break;
+	case "sections":
+    echo json_encode(librarySections());
+    break;
+    case "singleSectionKPI":
+	getSingleSectionKPI();
+	break;
+    case "dailyLogs":
+	loadDailyLogs();
+	break;
+    case "monthlyTrend":
+	loadMonthlyTrend();
+	break;
+    case "collegeCourseActivity":
+	loadCollegeCourseActivity();
+	break;
     default:
         http_response_code(400);
         echo json_encode(["error" => "Invalid request."]);

@@ -26,42 +26,39 @@
 
     <!-- KPI Cards -->
 <div id="kpiContainer" class="row g-3 mb-4">
+<?php foreach ($sections as $sec): 
+    $name = htmlspecialchars($sec['SectionName']);
+    $code = htmlspecialchars($sec['SectionID']); // or SectionCode if you have one
+
+    // Optional: rotate colors (clean + scalable)
+    $colors = [
+        ['border' => '#10b981', 'text' => 'text-success'],
+        ['border' => '#3b82f6', 'text' => 'text-primary'],
+        ['border' => '#f59e0b', 'text' => 'text-warning'],
+        ['border' => '#ef4444', 'text' => 'text-danger'],
+    ];
+
+    static $i = 0;
+    $color = $colors[$i++ % count($colors)];
+?>
     <div class="col-6 col-md-3">
-        <div class="card border-0 shadow-sm h-100" style="border-top:3px solid #10b981 !important;">
+        <div class="card border-0 shadow-sm h-100" style="border-top:3px solid <?= $color['border'] ?>;">
             <div class="card-body p-3">
-                <span class="text-muted fw-semibold text-uppercase d-block mb-2" style="letter-spacing:.05em;font-size:.7rem;">Filipiniana 1F</span>
-                <h3 class="fw-bold text-success mb-0 kpi-count" data-section-code="FIL1F">—</h3>
+                <span class="text-muted fw-semibold text-uppercase d-block mb-2"
+                      style="letter-spacing:.05em;font-size:.7rem;">
+                      <?= $name ?>
+                </span>
+
+                <h3 class="fw-bold <?= $color['text'] ?> mb-0 kpi-count"
+                    data-section-code="<?= $code ?>">
+                    —
+                </h3>
+
                 <small class="text-muted">active visits</small>
             </div>
         </div>
     </div>
-    <div class="col-6 col-md-3">
-        <div class="card border-0 shadow-sm h-100" style="border-top:3px solid #3b82f6 !important;">
-            <div class="card-body p-3">
-                <span class="text-muted fw-semibold text-uppercase d-block mb-2" style="letter-spacing:.05em;font-size:.7rem;">Filipiniana 2F</span>
-                <h3 class="fw-bold text-primary mb-0 kpi-count" data-section-code="FIL2F">—</h3>
-                <small class="text-muted">active visits</small>
-            </div>
-        </div>
-    </div>
-    <div class="col-6 col-md-3">
-        <div class="card border-0 shadow-sm h-100" style="border-top:3px solid #f59e0b !important;">
-            <div class="card-body p-3">
-                <span class="text-muted fw-semibold text-uppercase d-block mb-2" style="letter-spacing:.05em;font-size:.7rem;">Manuscript</span>
-                <h3 class="fw-bold text-warning mb-0 kpi-count" data-section-code="MAN">—</h3>
-                <small class="text-muted">active visits</small>
-            </div>
-        </div>
-    </div>
-    <div class="col-6 col-md-3">
-        <div class="card border-0 shadow-sm h-100" style="border-top:3px solid #ef4444 !important;">
-            <div class="card-body p-3">
-                <span class="text-muted fw-semibold text-uppercase d-block mb-2" style="letter-spacing:.05em;font-size:.7rem;">Recreational</span>
-                <h3 class="fw-bold text-danger mb-0 kpi-count" data-section-code="REC">—</h3>
-                <small class="text-muted">active visits</small>
-            </div>
-        </div>
-    </div>
+<?php endforeach; ?>
 </div>
 
 
@@ -212,7 +209,8 @@ $(document).ready(function () {
     //  INIT
   
     setDefaultTrendDates();
-    loadKPI();
+    loadSections();
+	loadKPI();
     loadLogs();
     loadTrend();
     loadCollegeCourseActivity();
@@ -236,7 +234,53 @@ $(document).ready(function () {
     }
 
 
-  
+  function loadSections() {
+    $.ajax({
+        type: 'POST',
+        url: BACKEND_URL,
+        data: { request: 'sections' },
+        dataType: 'json',
+        success: function (sections) {
+            renderSectionCards(sections);
+        }
+    });
+}
+
+function renderSectionCards(sections) {
+    const colors = [
+        { border: '#10b981', text: 'text-success' },
+        { border: '#3b82f6', text: 'text-primary' },
+        { border: '#f59e0b', text: 'text-warning' },
+        { border: '#ef4444', text: 'text-danger' },
+    ];
+
+    let html = '';
+
+    sections.forEach((sec, i) => {
+        const color = colors[i % colors.length];
+
+        html += `
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm h-100" style="border-top:3px solid ${color.border};">
+                <div class="card-body p-3">
+                    <span class="text-muted fw-semibold text-uppercase d-block mb-2"
+                          style="letter-spacing:.05em;font-size:.7rem;">
+                        ${escHtml(sec.SectionName)}
+                    </span>
+
+                    <h3 class="fw-bold ${color.text} mb-0 kpi-count"
+                        data-section-code="${sec.SectionCode}">
+                        —
+                    </h3>
+
+                    <small class="text-muted">active visits</small>
+                </div>
+            </div>
+        </div>`;
+    });
+
+    $('#kpiContainer').html(html);
+}
     //  DAILY LOGS + PAGINATION
   
     function loadLogs(page, sectionID) {
