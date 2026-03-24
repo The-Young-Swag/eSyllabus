@@ -75,7 +75,7 @@ function showAccess(): void {
             </td>
             <td>
                 <button class='btn btn-success btn-sm rounded-pill btn-save-access' data-userid='$userID'>
-                    <i class='fas fa-save me-1'></i>Save
+                    Save
                 </button>
             </td>
         </tr>";

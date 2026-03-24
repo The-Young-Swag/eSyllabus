@@ -595,14 +595,12 @@ $(document).on("click.libLogs", "#confirmGuestCheckIn", function () {
     const organization = $("#guestAgency").val().trim();
     if (!name){ alert("Guest name is required.");         
 	return; 
-	}
-    if (!sex){ 
+	} if (!sex){ 
 	alert("Please select a sex.");            
 	return; 
-	}
-    if (!organization) { alert("Agency / Organization required."); return; }
+	} if (!organization) { alert("Agency / Organization required."); return; }
 saveAttendance({
-    id_number: user?.id_number || "",
+    id_number: "",
     name,
     classification: "GUEST",
         college: "", course: "", sex, agency_organization: organization

@@ -43,12 +43,12 @@ const ACTION_CONFIG = [
  
 // UTILITIES
 // Clearer: responseData instead of payload
-function sendResponse(array $responseData): void {
+function sendResponse(array $responseData) {
     echo json_encode($responseData);
     exit;
 }
 
-function fail(string $message): void {
+function fail(string $message) {
     sendResponse(["error" => $message]);
 }
 
@@ -153,7 +153,7 @@ function mapEmployee(array $employee): array
 // ATTENDANCE LOGIC
 // Skips silently if already checked in here; auto-closes any other open session
 // (switch scenario); then inserts a new log entry.
-function performCheckin(PDO $pdo, string $idNumber, int $sectionID, string $now, array $user): void
+function performCheckin(PDO $pdo, string $idNumber, int $sectionID, string $now, array $user)
 {
     [$start, $end] = todayRange();
 
@@ -206,8 +206,7 @@ function performCheckin(PDO $pdo, string $idNumber, int $sectionID, string $now,
     ]);
 }
 
-function performCheckout(PDO $pdo, string $idNumber, int $sectionID, string $now): void
-{
+function performCheckout(PDO $pdo, string $idNumber, int $sectionID, string $now){
     [$start, $end] = todayRange();
     run($pdo, "
         UPDATE Library_logs
@@ -221,8 +220,7 @@ function performCheckout(PDO $pdo, string $idNumber, int $sectionID, string $now
 }
 
 // Every guest scan is a fresh record — id_number is '0' (no institutional ID).
-function performGuestCheckin(PDO $pdo, int $sectionID, string $now, array $user): void
-{
+function performGuestCheckin(PDO $pdo, int $sectionID, string $now, array $user){
     run($pdo, "
         INSERT INTO Library_logs
             (id_number, name, classification, college, course, library, checkin_time, sex, agency_organization)
@@ -277,8 +275,7 @@ function kpiData(PDO $pdo, int $sectionID): array
 
  
 // HANDLERS
-function GetLibraries(): void
-{
+function GetLibraries(){
     $userID = (int)($_POST["userID"] ?? 0);
     if (!$userID) fail("Missing or invalid userID.");
 
@@ -291,8 +288,7 @@ function GetLibraries(): void
     ", "Query", [$userID])]);
 }
 
-function ValidateUser(): void
-{
+function ValidateUser(){
     $idNumber = trim($_POST["idNumber"] ?? "");
     if (!$idNumber) fail("Identification number is required.");
     if (!validateId($idNumber)) fail("Invalid ID format.");
@@ -308,8 +304,7 @@ function ValidateUser(): void
 
 // Finds the user's latest active session today (checkout_time IS NULL).
 // Found → currently checked in somewhere. Not found → not checked in today.
-function CheckStatusToday(): void
-{
+function CheckStatusToday(){
     $idNumber = trim($_POST["idNumber"] ?? "");
     $name = trim($_POST["name"] ?? "");
     if (!$idNumber) fail("Identification number is required.");
@@ -318,14 +313,14 @@ function CheckStatusToday(): void
 
     $session = run(dbconES(), "
         SELECT TOP 1 ll.library, ls.SectionName
-        FROM   Library_logs   ll
-        LEFT   JOIN LibrarySection ls ON ls.SectionID = ll.library
-        WHERE  ll.id_number = :idNumber
-          AND  ll.name = :name
-          AND  ll.checkout_time IS NULL
-          AND  ll.checkin_time >= :start
-          AND  ll.checkin_time < :end
-        ORDER  BY ll.checkin_time DESC
+        FROM Library_logs ll
+        LEFT JOIN LibrarySection ls ON ls.SectionID = ll.library
+        WHERE ll.id_number = :idNumber
+          AND ll.name = :name
+          AND ll.checkout_time IS NULL
+          AND ll.checkin_time >= :start
+          AND ll.checkin_time < :end
+        ORDER BY ll.checkin_time DESC
     ", [":idNumber" => $idNumber, ":name" => $name, ":start" => $start, ":end" => $end])
         ->fetch(PDO::FETCH_ASSOC);
 
@@ -346,8 +341,7 @@ function CheckStatusToday(): void
 //   action      – checkin | checkout | switch
 //   sectionName – Previous section name (only used when action is "switch")
 //   libraryName – Current library section name for display
-function AttendanceModal(): void
-{
+function AttendanceModal(){
     $user = json_decode(trim($_POST["user"]   ?? "{}"), true);
     $action = trim($_POST["action"] ?? "checkin");
 
@@ -374,7 +368,7 @@ function AttendanceModal(): void
     sendResponse(["success" => true] + $modal);
 }
 
-function GuestCheckInModal(): void
+function GuestCheckInModal()
 {
     $libraryName = escHtml(trim($_POST["libraryName"] ?? ""));
     $labelStyle  = "font-size:.65rem;letter-spacing:.12em;color:#6b7280;";
@@ -441,7 +435,7 @@ HTML;
     sendResponse(["success" => true, "body" => $body, "footer" => $footer]);
 }
 
-function GuestCheckoutModal(): void
+function GuestCheckoutModal()
 {
     $sectionID   = (int)($_POST["sectionID"]   ?? 0);
     $libraryName = escHtml(trim($_POST["libraryName"] ?? ""));
@@ -510,7 +504,7 @@ function GuestCheckoutModal(): void
     sendResponse(["success" => true, "body" => $body, "footer" => $footer]);
 }
 
-function GuestCheckout(): void
+function GuestCheckout()
 {
     global $now;
     $logID     = (int)($_POST["logID"]     ?? 0);
@@ -529,8 +523,7 @@ function GuestCheckout(): void
     sendResponse(["success" => true]);
 }
 
-function SaveAttendance(): void
-{
+function SaveAttendance(){
     global $now;
 
     $idNumber = trim($_POST["idNumber"] ?? "");
@@ -557,7 +550,7 @@ function SaveAttendance(): void
     try {
         $pdo->beginTransaction();
 
-        $isRealGuest = empty($idNumber); // 🔥 KEY LOGIC
+        $isRealGuest = empty($idNumber); // KEY LOGIC
 
         if ($isRealGuest) {
             // External guest (manual)
@@ -583,8 +576,7 @@ function SaveAttendance(): void
     sendResponse(["success" => true, "action" => $action]);
 }
 
-function ShowKPI(): void
-{
+function ShowKPI(){
     $sectionID = (int)($_POST["sectionID"] ?? 0);
     if (!$sectionID) fail("Missing or invalid sectionID.");
     sendResponse(["success" => true, "data" => kpiData(dbconES(), $sectionID)]);
