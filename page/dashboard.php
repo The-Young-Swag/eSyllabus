@@ -41,7 +41,7 @@ if ($studentResponse === false) {
 
 // THEN check HTTP response code
 $httpCode = curl_getinfo($student, CURLINFO_HTTP_CODE);
-echo "Student API HTTP code: $httpCode";  // <- put it here
+
 
 $employeeResponse = curl_exec($employee);
 
@@ -50,7 +50,7 @@ if ($employeeResponse === false) {
 }
 
 $httpCodeEmp = curl_getinfo($employee, CURLINFO_HTTP_CODE);
-echo "Employee API HTTP code: $httpCodeEmp";  // <- here
+
 
 curl_close($student);
 curl_close($employee);
