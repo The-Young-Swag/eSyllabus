@@ -13,12 +13,13 @@ if ($_SERVER["REQUEST_METHOD"] !== "POST") {
     echo json_encode(["error" => "Invalid request method."]); exit;
 }
 
-$apiValues = $_SESSION["API"];
+$student = $_SESSION["studentAPI"];
+$employee = $_SESSION["employeeAPI"];
 $now = date("Y-m-d H:i:s");
 
 $USER_SOURCE = [
-    "students"  => json_decode($apiValues, true),
-    "employees" => [],
+    "students"  => json_decode($student, true),
+    "employees" => json_decode($employee, true),
 ];
 
 const ACTION_CONFIG = [
@@ -28,16 +29,28 @@ const ACTION_CONFIG = [
 ];
 
 //VALIDATION SECTION
-
 function resolveUserById(string $id): array
 {
     global $USER_SOURCE;
 
-    $group = str_starts_with(strtoupper($id), "TAU") ? "employees" : "students";
-    $jsonData = $USER_SOURCE[$group] ?? null;
+    $id = strtoupper(trim($id)); // normalize input
 
+    // Define all employee prefixes
+    $employeePrefixes = ["TAU", "JO"];
+
+    // Determine group based on prefix
+    $group = "students"; // default
+    foreach ($employeePrefixes as $prefix) {
+        if (str_starts_with($id, $prefix)) {
+            $group = "employees";
+            break;
+        }
+    }
+
+    $jsonData = $USER_SOURCE[$group] ?? null;
     if (!is_array($jsonData)) return [];
 
+    // Normalize JSON structure
     $records = isset($jsonData[0])
         ? $jsonData
         : ($jsonData["data"]
@@ -52,11 +65,41 @@ function resolveUserById(string $id): array
 
     foreach ($records as $record) {
         $user = $mapper($record);
-        if ($user["id_number"] === $id) $matches[] = $user;
+        if (strtoupper(trim($user["id_number"])) === $id) {
+            $matches[] = $user;
+        }
     }
 
     return $matches;
 }
+// function resolveUserById(string $id): array
+// {
+//     global $USER_SOURCE;
+
+//     $group = str_starts_with(strtoupper($id), "TAU") ? "employees" : "students";
+//     $jsonData = $USER_SOURCE[$group] ?? null;
+
+//     if (!is_array($jsonData)) return [];
+
+//     $records = isset($jsonData[0])
+//         ? $jsonData
+//         : ($jsonData["data"]
+//         ?? $jsonData["employees"]
+//         ?? $jsonData["students"]
+//         ?? $jsonData["records"]
+//         ?? $jsonData["items"]
+//         ?? []);
+
+//     $mapper  = $group === "employees" ? "mapEmployee" : "mapStudent";
+//     $matches = [];
+
+//     foreach ($records as $record) {
+//         $user = $mapper($record);
+//         if ($user["id_number"] === $id) $matches[] = $user;
+//     }
+
+//     return $matches;
+// }
 
 function mapStudent(array $student): array
 {

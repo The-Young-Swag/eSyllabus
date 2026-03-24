@@ -1,8 +1,9 @@
 <?php
-session_start(); // 🔥 REQUIRED
-$curl = curl_init();
+session_start(); // REQUIRED
+$student = curl_init();
+$employee = curl_init();
 
-curl_setopt_array($curl, [
+curl_setopt_array($student, [
   CURLOPT_URL => 'http://tau.edu.ph:8087/ProxyTAUService/studentLibrary',
   CURLOPT_RETURNTRANSFER => true,
   CURLOPT_CUSTOMREQUEST => 'POST',
@@ -16,16 +17,47 @@ curl_setopt_array($curl, [
       'Authorization: Bearer accessLibrary'
   ],
 ]);
+curl_setopt_array($employee, [
+  CURLOPT_URL => 'http://tau.edu.ph:8087/ProxyTAUService/employeeLibrary',
+  CURLOPT_RETURNTRANSFER => true,
+  CURLOPT_CUSTOMREQUEST => 'POST',
+  CURLOPT_POSTFIELDS => json_encode([
+      "UserAccount" => "LibrarySys",
+      "Password" => "libraryAPI",
+      "deviceUUID" => "LibSys"
+  ]),
+  CURLOPT_HTTPHEADER => [
+      'Content-Type: application/json',
+      'Authorization: Bearer accessLibrary'
+  ],
+]);
 
-$response = curl_exec($curl);
+$studentResponse = curl_exec($student);
 
-if ($response === false) {
-    die("cURL Error: " . curl_error($curl));
+// Check for cURL execution errors first
+if ($studentResponse === false) {
+    die("Student API cURL Error: " . curl_error($student));
 }
 
-curl_close($curl);
+// THEN check HTTP response code
+$httpCode = curl_getinfo($student, CURLINFO_HTTP_CODE);
+echo "Student API HTTP code: $httpCode";  // <- put it here
 
-$_SESSION["API"] = $response;
+$employeeResponse = curl_exec($employee);
+
+if ($employeeResponse === false) {
+    die("Employee API cURL Error: " . curl_error($employee));
+}
+
+$httpCodeEmp = curl_getinfo($employee, CURLINFO_HTTP_CODE);
+echo "Employee API HTTP code: $httpCodeEmp";  // <- here
+
+curl_close($student);
+curl_close($employee);
+
+// store the **JSON strings**, not the cURL handles
+$_SESSION["studentAPI"] = $studentResponse;
+$_SESSION["employeeAPI"] = $employeeResponse;
 
 include "../db/dbconnection.php";
 //include "modals.php";
