@@ -1,0 +1,280 @@
+<?php
+date_default_timezone_set('Asia/Manila');
+require_once "../../db/dbconnection.php";
+
+// ============================================================
+//  KPI — Active visits per section right now (today, no checkout)
+// ============================================================
+
+function loadKPI()
+{
+    $rows = execsqlSRS("
+        SELECT
+            s.SectionID,
+            s.SectionCode,
+            s.SectionName,
+            COUNT(l.id) AS total
+        FROM LibrarySection s
+        LEFT JOIN Library_logs l
+            ON  l.library = s.SectionID
+            AND l.checkout_time IS NULL
+            AND CAST(l.checkin_time AS DATE) = CAST(GETDATE() AS DATE)
+        WHERE s.IsActive = 1
+        GROUP BY s.SectionID, s.SectionCode, s.SectionName
+    ", "Search", []);
+
+    foreach ($rows as &$row) {
+        $row['SectionCode'] = trim($row['SectionCode']);
+    }
+
+    echo json_encode($rows);
+}
+
+
+// ============================================================
+//  KPI — Single section count (for targeted refresh)
+// ============================================================
+
+function getSingleSectionKPI()
+{
+    $sectionID = $_POST["sectionID"];
+
+    $row = execsqlSRS("
+        SELECT
+            s.SectionID,
+            s.SectionName,
+            COUNT(l.id) AS total
+        FROM LibrarySection s
+        LEFT JOIN Library_logs l
+            ON  l.library = s.SectionID
+            AND CAST(l.checkin_time AS DATE) = CAST(GETDATE() AS DATE)
+        WHERE s.SectionID = ?
+        GROUP BY s.SectionID, s.SectionName
+    ", "Search", [$sectionID]);
+
+    echo json_encode($row[0]);
+}
+
+
+// ============================================================
+//  DAILY LOGS — Paginated today's check-in / check-out records
+// ============================================================
+
+function loadDailyLogs()
+{
+    $page      = max(1, (int)($_POST["page"] ?? 1));
+    $limit     = 5;
+    $offset    = ($page - 1) * $limit;
+    $sectionID = isset($_POST['sectionID']) && $_POST['sectionID'] !== '' ? (int)$_POST['sectionID'] : null;
+
+    $sectionFilter = $sectionID ? "AND l.library = $sectionID" : "";
+
+    $countResult = execsqlSRS("
+        SELECT COUNT(*) AS total
+        FROM Library_logs l
+        WHERE CAST(l.checkin_time AS DATE) = CAST(GETDATE() AS DATE)
+        {$sectionFilter}
+    ", "Search", []);
+
+    $totalRows  = (int)$countResult[0]["total"];
+    $totalPages = max(1, (int)ceil($totalRows / $limit));
+    $page       = min($page, $totalPages);
+    $offset     = ($page - 1) * $limit;
+
+    $logs = execsqlSRS("
+        SELECT
+            l.id_number,
+            l.college,
+            l.course,
+            s.SectionName,
+            l.checkin_time,
+            l.checkout_time
+        FROM Library_logs l
+        LEFT JOIN LibrarySection s ON l.library = s.SectionID
+        WHERE CAST(l.checkin_time AS DATE) = CAST(GETDATE() AS DATE)
+        {$sectionFilter}
+        ORDER BY l.checkin_time DESC
+        OFFSET $offset ROWS
+        FETCH NEXT $limit ROWS ONLY
+    ", "Search", []);
+
+    ob_start();
+    if (empty($logs)) {
+        echo "<tr><td colspan='7' class='text-center text-muted py-4'>No records for today.</td></tr>";
+    } else {
+foreach ($logs as $index => $log) {
+    // Apply 'table-success' to even rows (0, 2, 4...), leave odd rows default
+    $rowClass = $index % 2 === 0 ? "table-success" : "";
+
+    $statusBadge = empty($log["checkout_time"])
+        ? "<span class='badge bg-success-subtle text-success rounded-pill px-3'>Active</span>"
+        : "<span class='badge bg-secondary-subtle text-secondary rounded-pill px-3'>Completed</span>";
+
+    echo "<tr class='$rowClass'>";
+    echo "<td class='px-4 fw-semibold'>"  . htmlspecialchars($log["id_number"])        . "</td>";
+    echo "<td>"                            . htmlspecialchars($log["college"] ?? "—")   . "</td>";
+    echo "<td>"                            . htmlspecialchars($log["course"]  ?? "—")   . "</td>";
+    echo "<td><span class='badge bg-light text-dark border'>"
+         . htmlspecialchars($log["SectionName"] ?? "—")
+         . "</span></td>";
+    echo "<td>" . date('M j, Y g:i A', strtotime($log["checkin_time"])) . "</td>";
+    echo "<td>" . ($log["checkout_time"]
+         ? date('M j, Y g:i A', strtotime($log["checkout_time"]))
+         : "—") . "</td>";
+    echo "<td class='text-center'>$statusBadge</td>";
+    echo "</tr>";
+}
+    }
+    $rowsHtml = ob_get_clean();
+
+    echo json_encode([
+        "rows"        => $rowsHtml,
+        "totalRows"   => $totalRows,
+        "totalPages"  => $totalPages,
+        "currentPage" => $page,
+        "limit"       => $limit,
+    ]);
+}
+
+
+// ============================================================
+//  MONTHLY TREND — Visit counts for a date range
+//  Accepts optional startDate / endDate (YYYY-MM-DD).
+//  Falls back to last 6 months if not provided.
+// ============================================================
+
+function loadMonthlyTrend()
+{
+    $sectionID     = isset($_POST['sectionID']) && $_POST['sectionID'] !== '' ? (int)$_POST['sectionID'] : null;
+    $sectionFilter = $sectionID ? "AND library = $sectionID" : "";
+
+    // Date range — validate and sanitise
+    $startDate = !empty($_POST['startDate']) ? $_POST['startDate'] : null;
+    $endDate   = !empty($_POST['endDate'])   ? $_POST['endDate']   : null;
+
+    // Validate format YYYY-MM-DD
+    $validateDate = fn($d) => $d && preg_match('/^\d{4}-\d{2}-\d{2}$/', $d) ? $d : null;
+    $startDate = $validateDate($startDate);
+    $endDate   = $validateDate($endDate);
+
+    if ($startDate && $endDate) {
+        $dateFilter = "AND CAST(checkin_time AS DATE) BETWEEN '$startDate' AND '$endDate'";
+        // Group by year-month so multi-year ranges work correctly
+        $rows = execsqlSRS("
+            SELECT
+                FORMAT(checkin_time, 'MMM yyyy') AS month,
+                YEAR(checkin_time)               AS yr,
+                MONTH(checkin_time)              AS mo,
+                COUNT(*)                         AS total
+            FROM Library_logs
+            WHERE 1=1
+              {$dateFilter}
+              {$sectionFilter}
+            GROUP BY FORMAT(checkin_time, 'MMM yyyy'), YEAR(checkin_time), MONTH(checkin_time)
+            ORDER BY yr, mo
+        ", "Search", []);
+    } else {
+        // Default: last 6 calendar months
+        $rows = execsqlSRS("
+            SELECT
+                FORMAT(checkin_time, 'MMM yyyy') AS month,
+                YEAR(checkin_time)               AS yr,
+                MONTH(checkin_time)              AS mo,
+                COUNT(*)                         AS total
+            FROM Library_logs
+            WHERE checkin_time >= DATEADD(MONTH, -5, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
+              {$sectionFilter}
+            GROUP BY FORMAT(checkin_time, 'MMM yyyy'), YEAR(checkin_time), MONTH(checkin_time)
+            ORDER BY yr, mo
+        ", "Search", []);
+    }
+
+    echo json_encode($rows);
+}
+
+
+// ============================================================
+//  COLLEGE & COURSE ACTIVITY
+//  Returns colleges → courses → section breakdown for today.
+//  Optionally filtered by library section.
+// ============================================================
+
+function loadCollegeCourseActivity()
+{
+    $sectionID     = isset($_POST['sectionID']) && $_POST['sectionID'] !== '' ? (int)$_POST['sectionID'] : null;
+    $sectionFilter = $sectionID ? "AND l.library = $sectionID" : "";
+
+    $rows = execsqlSRS("
+        SELECT
+            l.college,
+            l.course,
+            s.SectionName  AS section_name,
+            COUNT(*)       AS total
+        FROM Library_logs l
+        LEFT JOIN LibrarySection s ON l.library = s.SectionID
+        WHERE CAST(l.checkin_time AS DATE) = CAST(GETDATE() AS DATE)
+          AND l.college IS NOT NULL AND l.college <> ''
+          AND l.course  IS NOT NULL AND l.course  <> ''
+          {$sectionFilter}
+        GROUP BY l.college, l.course, s.SectionName
+        ORDER BY l.college, l.course, total DESC
+    ", "Search", []);
+
+    // Build nested structure: college → course → sections[]
+    $grouped = [];
+    foreach ($rows as $row) {
+        $college = $row['college'];
+        $course  = $row['course'];
+
+        if (!isset($grouped[$college])) {
+            $grouped[$college] = ['college' => $college, 'total' => 0, 'courses' => []];
+        }
+        if (!isset($grouped[$college]['courses'][$course])) {
+            $grouped[$college]['courses'][$course] = [
+                'course'   => $course,
+                'total'    => 0,
+                'sections' => [],
+            ];
+        }
+
+        $courseTotal = (int)$row['total'];
+        $grouped[$college]['courses'][$course]['total']      += $courseTotal;
+        $grouped[$college]['courses'][$course]['sections'][]  = [
+            'section_name' => $row['section_name'] ?? '—',
+            'total'        => $courseTotal,
+        ];
+        $grouped[$college]['total'] += $courseTotal;
+    }
+
+    // Sort courses within each college by total desc; re-index arrays
+    $result = [];
+    foreach ($grouped as $col) {
+        $courses = array_values($col['courses']);
+        usort($courses, fn($a, $b) => $b['total'] - $a['total']);
+        $col['courses'] = $courses;
+        $result[] = $col;
+    }
+
+    usort($result, fn($a, $b) => $b['total'] - $a['total']);
+
+    echo json_encode(array_values($result));
+}
+
+
+// ============================================================
+//  DISPATCH
+// ============================================================
+
+$request = $_POST["request"] ?? "";
+
+switch ($request) {
+    case "kpiData":               loadKPI();                    break;
+    case "singleSectionKPI":      getSingleSectionKPI();        break;
+    case "dailyLogs":             loadDailyLogs();              break;
+    case "monthlyTrend":          loadMonthlyTrend();           break;
+    case "collegeCourseActivity": loadCollegeCourseActivity();  break;
+    default:
+        http_response_code(400);
+        echo json_encode(["error" => "Invalid request."]);
+}
+?>

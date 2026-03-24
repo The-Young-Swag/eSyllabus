@@ -3,12 +3,8 @@
 // Handles: user validation, attendance logging, KPI reporting
 // Database: Library_logs (id, id_number, name, college, course, library,
 //           checkin_time, checkout_time, sex, classification)
-session_start();
-
-
 
 include "../../db/dbconnection.php";
-/* include "../../API.php"; */
 date_default_timezone_set("Asia/Manila");
 header("Content-Type: application/json");
 
@@ -16,13 +12,38 @@ if ($_SERVER["REQUEST_METHOD"] !== "POST") {
     sendResponse(["error" => "Invalid request method."]);
 }
 
+$curl = curl_init();
 
-$apivaluess = $_SESSION["API"];
+curl_setopt_array($curl, array(
+  CURLOPT_URL => 'tau.edu.ph:8087/ProxyTAUService/studentLibrary',
+  CURLOPT_RETURNTRANSFER => true,
+  CURLOPT_ENCODING => '',
+  CURLOPT_MAXREDIRS => 10,
+  CURLOPT_TIMEOUT => 0,
+  CURLOPT_FOLLOWLOCATION => true,
+  CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+  CURLOPT_CUSTOMREQUEST => 'POST',
+  CURLOPT_POSTFIELDS =>'{
+    "UserAccount" : "LibrarySys",
+    "Password" : "libraryAPI",
+    "deviceUUID": "LibSys"
+}
+',
+  CURLOPT_HTTPHEADER => array(
+    'Content-Type: application/json',
+    'Authorization: Bearer accessLibrary'
+  ),
+));
+
+$response = curl_exec($curl);
+
+curl_close($curl);
+
 
 $now = date("Y-m-d H:i:s");
 
 $USER_SOURCE = [
-    "students"  => json_decode($apivaluess, true),
+    "students"  => json_decode($response, true),
     "employees" => [] // adjust if you have employee API
 ];
 
@@ -35,20 +56,20 @@ $USER_SOURCE = [
  
 // CONFIG
 const ACTION_CONFIG = [
-    "checkin"  => ["color" => "success", "icon" => "fa-sign-in-alt",  "btnText" => "Check In",         "message" => "Not checked in yet"],
-    "checkout" => ["color" => "danger",  "icon" => "fa-sign-out-alt", "btnText" => "Check Out",         "message" => "Currently in this library"],
-    "switch"   => ["color" => "warning", "icon" => "fa-random",       "btnText" => "Switch & Check In", "message" => null],
+    "checkin"  => ["color" => "success", "icon" => "fa-sign-in-alt", "btnText" => "Check In", "message" => "Not checked in yet"],
+    "checkout" => ["color" => "danger",  "icon" => "fa-sign-out-alt","btnText" => "Check Out", "message" => "Currently in this library"],
+    "switch"   => ["color" => "warning", "icon" => "fa-random", "btnText" => "Switch & Check In", "message" => null],
 ];
 
  
 // UTILITIES
 // Clearer: responseData instead of payload
-function sendResponse(array $responseData) {
+function sendResponse(array $responseData): void {
     echo json_encode($responseData);
     exit;
 }
 
-function fail(string $message) {
+function fail(string $message): void {
     sendResponse(["error" => $message]);
 }
 
@@ -114,25 +135,14 @@ function resolveUserById(string $id): array
 
 function mapStudent(array $student): array
 {
-    $status  = strtoupper(trim($student["enrollment_status"] ?? ""));
-    $isGuest = $status === "NOT ENROLLED";
-
-    $college = $student["college"] ?? "";
-    $course  = $student["course"] ?? "";
-
     return [
         "id_number"  => $student["id_number"] ?? "",
-        "name"       => $student["name"] ?? "",
-        "sex"        => $student["sex"] ?? null,
-        "college"    => $college,
-        "course"     => $course,
-        "classification" => $isGuest ? "GUEST" : "STUDENT",
-        "secretKey"  => $student["birthDate"] ?? null,
-
-        // 🔥 KEY FIX HERE
-        "agency_organization" => $isGuest
-            ? trim("{$college} - {$course}", " -")
-            : "",
+        "name" => $student["name"] ?? "",
+        "sex"  => $student["sex"] ?? null,
+        "college" => $student["college"] ?? null,
+        "course" => $student["course"] ?? null,
+        "classification" => "STUDENT",
+        "secretKey" => $student["birthDate"] ?? null,
     ];
 }
 
@@ -153,7 +163,7 @@ function mapEmployee(array $employee): array
 // ATTENDANCE LOGIC
 // Skips silently if already checked in here; auto-closes any other open session
 // (switch scenario); then inserts a new log entry.
-function performCheckin(PDO $pdo, string $idNumber, int $sectionID, string $now, array $user)
+function performCheckin(PDO $pdo, string $idNumber, int $sectionID, string $now, array $user): void
 {
     [$start, $end] = todayRange();
 
@@ -206,7 +216,8 @@ function performCheckin(PDO $pdo, string $idNumber, int $sectionID, string $now,
     ]);
 }
 
-function performCheckout(PDO $pdo, string $idNumber, int $sectionID, string $now){
+function performCheckout(PDO $pdo, string $idNumber, int $sectionID, string $now): void
+{
     [$start, $end] = todayRange();
     run($pdo, "
         UPDATE Library_logs
@@ -220,7 +231,8 @@ function performCheckout(PDO $pdo, string $idNumber, int $sectionID, string $now
 }
 
 // Every guest scan is a fresh record — id_number is '0' (no institutional ID).
-function performGuestCheckin(PDO $pdo, int $sectionID, string $now, array $user){
+function performGuestCheckin(PDO $pdo, int $sectionID, string $now, array $user): void
+{
     run($pdo, "
         INSERT INTO Library_logs
             (id_number, name, classification, college, course, library, checkin_time, sex, agency_organization)
@@ -275,7 +287,8 @@ function kpiData(PDO $pdo, int $sectionID): array
 
  
 // HANDLERS
-function GetLibraries(){
+function GetLibraries(): void
+{
     $userID = (int)($_POST["userID"] ?? 0);
     if (!$userID) fail("Missing or invalid userID.");
 
@@ -288,7 +301,8 @@ function GetLibraries(){
     ", "Query", [$userID])]);
 }
 
-function ValidateUser(){
+function ValidateUser(): void
+{
     $idNumber = trim($_POST["idNumber"] ?? "");
     if (!$idNumber) fail("Identification number is required.");
     if (!validateId($idNumber)) fail("Invalid ID format.");
@@ -304,7 +318,8 @@ function ValidateUser(){
 
 // Finds the user's latest active session today (checkout_time IS NULL).
 // Found → currently checked in somewhere. Not found → not checked in today.
-function CheckStatusToday(){
+function CheckStatusToday(): void
+{
     $idNumber = trim($_POST["idNumber"] ?? "");
     $name = trim($_POST["name"] ?? "");
     if (!$idNumber) fail("Identification number is required.");
@@ -313,14 +328,14 @@ function CheckStatusToday(){
 
     $session = run(dbconES(), "
         SELECT TOP 1 ll.library, ls.SectionName
-        FROM Library_logs ll
-        LEFT JOIN LibrarySection ls ON ls.SectionID = ll.library
-        WHERE ll.id_number = :idNumber
-          AND ll.name = :name
-          AND ll.checkout_time IS NULL
-          AND ll.checkin_time >= :start
-          AND ll.checkin_time < :end
-        ORDER BY ll.checkin_time DESC
+        FROM   Library_logs   ll
+        LEFT   JOIN LibrarySection ls ON ls.SectionID = ll.library
+        WHERE  ll.id_number = :idNumber
+          AND  ll.name = :name
+          AND  ll.checkout_time IS NULL
+          AND  ll.checkin_time >= :start
+          AND  ll.checkin_time < :end
+        ORDER  BY ll.checkin_time DESC
     ", [":idNumber" => $idNumber, ":name" => $name, ":start" => $start, ":end" => $end])
         ->fetch(PDO::FETCH_ASSOC);
 
@@ -341,7 +356,8 @@ function CheckStatusToday(){
 //   action      – checkin | checkout | switch
 //   sectionName – Previous section name (only used when action is "switch")
 //   libraryName – Current library section name for display
-function AttendanceModal(){
+function AttendanceModal(): void
+{
     $user = json_decode(trim($_POST["user"]   ?? "{}"), true);
     $action = trim($_POST["action"] ?? "checkin");
 
@@ -368,7 +384,7 @@ function AttendanceModal(){
     sendResponse(["success" => true] + $modal);
 }
 
-function GuestCheckInModal()
+function GuestCheckInModal(): void
 {
     $libraryName = escHtml(trim($_POST["libraryName"] ?? ""));
     $labelStyle  = "font-size:.65rem;letter-spacing:.12em;color:#6b7280;";
@@ -435,7 +451,7 @@ HTML;
     sendResponse(["success" => true, "body" => $body, "footer" => $footer]);
 }
 
-function GuestCheckoutModal()
+function GuestCheckoutModal(): void
 {
     $sectionID   = (int)($_POST["sectionID"]   ?? 0);
     $libraryName = escHtml(trim($_POST["libraryName"] ?? ""));
@@ -504,7 +520,7 @@ function GuestCheckoutModal()
     sendResponse(["success" => true, "body" => $body, "footer" => $footer]);
 }
 
-function GuestCheckout()
+function GuestCheckout(): void
 {
     global $now;
     $logID     = (int)($_POST["logID"]     ?? 0);
@@ -523,7 +539,8 @@ function GuestCheckout()
     sendResponse(["success" => true]);
 }
 
-function SaveAttendance(){
+function SaveAttendance(): void
+{
     global $now;
 
     $idNumber = trim($_POST["idNumber"] ?? "");
@@ -550,20 +567,9 @@ function SaveAttendance(){
     try {
         $pdo->beginTransaction();
 
-        $isRealGuest = empty($idNumber); // KEY LOGIC
-
-        if ($isRealGuest) {
-            // External guest (manual)
-            performGuestCheckin($pdo, $sectionID, $now, $user);
-
-        } elseif ($action === "checkin") {
-            // Student or NOT ENROLLED (with ID)
-            performCheckin($pdo, $idNumber, $sectionID, $now, $user);
-
-        } else {
-            // Checkout (applies to both student + internal guest)
-            performCheckout($pdo, $idNumber, $sectionID, $now);
-        }
+        if ($classification === "GUEST") performGuestCheckin($pdo, $sectionID, $now, $user);
+        elseif ($action === "checkin") performCheckin($pdo, $idNumber, $sectionID, $now, $user);
+        else performCheckout($pdo, $idNumber, $sectionID, $now);
 
         $pdo->commit();
 
@@ -576,7 +582,8 @@ function SaveAttendance(){
     sendResponse(["success" => true, "action" => $action]);
 }
 
-function ShowKPI(){
+function ShowKPI(): void
+{
     $sectionID = (int)($_POST["sectionID"] ?? 0);
     if (!$sectionID) fail("Missing or invalid sectionID.");
     sendResponse(["success" => true, "data" => kpiData(dbconES(), $sectionID)]);

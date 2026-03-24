@@ -56,7 +56,7 @@ $(document).on("click", ".btn-save-access", function () {
         })
         .fail(() => showToast("Request failed.", "danger"))
         .always(() => {
-            btn.prop("disabled", false).html('<i class="fas fa-save me-1"></i>Save');
+            btn.prop("disabled", false).html('Save');
             $("#loadingSpinner").fadeOut(200);
         });
 });
