@@ -103,10 +103,10 @@ function resolveUserById(string $id): array
 
 function mapStudent(array $student): array
 {
-    $status  = strtoupper(trim($student["enrollment_status"] ?? ""));
+    $status = strtoupper(trim($student["enrollment_status"] ?? ""));
     $isGuest = $status === "NOT ENROLLED";
     $college = $student["college"] ?? "";
-    $course  = $student["course"]  ?? "";
+    $course = $student["course"]  ?? "";
 
     return [
         "id_number" => $student["id_number"] ?? "",
@@ -140,7 +140,7 @@ function mapEmployee(array $employee): array
 function performCheckin(PDO $pdo, string $idNumber, int $sectionID, string $now, array $user)
 {
     $start = date("Y-m-d 00:00:00");
-    $end   = date("Y-m-d 00:00:00", strtotime("+1 day"));
+    $end = date("Y-m-d 00:00:00", strtotime("+1 day"));
 
     $params = [
         ":idNumber" => $idNumber,
@@ -326,7 +326,7 @@ function CheckStatusToday()
     exit; }
 
     $start = date("Y-m-d 00:00:00");
-    $end   = date("Y-m-d 00:00:00", strtotime("+1 day"));
+    $end = date("Y-m-d 00:00:00", strtotime("+1 day"));
 
     $stmt = dbconES()->prepare("
         SELECT TOP 1 ll.library, ls.SectionName
@@ -355,7 +355,7 @@ function CheckStatusToday()
 // PHP owns rendering. Resolves color/icon/btnText/message from ACTION_CONFIG.
 function AttendanceModal()
 {
-    $user   = json_decode(trim($_POST["user"]   ?? "{}"), true);
+    $user = json_decode(trim($_POST["user"] ?? "{}"), true);
     $action = trim($_POST["action"] ?? "checkin");
 
     if (!is_array($user) || empty($user))
@@ -365,7 +365,7 @@ function AttendanceModal()
         { echo json_encode(["error" => "Invalid action."]);
     exit; }
 
-    $config  = ACTION_CONFIG[$action];
+    $config = ACTION_CONFIG[$action];
     $message = $config["message"];
 
     if ($action === "switch") {
@@ -631,9 +631,9 @@ function buildAttendanceModal(
 
     $rows = "";
     if (!$isGuest)
-        $rows .= $buildRow("ID",   htmlspecialchars((string) ($user["id_number"] ?? ""), ENT_QUOTES, "UTF-8"));
+        $rows .= $buildRow("ID", htmlspecialchars((string) ($user["id_number"] ?? ""), ENT_QUOTES, "UTF-8"));
         $rows .= $buildRow("Name", htmlspecialchars((string) ($user["name"] ?? ""), ENT_QUOTES, "UTF-8"));
-        $rows .= $buildRow("Sex",  htmlspecialchars((string) ($user["sex"] ?? "N/A"), ENT_QUOTES, "UTF-8"));
+        $rows .= $buildRow("Sex", htmlspecialchars((string) ($user["sex"] ?? "N/A"), ENT_QUOTES, "UTF-8"));
         $rows .= $buildRow("Type", htmlspecialchars((string) ($user["classification"] ?? ""), ENT_QUOTES, "UTF-8"));
     if (!$isEmployee && !$isGuest)
         $rows .= $buildRow("College", htmlspecialchars((string) ($user["college"] ?? "N/A"), ENT_QUOTES, "UTF-8"))

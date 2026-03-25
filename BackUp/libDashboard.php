@@ -1,4 +1,4 @@
-<!-- =====
+<!-- =====================================================================
      LIBRARY DASHBOARD — FRONTEND
      Changes:
        1. Date-range pickers moved to the Daily Logs card header
@@ -6,15 +6,42 @@
        2. Force-Checkout button + confirmation modal added.
           Only processes records with no checkout_time from
           days BEFORE today (ignores today completely).
-===== -->
+===================================================================== -->
 
 <div class="container-fluid px-4 py-4">
+<style>
+  @keyframes ldot {
+    0%,100% { opacity:1; }
+    50%      { opacity:.35; }
+  }
+  #toggleIdVisibility:hover { color:#064e3b !important; }
+  #logForm button[type=submit]:hover {
+    background:#047857 !important;
+    box-shadow:0 5px 18px rgba(6,78,59,.25) !important;
+  }
+  /* Force-checkout button */
+  #btnForceCheckout {
+    font-size:.72rem;
+    border-radius:20px;
+    transition:background .18s, box-shadow .18s;
+  }
+  #btnForceCheckout:hover:not(:disabled) {
+    background:#b45309 !important;
+    box-shadow:0 4px 12px rgba(180,83,9,.22);
+  }
+  /* Modal confirm button */
+  #btnConfirmCheckout {
+    transition:background .18s;
+  }
+  #btnConfirmCheckout:hover {
+    background:#b45309 !important;
+  }
+</style>
 
-
-<!-- 
+<!-- ================================================================
      FORCE-CHECKOUT CONFIRMATION MODAL
      Shows a count of affected records before the user commits.
- -->
+================================================================ -->
 <div class="modal fade" id="forceCheckoutModal" tabindex="-1" aria-labelledby="forceCheckoutModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered" style="max-width:420px;">
     <div class="modal-content border-0 shadow">
@@ -60,9 +87,9 @@
 </div>
 
 
-<!-- 
+<!-- ================================================================
      HEADER
- -->
+================================================================ -->
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <h5 class="fw-bold mb-0 text-dark">Library Dashboard</h5>
@@ -76,90 +103,75 @@
     </div>
 </div>
 
-<!-- 
+<!-- ================================================================
      KPI CARDS
- -->
+================================================================ -->
 <div id="kpiContainer" class="row g-3 mb-4">
     <!-- Dynamically rendered by JS via loadSections() + loadKPI() -->
 </div>
 
 
-<!-- 
+<!-- ================================================================
      DAILY LOGS TABLE
      • Date-range pickers here now drive ALL data.
      • "Force Checkout" trigger button in this header.
- -->
+================================================================ -->
 <div class="card border-0 shadow-sm mb-4">
-<div class="card-header bg-white border-bottom py-3 px-4">
+    <div class="card-header bg-white border-bottom py-3 px-4">
 
-    <div class="d-flex justify-content-between align-items-center flex-wrap">
+        <!-- Row 1: title + controls -->
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
 
-        <!-- LEFT: Title -->
-        <div>
-            <h6 class="mb-0 font-weight-bold text-dark">Daily Logs</h6>
-            <small class="text-muted">Check-in / check-out records</small>
-        </div>
-
-        <!-- RIGHT: Controls (FORCED INLINE) -->
-        <div class="d-flex align-items-center flex-nowrap">
-
-            <!-- Date Range Group -->
-            <div class="d-flex align-items-center mr-3">
-
-                <div class="input-group input-group-sm mr-2" style="width: 150px;">
-                    <div class="input-group-prepend">
-                        <span class="input-group-text bg-light">
-                            <i class="fas fa-calendar text-muted small"></i>
-                        </span>
-                    </div>
-                    <input type="date" id="trendStartDate" class="form-control">
-                </div>
-
-                <span class="text-muted mx-1">—</span>
-
-                <div class="input-group input-group-sm ml-2" style="width: 150px;">
-                    <div class="input-group-prepend">
-                        <span class="input-group-text bg-light">
-                            <i class="fas fa-calendar-check text-muted small"></i>
-                        </span>
-                    </div>
-                    <input type="date" id="trendEndDate" class="form-control">
-                </div>
-
+            <!-- Title -->
+            <div>
+                <h6 class="mb-0 fw-bold text-dark">Daily Logs</h6>
+                <small class="text-muted">Check-in / check-out records</small>
             </div>
 
-            <!-- Divider -->
-            <div class="border-left mx-3" style="height:28px;"></div>
+            <!-- Right-side controls -->
+            <div class="d-flex flex-wrap align-items-center gap-2">
 
-            <!-- Section Filter -->
-            <select id="sectionFilter"
-                    class="form-control form-control-sm mr-3"
-                    style="width: 160px;">
-                <option value="">All Sections</option>
-            </select>
+                <!-- ── Global date-range pickers ── -->
+                <div class="input-group input-group-sm" style="width:130px;">
+                    <span class="input-group-text bg-light border-end-0 px-2">
+                        <i class="fas fa-calendar text-muted" style="font-size:.65rem;"></i>
+                    </span>
+                    <input type="date" id="trendStartDate"
+                           class="form-control border-start-0 ps-0"
+                           style="font-size:.75rem;">
+                </div>
+                <span class="text-muted small">—</span>
+                <div class="input-group input-group-sm" style="width:130px;">
+                    <span class="input-group-text bg-light border-end-0 px-2">
+                        <i class="fas fa-calendar-check text-muted" style="font-size:.65rem;"></i>
+                    </span>
+                    <input type="date" id="trendEndDate"
+                           class="form-control border-start-0 ps-0"
+                           style="font-size:.75rem;">
+                </div>
+
+                <!-- ── Section filter ── -->
+                <select id="sectionFilter" class="form-select form-select-sm" style="font-size:.75rem;width:auto;">
+                    <option value="">All Sections</option>
+                </select>
+
+                <!-- ── Date label badge ── -->
+                <span id="dateBadge"
+                      class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-3"
+                      style="font-size:.72rem;">Today</span>
 
                 <!-- ── Force Checkout trigger ── -->
-               <!-- <button id="btnForceCheckout"
+                <button id="btnForceCheckout"
                         class="btn btn-sm text-white fw-semibold px-3"
                         style="background:#d97706;"
                         title="Check out users who never checked out on previous days">
                     <i class="fas fa-clock-rotate-left me-1"></i>Force Checkout
-                </button>-->
+                </button>
 
-            <!-- Today Badge -->
-<span id="dateBadge"
-      class="badge badge-pill badge-light border text-muted py-2 text-center"
-      style="min-width:210px;">
-    Today
-</span>
-
-
-
+            </div>
         </div>
 
     </div>
-
-</div>
 
     <div class="card-body p-0" style="min-height:285px;">
         <div class="table-responsive">
@@ -189,9 +201,9 @@
 </div>
 
 
-<!-- 
+<!-- ================================================================
      CHARTS ROW
- -->
+================================================================ -->
 <div class="row g-3 mb-3">
 
     <!-- Usage Trend -->
@@ -243,59 +255,59 @@
 </div><!-- /container -->
 
 
-<!-- 
+<!-- ================================================================
      JAVASCRIPT
- -->
+================================================================ -->
 <script>
 $(document).ready(function () {
 
-  /* 
+  /* ──────────────────────────────────────────────
      CONFIG
-   */
+  ────────────────────────────────────────────── */
   const BACKEND_URL = "backend/bk_LibraryMenu/bk_libDashboard.php";
-  const TODAY_STR = new Date().toISOString().split('T')[0];
+  const TODAY_STR   = new Date().toISOString().split('T')[0];
 
   const PALETTE = [
-    'rgba(59,130,246,0.85)', 'rgba(16,185,129,0.85)', 'rgba(245,158,11,0.85)',
-    'rgba(239,68,68,0.85)', 'rgba(139,92,246,0.85)', 'rgba(20,184,166,0.85)',
-    'rgba(249,115,22,0.85)', 'rgba(236,72,153,0.85)', 'rgba(34,197,94,0.85)',
+    'rgba(59,130,246,0.85)',  'rgba(16,185,129,0.85)', 'rgba(245,158,11,0.85)',
+    'rgba(239,68,68,0.85)',   'rgba(139,92,246,0.85)', 'rgba(20,184,166,0.85)',
+    'rgba(249,115,22,0.85)',  'rgba(236,72,153,0.85)', 'rgba(34,197,94,0.85)',
     'rgba(99,102,241,0.85)',
   ];
 
   const TOOLTIP_DEFAULTS = {
     backgroundColor: 'rgba(15,23,42,0.92)',
-    titleColor: '#f8fafc',
-    bodyColor: '#94a3b8',
-    borderColor: 'rgba(148,163,184,0.15)',
-    borderWidth: 1,
-    padding: 10,
-    cornerRadius: 6,
+    titleColor:      '#f8fafc',
+    bodyColor:       '#94a3b8',
+    borderColor:     'rgba(148,163,184,0.15)',
+    borderWidth:     1,
+    padding:         10,
+    cornerRadius:    6,
   };
 
   let trendChartInst    = null;
   let activityChartInst = null;
   let sectionFilterPopulated = false;
 
-  /* 
+  /* ──────────────────────────────────────────────
      INIT — set defaults and load everything
-   */
+  ────────────────────────────────────────────── */
   $('#trendStartDate').val(TODAY_STR);
   $('#trendEndDate').val(TODAY_STR);
   updateDateBadge();
 
-  loadSections(); // renders KPI cards first, then loadKPI fires inside
+  loadSections();   // renders KPI cards first, then loadKPI fires inside
   loadLogs();
   loadTrend();
   loadCollegeCourseActivity();
 
 
-  /* 
+  /* ──────────────────────────────────────────────
      HELPER — read current date range
-   */
+  ────────────────────────────────────────────── */
   function getDateRange() {
     return {
       startDate: $('#trendStartDate').val() || TODAY_STR,
-      endDate: $('#trendEndDate').val() || TODAY_STR,
+      endDate:   $('#trendEndDate').val()   || TODAY_STR,
     };
   }
 
@@ -321,9 +333,9 @@ $(document).ready(function () {
   }
 
 
-  /* 
+  /* ──────────────────────────────────────────────
      SECTIONS — build KPI card shells
-   */
+  ────────────────────────────────────────────── */
   function loadSections() {
     $.ajax({
       type: 'POST', url: BACKEND_URL, data: { request: 'sections' }, dataType: 'json',
@@ -362,10 +374,10 @@ $(document).ready(function () {
   }
 
 
-  /* 
+  /* ──────────────────────────────────────────────
      KPI — respects date range
      Label: "active visits" only when range = today
-   */
+  ────────────────────────────────────────────── */
   function loadKPI() {
     const { startDate, endDate } = getDateRange();
     $.ajax({
@@ -385,9 +397,9 @@ $(document).ready(function () {
   }
 
 
-  /* 
+  /* ──────────────────────────────────────────────
      SECTION FILTER — populate once
-   */
+  ────────────────────────────────────────────── */
   function populateSectionFilter(sections) {
     if (sectionFilterPopulated) return;
     sectionFilterPopulated = true;
@@ -403,9 +415,9 @@ $(document).ready(function () {
   }
 
 
-  /* 
+  /* ──────────────────────────────────────────────
      DAILY LOGS + PAGINATION
-   */
+  ────────────────────────────────────────────── */
   function loadLogs(page, sectionID) {
     page      = page      ?? 1;
     sectionID = sectionID ?? $('#sectionFilter').val();
@@ -427,7 +439,7 @@ $(document).ready(function () {
     if (totalPages <= 1 && totalRows === 0) return;
 
     const from = ((current - 1) * limit) + 1;
-    const to = Math.min(current * limit, totalRows);
+    const to   = Math.min(current * limit, totalRows);
     $wrap.append(`<small class="text-muted">Showing ${from}–${to} of ${totalRows} records</small>`);
     if (totalPages <= 1) return;
 
@@ -443,11 +455,11 @@ $(document).ready(function () {
       $ul.append($li);
     };
 
-    addItem('«', 1, isFirst, false);
+    addItem('«', 1,           isFirst, false);
     addItem('‹', current - 1, isFirst, false);
     const WINDOW = 5;
-    const start = Math.max(1, Math.min(current - Math.floor(WINDOW/2), totalPages - WINDOW + 1));
-    const end = Math.min(totalPages, start + WINDOW - 1);
+    const start  = Math.max(1, Math.min(current - Math.floor(WINDOW/2), totalPages - WINDOW + 1));
+    const end    = Math.min(totalPages, start + WINDOW - 1);
     for (let p = start; p <= end; p++) addItem(p, p, false, p === current);
     addItem('›', current + 1, isLast, false);
     addItem('»', totalPages,  isLast, false);
@@ -461,9 +473,9 @@ $(document).ready(function () {
   }
 
 
-  /* 
+  /* ──────────────────────────────────────────────
      USAGE TREND — driven by global date range
-   */
+  ────────────────────────────────────────────── */
   function loadTrend(sectionID) {
     sectionID = sectionID ?? $('#sectionFilter').val();
     const { startDate, endDate } = getDateRange();
@@ -492,11 +504,11 @@ $(document).ready(function () {
     canvas.style.display = '';
     $('#trendChart').parent().find('.trend-empty').remove();
 
-    const labels = rows.map(r => r.month);
-    const values = rows.map(r => parseInt(r.total));
+    const labels  = rows.map(r => r.month);
+    const values  = rows.map(r => parseInt(r.total));
     const lastIdx = rows.length - 1;
 
-    const bgColors = values.map((_,i) => i===lastIdx ? 'rgba(16,185,129,0.88)' : 'rgba(16,185,129,0.35)');
+    const bgColors     = values.map((_,i) => i===lastIdx ? 'rgba(16,185,129,0.88)' : 'rgba(16,185,129,0.35)');
     const borderColors = values.map((_,i) => i===lastIdx ? 'rgba(16,185,129,1)'    : 'rgba(16,185,129,0.6)');
 
     trendChartInst = new Chart(canvas, {
@@ -527,9 +539,9 @@ $(document).ready(function () {
   }
 
 
-  /* 
+  /* ──────────────────────────────────────────────
      COLLEGE & COURSE ACTIVITY — driven by global date range
-   */
+  ────────────────────────────────────────────── */
   function loadCollegeCourseActivity(sectionID) {
     sectionID = sectionID ?? $('#sectionFilter').val();
     const { startDate, endDate } = getDateRange();
@@ -541,7 +553,7 @@ $(document).ready(function () {
       data: { request: 'collegeCourseActivity', sectionID, startDate, endDate },
       dataType: 'json',
       success: data => renderActivityChart(data),
-      error: ()   => renderActivityChart([]),
+      error:   ()   => renderActivityChart([]),
     });
   }
 
@@ -569,11 +581,11 @@ $(document).ready(function () {
 
     const labels   = colleges.map(c => c.college || '—');
     const datasets = allCourses.map(course => ({
-      label: course,
-      data: colleges.map(col => { const f = col.courses.find(cr => cr.course === course); return f ? f.total : 0; }),
+      label:           course,
+      data:            colleges.map(col => { const f = col.courses.find(cr => cr.course === course); return f ? f.total : 0; }),
       backgroundColor: courseColor[course],
-      borderColor: courseColor[course].replace('0.85','1'),
-      borderWidth: 0, borderRadius: 3, borderSkipped: false,
+      borderColor:     courseColor[course].replace('0.85','1'),
+      borderWidth:     0, borderRadius: 3, borderSkipped: false,
     }));
 
     const chartH = Math.max(200, colleges.length * 42 + 60);
@@ -608,11 +620,11 @@ $(document).ready(function () {
   }
 
 
-  /* 
+  /* ──────────────────────────────────────────────
      FORCE CHECKOUT — modal flow
      Step 1: open modal → fetch pending count
      Step 2: user confirms → run update → reload all
-   */
+  ────────────────────────────────────────────── */
   $('#btnForceCheckout').on('click', function () {
     // Reset modal to loading state
     $('#fcoLoading').show();
@@ -688,9 +700,9 @@ $(document).ready(function () {
   }
 
 
-  /* 
+  /* ──────────────────────────────────────────────
      RELOAD ALL — one call to refresh every widget
-   */
+  ────────────────────────────────────────────── */
   function reloadAll() {
     const sid = $('#sectionFilter').val();
     loadKPI();
@@ -700,9 +712,9 @@ $(document).ready(function () {
   }
 
 
-  /* 
+  /* ──────────────────────────────────────────────
      EVENTS
-   */
+  ────────────────────────────────────────────── */
 
   // Section dropdown
   $('#sectionFilter').on('change', function () {
@@ -723,9 +735,9 @@ $(document).ready(function () {
   });
 
 
-  /* 
+  /* ──────────────────────────────────────────────
      UTIL
-   */
+  ────────────────────────────────────────────── */
   function escHtml(str) {
     return $('<div>').text(str).html();
   }

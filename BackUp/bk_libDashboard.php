@@ -35,15 +35,15 @@ function dateRangeFilter(string $col = 'checkin_time'): string
 function isTodayRange(): bool
 {
     $start = validateDate($_POST['startDate'] ?? null);
-    $end = validateDate($_POST['endDate'] ?? null);
+    $end   = validateDate($_POST['endDate']   ?? null);
     $today = date('Y-m-d');
     return ($start === $today && $end === $today) || (!$start && !$end);
 }
 
 
-
+// ============================================================
 //  SECTIONS — list of active sections (for KPI card shells)
-
+// ============================================================
 
 function librarySections(): void
 {
@@ -58,18 +58,18 @@ function librarySections(): void
 }
 
 
-
+// ============================================================
 //  KPI — Visit counts per section for the selected date range.
 //
 //  When range = today  → only count records with checkout_time IS NULL
 //                         (i.e. currently inside the library).
 //  When range ≠ today  → count all check-ins regardless of checkout.
-
+// ============================================================
 
 function loadKPI(): void
 {
     $drFilter  = dateRangeFilter('l.checkin_time');
-    $isToday  = isTodayRange();
+    $isToday   = isTodayRange();
     $activeFilter = $isToday ? "AND l.checkout_time IS NULL" : "";
 
     $rows = execsqlSRS("
@@ -95,21 +95,21 @@ function loadKPI(): void
 }
 
 
-
+// ============================================================
 //  DAILY LOGS — paginated, filtered by date range + section
-
+// ============================================================
 
 function loadDailyLogs(): void
 {
-    $page  = max(1, (int)($_POST['page'] ?? 1));
-    $limit  = 5;
+    $page      = max(1, (int)($_POST['page'] ?? 1));
+    $limit     = 5;
     $sectionID = isset($_POST['sectionID']) && $_POST['sectionID'] !== ''
                  ? (int)$_POST['sectionID'] : null;
 
     $sectionFilter = $sectionID ? "AND l.library = $sectionID" : "";
-    $drFilter = dateRangeFilter('l.checkin_time');
+    $drFilter      = dateRangeFilter('l.checkin_time');
 
-    // Total count (unchanged)
+    // Total count
     $countResult = execsqlSRS("
         SELECT COUNT(*) AS total
         FROM   Library_logs l
@@ -120,14 +120,12 @@ function loadDailyLogs(): void
 
     $totalRows  = (int)$countResult[0]['total'];
     $totalPages = max(1, (int)ceil($totalRows / $limit));
-    $page = min($page, $totalPages);
-    $offset = ($page - 1) * $limit;
+    $page       = min($page, $totalPages);
+    $offset     = ($page - 1) * $limit;
 
-    // MODIFIED: added l.name to SELECT
     $logs = execsqlSRS("
         SELECT
             l.id_number,
-            l.name, -- new
             l.college,
             l.course,
             s.SectionName,
@@ -148,22 +146,15 @@ function loadDailyLogs(): void
         echo "<tr><td colspan='7' class='text-center text-muted py-4'>No records for selected range.</td></tr>";
     } else {
         foreach ($logs as $index => $log) {
-            $rowClass = $index % 2 === 0 ? 'table-success' : '';
+            $rowClass    = $index % 2 === 0 ? 'table-success' : '';
             $statusBadge = empty($log['checkout_time'])
                 ? "<span class='badge bg-success-subtle text-success rounded-pill px-3'>Active</span>"
                 : "<span class='badge bg-secondary-subtle text-secondary rounded-pill px-3'>Completed</span>";
 
-            // Determine what to show as "ID Number"
-            $idNumber = $log['id_number'] ?? '';
-            $name = $log['name'] ?? '';
-            $displayId = (empty($idNumber) || $idNumber === '0')
-                ? htmlspecialchars($name ?: 'Guest', ENT_QUOTES, 'UTF-8')
-                : htmlspecialchars($idNumber, ENT_QUOTES, 'UTF-8');
-
             echo "<tr class='$rowClass'>";
-            echo "<td class='px-4 fw-semibold'>$displayId</td>";
-            echo "<td>" . htmlspecialchars($log['college'] ?? '—')  . "</td>";
-            echo "<td>" . htmlspecialchars($log['course'] ?? '—')  . "</td>";
+            echo "<td class='px-4 fw-semibold'>" . htmlspecialchars($log['id_number'])        . "</td>";
+            echo "<td>"                           . htmlspecialchars($log['college']  ?? '—')  . "</td>";
+            echo "<td>"                           . htmlspecialchars($log['course']   ?? '—')  . "</td>";
             echo "<td><span class='badge bg-light text-dark border'>"
                  . htmlspecialchars($log['SectionName'] ?? '—') . "</span></td>";
             echo "<td>" . date('M j, Y g:i A', strtotime($log['checkin_time'])) . "</td>";
@@ -176,28 +167,28 @@ function loadDailyLogs(): void
     $rowsHtml = ob_get_clean();
 
     echo json_encode([
-        'rows' => $rowsHtml,
-        'totalRows' => $totalRows,
-        'totalPages' => $totalPages,
+        'rows'        => $rowsHtml,
+        'totalRows'   => $totalRows,
+        'totalPages'  => $totalPages,
         'currentPage' => $page,
-        'limit' => $limit,
+        'limit'       => $limit,
     ]);
 }
 
 
-
+// ============================================================
 //  MONTHLY TREND — visit counts grouped by month
 //  Uses the same global date range from the UI.
-
+// ============================================================
 
 function loadMonthlyTrend(): void
 {
-    $sectionID = isset($_POST['sectionID']) && $_POST['sectionID'] !== ''
+    $sectionID     = isset($_POST['sectionID']) && $_POST['sectionID'] !== ''
                      ? (int)$_POST['sectionID'] : null;
     $sectionFilter = $sectionID ? "AND library = $sectionID" : "";
 
     $start = validateDate($_POST['startDate'] ?? null);
-    $end = validateDate($_POST['endDate']   ?? null);
+    $end   = validateDate($_POST['endDate']   ?? null);
 
     if ($start && $end) {
         $dateFilter = "AND CAST(checkin_time AS DATE) BETWEEN '$start' AND '$end'";
@@ -209,9 +200,9 @@ function loadMonthlyTrend(): void
     $rows = execsqlSRS("
         SELECT
             FORMAT(checkin_time,'MMM yyyy')  AS month,
-            YEAR(checkin_time) AS yr,
-            MONTH(checkin_time) AS mo,
-            COUNT(*) AS total
+            YEAR(checkin_time)               AS yr,
+            MONTH(checkin_time)              AS mo,
+            COUNT(*)                         AS total
         FROM Library_logs
         WHERE 1=1
               $dateFilter
@@ -224,16 +215,16 @@ function loadMonthlyTrend(): void
 }
 
 
-
+// ============================================================
 //  COLLEGE & COURSE ACTIVITY — filtered by date range + section
-
+// ============================================================
 
 function loadCollegeCourseActivity(): void
 {
-    $sectionID = isset($_POST['sectionID']) && $_POST['sectionID'] !== ''
+    $sectionID     = isset($_POST['sectionID']) && $_POST['sectionID'] !== ''
                      ? (int)$_POST['sectionID'] : null;
     $sectionFilter = $sectionID ? "AND l.library = $sectionID" : "";
-    $drFilter = dateRangeFilter('l.checkin_time');
+    $drFilter      = dateRangeFilter('l.checkin_time');
 
     $rows = execsqlSRS("
         SELECT
@@ -285,11 +276,11 @@ function loadCollegeCourseActivity(): void
 }
 
 
-
+// ============================================================
 //  COUNT PENDING CHECKOUT
 //  Returns how many records have no checkout_time from days
 //  STRICTLY BEFORE today (today is always excluded).
-
+// ============================================================
 
 function countPendingCheckout(): void
 {
@@ -304,14 +295,14 @@ function countPendingCheckout(): void
 }
 
 
-
+// ============================================================
 //  FORCE CHECKOUT
 //  Sets checkout_time = 7:00 PM of the checkin_date for all
 //  records that have no checkout and checked in on a PREVIOUS
 //  day (never touches today's records).
 //
 //  7 PM = DATEADD(HOUR, 19, CAST(CAST(checkin_time AS DATE) AS DATETIME))
-
+// ============================================================
 
 function forceCheckout(): void
 {
@@ -347,34 +338,20 @@ function forceCheckout(): void
  */
 
 
-
+// ============================================================
 //  DISPATCH
-
+// ============================================================
 
 $request = $_POST['request'] ?? '';
 
 switch ($request) {
-    case 'sections':
-librarySections();
-break;
-    case 'kpiData':
-loadKPI();
-break;
-    case 'dailyLogs':
-loadDailyLogs();
-break;
-    case 'monthlyTrend':
-loadMonthlyTrend();
-break;
-    case 'collegeCourseActivity':
-loadCollegeCourseActivity();
-break;
-    case 'countPendingCheckout':
-countPendingCheckout();
-break;
-    case 'forceCheckout':
-forceCheckout();
-break;
+    case 'sections':              librarySections();              break;
+    case 'kpiData':               loadKPI();                      break;
+    case 'dailyLogs':             loadDailyLogs();                break;
+    case 'monthlyTrend':          loadMonthlyTrend();             break;
+    case 'collegeCourseActivity': loadCollegeCourseActivity();    break;
+    case 'countPendingCheckout':  countPendingCheckout();         break;
+    case 'forceCheckout':         forceCheckout();                break;
     default:
         http_response_code(400);
         echo json_encode(['error' => 'Invalid request.']);
