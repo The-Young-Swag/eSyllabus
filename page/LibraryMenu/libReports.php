@@ -88,9 +88,9 @@ $librarySections = execsqlSRS(
                     </div>
                     <select class="custom-select border-left-0" id="libraryFilter">
                         <option value="All">All Sections</option>
-                        <?php foreach ($librarySections as $s): ?>
-                            <option value="<?= $s['SectionID'] ?>">
-                                <?= htmlspecialchars($s['SectionName']) ?>
+                        <?php foreach ($librarySections as $section): ?>
+                            <option value="<?= $section['SectionID'] ?>">
+                                <?= htmlspecialchars($section['SectionName']) ?>
                             </option>
                         <?php endforeach; ?>
                     </select>

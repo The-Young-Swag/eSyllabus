@@ -204,7 +204,7 @@ function renderKpiSections(array $top3Students, array $top3Colleges, array $top3
 }
 
 
-//  Common KPI computation (metrics + top‑3 lists)
+//  Common KPI computation (metrics + top 3 lists)
 
 function getKpiData(array $logs, ?string $endDate): array
 {
@@ -232,12 +232,12 @@ function getKpiData(array $logs, ?string $endDate): array
             if ($student && $employee) $totalMinutes += ($employee - $student) / 60;
         }
 
-        // End date check‑ins
+        // End date check ins
         if ($endDate && substr($log['checkin_time'], 0, 10) === $endDate) {
             $endDateCheckins++;
         }
 
-        // Student‑only aggregations
+        // Student only aggregations
         if (strcasecmp($log['classification'] ?? '', 'student') === 0) {
             // For top students
             $studentCounts[$uid] = ($studentCounts[$uid] ?? 0) + 1;
