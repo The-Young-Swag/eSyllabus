@@ -1,712 +1,345 @@
 <div class="container-fluid py-4">
 
-<style>
-  @keyframes ldot {
-    0%,100% { opacity:1; }
-    50%      { opacity:.35; }
-  }
-  #toggleIdVisibility:hover { color:#064e3b !important; }
-  #logForm button[type=submit]:hover {
-    background:#047857 !important;
-    box-shadow:0 5px 18px rgba(6,78,59,.25) !important;
-  }
-</style>
-
-<div class="px-1">
-
-  <!-- ═══ HEADER ═══════════════════════════════════════════════ -->
-  <div class="card border-0 rounded-4 mb-3" style="box-shadow:0 1px 6px rgba(0,0,0,.07);">
-    <div class="card-body py-3 px-4">
-      <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-
-        <div>
-          <div class="d-flex align-items-center mb-1" style="gap:9px;">
-            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;
-                         background:#10b981;flex-shrink:0;
-                         animation:ldot 2.2s ease-in-out infinite;"></span>
-            <span class="fw-bold text-dark" style="font-size:1rem;letter-spacing:-.2px;">Library Attendance Dashboard</span>
-          </div>
-          <div class="text-muted" style="font-size:.76rem;padding-left:17px;">Real-time monitoring of today's attendance activity</div>
+    <!-- HEADER -->
+    <div class="card shadow-sm mb-4 border-0">
+        <div class="card-body d-flex flex-column flex-md-row justify-content-between align-items-md-center">
+            <div>
+                <h4 class="fw-bold mb-1">Library Attendance Dashboard</h4>
+                <small class="text-muted">Real-time monitoring of today's attendance activity</small>
+            </div>
+            <div class="mt-3 mt-md-0 text-md-end">
+                <small class="text-muted">Current Date & Time</small>
+                <div class="fw-bold text-danger fs-5" id="kpiCurrentTime"></div>
+            </div>
         </div>
-
-      </div>
     </div>
-  </div>
 
-  <!-- ═══ LOG ATTENDANCE ════════════════════════════════════════ -->
-  <div class="card border-0 rounded-4 mb-3"
-       style="box-shadow:0 2px 16px rgba(6,78,59,.1);border:1.5px solid #6ee7b7 !important;">
-    <div class="card-body p-4"
-         style="background:linear-gradient(150deg,#e8faf3 0%,#f0fdf9 40%,#eaf6f2 100%);
-                border-radius:calc(1rem - 1px);">
+    <!-- KPI SECTION -->
+    <div class="row g-3 mb-4">
+        <?php 
+        $kpiCards = [
+            ['id'=>'kpiTotalCheckins','label'=>'Total Check-Ins Today','color'=>'success','border'=>'success'],
+            ['id'=>'kpiActiveStudents','label'=>'Currently In Attendance','color'=>'primary','border'=>'primary'],
+            ['id'=>'topColleges','label'=>'Top 3 Colleges Today','color'=>'warning','type'=>'list'],
+            ['id'=>'topCourses','label'=>'Top 3 Courses Today','color'=>'info','type'=>'list']
+        ];
+        foreach($kpiCards as $card): ?>
+            <div class="col-12 col-sm-6 col-lg-3">
+                <div class="card shadow-sm <?=isset($card['border'])?'border-start border-4 border-'.$card['border']:''?> h-100">
+                    <div class="card-body">
+                        <small class="text-muted fw-semibold mb-1"><?= $card['label'] ?></small>
+                        <?php if(!isset($card['type'])): ?>
+                            <div class="display-5 fw-bold text-<?= $card['color'] ?>" id="<?= $card['id'] ?>">0</div>
+                        <?php else: ?>
+                            <div id="<?= $card['id'] ?>" class="small">
+                                <div class="mb-1"><span class="fw-bold">1.</span> <span class="text-<?= $card['color'] ?>">Loading...</span></div>
+                                <div class="mb-1"><span class="fw-bold">2.</span> <span class="text-<?= $card['color'] ?>">Loading...</span></div>
+                                <div class="mb-1"><span class="fw-bold">3.</span> <span class="text-<?= $card['color'] ?>">Loading...</span></div>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        <?php endforeach; ?>
+    </div>
 
-      <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 pb-3 mb-4"
-           style="border-bottom:1px solid #c6ead9;">
-
-
-
-           <!-- Section badge -->
-<div class="d-flex align-items-center px-3 py-3"
-     style="background:#ffffff;
-            border:1px solid #a7f3d0;
-            border-radius:16px;
-            gap:12px;min-width:280px;
-            box-shadow:0 2px 12px rgba(6,78,59,.08),inset 0 1px 0 rgba(255,255,255,.9);">
-  <div class="d-flex align-items-center justify-content-center flex-shrink-0"
-       style="width:36px;height:36px;
-              border-radius:10px;
-              background:linear-gradient(135deg,#d1fae5,#a7f3d0);
-              color:#047857;font-size:.85rem;
-              box-shadow:0 1px 4px rgba(6,78,59,.12);">
-    <i class="fas fa-book-open"></i>
-  </div>
-  <div style="line-height:1.5;">
-    <div class="text-uppercase fw-bold" style="font-size:.6rem;letter-spacing:.12em;color:#6ee7b7;margin-bottom:1px;"><b>Library Section</b></div>
-    <div class="fw-bold" style="font-size:.9rem;color:#064e3b;white-space:nowrap;" id="currentLibraryDisplay">Main Library</div>
-  </div>
-</div>
-
-
-<!-- Time badge -->
-<div class="px-4 py-3 d-flex flex-column"
-style="background:linear-gradient(135deg,#ffffff,#ecfdf5);
-    border:2px solid #6ee7b7;
-    border-radius:18px;
-    min-width:280px;
-    padding:14px 20px;
-    box-shadow: 0 6px 20px rgba(0,0,0,.06),0 2px 6px rgba(0,0,0,.04),
-    inset 0 1px 0 rgba(255,255,255,.9);">
-  <span class="text-uppercase fw-bold" style="font-size:.6rem;letter-spacing:.12em;color:#6ee7b7;"><b>Current Date &amp; Time</b></span>
-  <span id="kpiCurrentTime" class="fw-semibold mt-1" style="font-size:1rem;color:#064e3b;letter-spacing:-.2px;">—</span>
-</div>
-
-
-      </div>
-      <form id="logForm" autocomplete="off">
-        <label for="inputIDNumber"
-               class="d-block fw-bold text-uppercase mb-2"
-               style="font-size:.67rem;letter-spacing:.09em;color:#3d8a6e;">Identification Number</label>
-        <div style="padding:2px;border-radius:11px;
-                    background:linear-gradient(130deg,#10b981 0%,#3b82f6 55%,#06b6d4 100%);
-                    box-shadow:0 3px 16px rgba(16,185,129,.15);">
-          <div class="d-flex align-items-center bg-white" style="border-radius:9px;overflow:hidden;">
-            
-			<input type="password"
-                   id="inputIDNumber"
-                   placeholder="Enter or scan identification number"
-                   autocomplete="new-password"
-                   spellcheck="false"
-                   style="flex:1;border:none;outline:none;box-shadow:none;
-                          background:transparent;padding:12px 16px;
-                          font-size:.92rem;color:#0f172a;">
-						  
-            <button type="button" id="toggleIdVisibility"
-                    style="background:transparent;border:none;outline:none;
-                           padding:0 14px;color:#94a3b8;cursor:pointer;
-                           line-height:1;transition:color .15s;">
-              <i class="fas fa-eye" id="toggleIcon"></i>
-            </button>
-			
-          </div>
+    <!-- LOG ATTENDANCE -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-primary text-white d-flex flex-column flex-md-row justify-content-between align-items-md-center">
+            <div class="fw-semibold fs-6">
+                Log Attendance - <span id="currentLibrarySection"></span>
+            </div>
+            <div class="mt-2 mt-md-0 col-md-3">
+                <label for="inputLibrary" class="form-label small fw-semibold mb-1">Library</label>
+                <select class="form-select form-select-sm" id="inputLibrary"></select>
+            </div>
         </div>
+        <div class="card-body">
+            <form id="logForm" class="row g-3 align-items-end">
+                <div class="col-lg-4">
+                    <label class="form-label fw-semibold">Identification Number</label>
+                    <small class="text-muted d-block mb-2">(Student Number or Employee Number)</small>
+                    <div class="input-group">
+                        <input type="password" class="form-control form-control-lg" id="inputStudentNumber" placeholder="Enter identification number" autocomplete="off">
+                        <button type="button" class="btn btn-outline-secondary" id="toggleIdVisibility">
+                            <i class="fas fa-eye" id="toggleIcon"></i>
+                        </button>
+                    </div>
+                </div>
 
-        <hr class="my-4" style="border-color:#c6ead9;">
-        <button type="submit"
-                class="btn w-100 fw-semibold text-white py-3"
-                style="background:#064e3b;border:none;border-radius:8px;
-                       font-size:.9rem;letter-spacing:.02em;
-                       transition:background .18s,box-shadow .18s;">
-          Confirm Access
-        </button>
-      </form>
-	  
-<!-- ═══ GUEST CHECK-IN / CHECK-OUT BUTTONS ═══ -->
-<div class="text-center mt-3">
-  <!-- 1. Changed to d-flex for w-100 support; justify-content-center handles the alignment -->
-  <div class="d-flex justify-content-center align-items-center position-relative w-100">
+                <div class="col-lg-3" id="specialKeyContainer" style="display:none;">
+                    <label class="form-label fw-semibold">Special Key (Birthday: MMDDYY)</label>
+                    <input type="password" class="form-control form-control-lg" id="inputSpecialKey" maxlength="6" placeholder="Enter 6-digit key" autocomplete="off">
+                </div>
 
-    <!-- CHECK IN WRAPPER -->
-    <!-- 2. Added mr-4 (margin-right) to replace gap-50 -->
-    <div class="position-relative mr-4">
-      <button type="button" id="guestCheckIn"
-              class="btn rounded-pill font-weight-bold px-4 py-2"
-              style="background:#f0fdf9;color:#047857;border:1.5px solid #6ee7b7;
-                     font-size:.82rem;letter-spacing:.02em;
-                     transition:all .18s;">
-        <i class="fas fa-user-clock mr-2"></i>Check In as Guest
-      </button>
+                <div class="col-lg-3">
+                    <label class="form-label fw-semibold">Library Section</label>
+                    <div class="form-control form-control-lg bg-light" id="currentLibraryDisplay"></div>
+                </div>
 
-      <!-- GUEST NUDGE -->
-      <div id="guestNudge" class="position-absolute" 
-           style="right:calc(100% + 15px);top:50%;transform:translateY(-50%);
-                  background:#fff;border:1.5px solid #a7f3d0;border-radius:12px;
-                  padding:6px 14px;font-size:.75rem;color:#047857;font-weight:600;
-                  white-space:nowrap;box-shadow:0 4px 14px rgba(6,78,59,.12);
-                  opacity:1; /* Set to 1 to test visibility */
-                  pointer-events:none;transition:opacity .4s ease;z-index:10;">
-        <!-- Tooltip Arrow -->
-        <span style="position:absolute;right:-8px;top:50%;transform:translateY(-50%);
-                    border-top:7px solid transparent;border-bottom:7px solid transparent;
-                    border-left:8px solid #a7f3d0;"></span>
-        👋 Not a student / just visiting?
-      </div>
-    </div>
-
-    <!-- CHECK OUT -->
-    <button type="button" id="guestCheckOut"
-            class="btn rounded-pill font-weight-bold px-4 py-2"
-            style="background:#fff5f5;color:#dc2626;border:1.5px solid #fca5a5;
-                   font-size:.82rem;letter-spacing:.02em;
-                   transition:all .18s;">
-      <i class="fas fa-sign-out-alt mr-2"></i>Check Out as Guest
-    </button>
-
-  </div>
-</div>
-
-    </div>
-  </div>
-
-<!-- ═══ KPI CARDS ════════════════════════════════════════════ -->
-<div class="row g-3">
-  <div class="col-12 col-sm-6 col-lg-3">
-    <div class="card border-0 rounded-4 overflow-hidden"
-         style="box-shadow:0 1px 6px rgba(0,0,0,.07);border-top:3px solid #10b981 !important;height:130px;">
-      <div class="card-body d-flex flex-column align-items-center text-center" style="padding:14px 12px;">
-        <div class="text-uppercase fw-bold text-muted" style="font-size:.64rem;letter-spacing:.09em;">Total Check-Ins Today</div>
-        <div class="flex-grow-1 d-flex align-items-center justify-content-center">
-          <div id="kpiTotalCheckins" style="font-size:1.75rem;font-weight:600;color:#10b981;line-height:1;">—</div>
+                <div class="col-lg-2 d-grid">
+                    <button type="submit" class="btn btn-success btn-lg fw-semibold" id="submitButton">Submit</button>
+                </div>
+            </form>
         </div>
-      </div>
     </div>
-  </div>
-  <div class="col-12 col-sm-6 col-lg-3">
-    <div class="card border-0 rounded-4 overflow-hidden"
-         style="box-shadow:0 1px 6px rgba(0,0,0,.07);border-top:3px solid #3b82f6 !important;height:130px;">
-      <div class="card-body d-flex flex-column align-items-center text-center" style="padding:14px 12px;">
-        <div class="text-uppercase fw-bold text-muted" style="font-size:.64rem;letter-spacing:.09em;">Currently In Attendance</div>
-        <div class="flex-grow-1 d-flex align-items-center justify-content-center">
-          <div id="kpiActiveStudents" style="font-size:1.75rem;font-weight:600;color:#3b82f6;line-height:1;">—</div>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="col-12 col-sm-6 col-lg-3">
-    <div class="card border-0 rounded-4 overflow-hidden"
-         style="box-shadow:0 1px 6px rgba(0,0,0,.07);border-top:3px solid #f59e0b !important;height:130px;">
-      <div class="card-body d-flex flex-column justify-content-center" style="padding:14px 16px;">
-        <div class="text-uppercase fw-bold text-muted mb-2 text-center" style="font-size:.64rem;letter-spacing:.09em;">Top 3 Colleges Today</div>
-        <div id="topColleges">
-          <div class="d-flex align-items-baseline gap-2 mb-1">
-            <span class="fw-bold text-muted" style="font-size:.67rem;width:14px;flex-shrink:0;">1.</span>
-            <span class="text-warning fw-semibold" style="font-size:.75rem;">Loading...</span>
-          </div>
-          <div class="d-flex align-items-baseline gap-2 mb-1">
-            <span class="fw-bold text-muted" style="font-size:.67rem;width:14px;flex-shrink:0;">2.</span>
-            <span class="text-warning fw-semibold" style="font-size:.75rem;">Loading...</span>
-          </div>
-          <div class="d-flex align-items-baseline gap-2">
-            <span class="fw-bold text-muted" style="font-size:.67rem;width:14px;flex-shrink:0;">3.</span>
-            <span class="text-warning fw-semibold" style="font-size:.75rem;">Loading...</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="col-12 col-sm-6 col-lg-3">
-    <div class="card border-0 rounded-4 overflow-hidden"
-         style="box-shadow:0 1px 6px rgba(0,0,0,.07);border-top:3px solid #06b6d4 !important;height:130px;">
-      <div class="card-body d-flex flex-column justify-content-center" style="padding:14px 16px;">
-        <div class="text-uppercase fw-bold text-muted mb-2 text-center" style="font-size:.64rem;letter-spacing:.09em;">Top 3 Courses Today</div>
-        <div id="topCourses">
-          <div class="d-flex align-items-baseline gap-2 mb-1">
-            <span class="fw-bold text-muted" style="font-size:.67rem;width:14px;flex-shrink:0;">1.</span>
-            <span class="text-info fw-semibold" style="font-size:.75rem;">Loading...</span>
-          </div>
-          <div class="d-flex align-items-baseline gap-2 mb-1">
-            <span class="fw-bold text-muted" style="font-size:.67rem;width:14px;flex-shrink:0;">2.</span>
-            <span class="text-info fw-semibold" style="font-size:.75rem;">Loading...</span>
-          </div>
-          <div class="d-flex align-items-baseline gap-2">
-            <span class="fw-bold text-muted" style="font-size:.67rem;width:14px;flex-shrink:0;">3.</span>
-            <span class="text-info fw-semibold" style="font-size:.75rem;">Loading...</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div><!-- /row -->
-
-</div>
 
 </div>
 
 <?php include '../modalContainer.php'; ?>
 <?php include 'LibModals.php'; ?>
+
 <script>
-$(function () {
+$(document).ready(function() {
+    console.log("Library Dashboard initialized");
 
-const BACKEND = "backend/bk_LibraryMenu/bk_libLogs-Test.php";
+    // ======================
+    // GLOBAL STATE
+    // ======================
+    let currentLibraryID = null;
+    let currentLibraryName = '';
+    let selectedUser = null;
+    let duplicateCandidates = [];
+    let currentAction = 'checkin';
 
-let libraryID = null;
-let libraryName = "";
-let currentUser = null;
-let duplicates = [];
-let successTimer = null;
-let pendingAction = null;
-
-// Prevent duplicate listeners on AJAX reload
-
-// Clock
-setInterval(function () {
-    $("#kpiCurrentTime").text(new Date().toLocaleString("en-US", {
-        hour: "2-digit", minute: "2-digit", second: "2-digit",
-        year: "numeric", month: "short", day: "numeric", hour12: true
-    }));
-}, 1000);
-
-// Nudge animation
-setTimeout(function cycle() {
-    $("#guestNudge").css("opacity", "1");
-    setTimeout(function () {
-        $("#guestNudge").css("opacity", "0");
-        setTimeout(cycle, 2000);
-    }, 5000);
-}, 2000);
-
-// Hover effects
-function applyHover(selector, enterStyles, leaveStyles) {
-    $(selector)
-        .on("mouseenter", function () { $(this).css(enterStyles); })
-        .on("mouseleave", function () { $(this).css(leaveStyles); });
-}
-
-applyHover("#guestCheckIn",
-    { background: "#d1fae5", boxShadow: "0 4px 14px rgba(6,78,59,.15)",   
-	transform: "translateY(-1px)" },
-    { background: "#f0fdf9", boxShadow: "",                                
-	transform: "" }
-);
-applyHover("#guestCheckOut",
-    { background: "#fee2e2", boxShadow: "0 4px 14px rgba(220,38,38,.15)", 
-	transform: "translateY(-1px)" },
-    { background: "#fff5f5", boxShadow: "",                                
-	transform: "" }
-);
-
-// Modal helpers
-function showModal(title, body, footer) {
-    clearTimeout(successTimer);
-    successTimer = null;
-    $("#dynamicModalTitle").html(title);
-    $("#dynamicModalBody").html(body);
-    $("#dynamicModalFooter").html(footer || "");
-    $("#dynamicModal").modal("show");
-}
-
-function hideModal() {
-    clearTimeout(successTimer);
-    successTimer = null;
-    $("#dynamicModal").modal("hide");
-}
-
-function showMessage(type, message, autoClose) {
-    const styles = {
-        success: ["fa-check-circle", "alert-success", "Success"],
-        error:   ["fa-exclamation-circle", "alert-danger",  "Error"],
-        info:    ["fa-info-circle", "alert-info", "Info"]
-    };
-    const [icon, colorClass, title] = styles[type];
-    showModal(title, `
-        <div class="alert ${colorClass} text-center mb-0">
-            <i class="fas ${icon} me-2"></i>${message}
-        </div>
-    `);
-    if (autoClose) successTimer = setTimeout(hideModal, autoClose);
-}
-
-// Load library on boot
-$.ajax({
-    type: "POST",
-    url: BACKEND,
-    data: {
-        request: "getLibraries",
-        userID: UserInfo.UserID
-    },
-    success: function (response) {
-
-        if (!response.success || !response.data || !response.data.length) {
-            $("#currentLibraryDisplay").text(response.error || "No Library Access");
-            return;
-        }
-
-        libraryID = response.data[0].SectionID;
-        libraryName = response.data[0].SectionName;
-
-        $("#currentLibraryDisplay").text(libraryName);
-
-        loadKPI();
-    },
-    error: function () {
-        alert("Connection error.");
+    // ======================
+    // CLOCK
+    // ======================
+    function startClock() {
+        const updateTime = () => {
+            const now = new Date();
+            const options = { hour:"2-digit", minute:"2-digit", second:"2-digit", year:"numeric", month:"short", day:"numeric", hour12:true };
+            $("#kpiCurrentTime").text(now.toLocaleString("en-US", options));
+        };
+        updateTime();
+        setInterval(updateTime, 1000);
     }
-});
+    startClock();
 
-function loadKPI() {
+    // ======================
+    // LOAD LIBRARIES
+    // ======================
+    function loadLibraries() {
+        $.post("backend/bk_LibraryMenu/bk_libLogs-Test.php", { request: "getLibraries" }, function(res) {
+            if(res.error) return console.error(res.error);
 
-    if (!libraryID) return;
-
-    $.ajax({
-        type: "POST",
-        url: BACKEND,
-        data: {
-            request: "getKPI",
-            sectionID: libraryID
-        },
-        success: function (response) {
-
-            if (!response.success || !response.data) return;
-
-            $("#kpiTotalCheckins").text(response.data.totalToday || 0);
-            $("#kpiActiveStudents").text(response.data.currentlyInside || 0);
-
-            function renderRankList(items, colorClass) {
-                if (!items) items = ["-", "-", "-"];
-
-                let html = "";
-
-                items.forEach(function (label, index) {
-                    html += `
-                        <div class="mb-1">
-                            <span class="fw-bold">${index + 1}.</span>
-                            <span class="${colorClass}">${label}</span>
-                        </div>
-                    `;
-                });
-
-                return html;
+            const $select = $("#inputLibrary").empty();
+            if(!res.data || !res.data.length){
+                currentLibraryName = "No Library Available";
+                $("#currentLibrarySection, #currentLibraryDisplay").text(currentLibraryName);
+                return;
             }
 
-            $("#topColleges").html(renderRankList(response.data.topColleges, "text-warning"));
-            $("#topCourses").html(renderRankList(response.data.topCourses, "text-info"));
-        },
-        error: function () {
-            alert("Connection error.");
-        }
-    });
-}
-
-function checkAndShowAttendance(user) {
-    let resolvedAction;
-
-    $.post(BACKEND, {
-        request: "checkStatusToday",
-        idNumber: user.id_number,
-        name: user.name
-    })
-    .then(function (status) {
-        const resolved = !status.checkedIn ? "checkin"
-                       : Number(status.sectionID) === Number(libraryID) ? "checkout"
-                       : "switch";
-
-        resolvedAction = resolved === "switch" ? "checkin" : resolved;
-
-        return $.post(BACKEND, {
-            request: "getAttendanceModal",
-            user: JSON.stringify(user),
-            action: resolved,
-            sectionName: status.sectionName || "",
-            libraryName: libraryName
+            res.data.forEach(lib => $select.append(`<option value="${lib.SectionID}">${lib.SectionName}</option>`));
+            currentLibraryID = res.data[0].SectionID;
+            currentLibraryName = res.data[0].SectionName;
+            $select.val(currentLibraryID);
+            $("#currentLibrarySection, #currentLibraryDisplay").text(currentLibraryName);
+            loadKPI(currentLibraryID);
         });
-    })
-    .then(function (modal) {
-    if (modal.success) {
-        pendingAction = resolvedAction;
-        showModal("Attendance Confirmation", modal.body, modal.footer);
     }
-})
-    .fail(function () {
-        alert("Connection error.");
+    loadLibraries();
+
+    // ======================
+    // LOAD KPI
+    // ======================
+    function loadKPI(sectionID) {
+        $.post("backend/bk_LibraryMenu/bk_libLogs-Test.php", { request: "getKPI", sectionID }, function(res) {
+            if(!res.success || !res.data) return;
+
+            const data = res.data;
+            $("#kpiTotalCheckins").text(data.totalToday || 0);
+            $("#kpiActiveStudents").text(data.currentlyInside || 0);
+
+            const collegesHtml = (data.topColleges || ["-","-","-"]).map((c,i) =>
+                `<div class="mb-1"><span class="fw-bold">${i+1}.</span> <span class="text-warning">${c}</span></div>`).join('');
+            $("#topColleges").html(collegesHtml);
+
+            const coursesHtml = (data.topCourses || ["-","-","-"]).map((c,i) =>
+                `<div class="mb-1"><span class="fw-bold">${i+1}.</span> <span class="text-info">${c}</span></div>`).join('');
+            $("#topCourses").html(coursesHtml);
+        });
+    }
+
+    // ======================
+    // EVENT HANDLERS
+    // ======================
+    $("#inputLibrary").on('change', function(){
+        currentLibraryID = parseInt($(this).val());
+        currentLibraryName = $(this).find('option:selected').text();
+        $("#currentLibrarySection, #currentLibraryDisplay").text(currentLibraryName);
+        loadKPI(currentLibraryID);
     });
-}
 
-function saveAttendance(user, resolvedAction) {
-
-if (!user || !libraryID) return; // <-- added guard
-if (user.classification !== "GUEST" && !user.id_number) return;
-
-
-    $.ajax({
-        type: "POST",
-        url: BACKEND,
-        data: {
-            request: "getSaveAttendance",
-            action: resolvedAction,
-            idNumber: user.id_number,
-            sectionID: libraryID,
-            classification: user.classification || "STUDENT",
-            name: user.name,
-            college: user.college || "",
-            course: user.course || "",
-            sex: user.sex || "",
-            agency_organization: user.agency_organization || ""
-        },
-        success: function (response) {
-
-            if (response.error) {
-                showMessage("error", response.error);
-                return;
-            }
-            const label = resolvedAction === "checkin" ? "checked in" : "checked out";
-
-        showMessage("success",
-            `<strong>${user.name}</strong> successfully ${label}.`,
-            2000
-        );
-            loadKPI();
-            $("#inputIDNumber").val("");
-        },
-        error: function () {
-            alert("Connection error.");
+    $("#toggleIdVisibility").on('click', function(){
+        const $input = $("#inputStudentNumber");
+        const $icon = $("#toggleIcon");
+        if($input.attr("type")==="password"){
+            $input.attr("type","text"); $icon.removeClass("fa-eye").addClass("fa-eye-slash");
+        } else {
+            $input.attr("type","password"); $icon.removeClass("fa-eye-slash").addClass("fa-eye");
         }
     });
-}
 
-function updateGuestUI() {
-    const count = $("#guestCheckoutList .guest-row").length;
-    $("#dynamicModal .badge.rounded-pill").text(`${count} ${count === 1 ? "guest" : "guests"}`);
-    $("#guestEmptyState").toggle(count === 0);
-    $("#guestSearchInput").trigger("input");
-}
-
-// ID form
-$("#logForm").off("submit.attendance").on("submit.attendance", function(e) {
-    e.preventDefault();
-    const id = $("#inputIDNumber").val().trim();
-    if (!id) { alert("Please enter an Identification Number."); 
-	return; 
-	}
-
-    $.ajax({
-        type: "POST",
-        url: BACKEND,
-        data: {
-            request: "getValidateUser",
-            idNumber: id 
-        },
-        success: function (response) {
-            if (response.error) {
-                alert("No record found for that ID number.");
-                $("#inputIDNumber").val("").focus();
-                return;
-            }
-            if (response.duplicate) {
-                duplicates = response.matches;
-                showModal("Identity Verification", response.modalHTML);
-                return;
-            }
-            currentUser = response.data;
-            checkAndShowAttendance(response.data);
-        },
-        error: function () {
-            alert("Connection error.");
-        }
+    $("#logForm").on('submit', function(e){
+        e.preventDefault();
+        validateUser();
     });
-});
 
-// Confirm attendance
-$(document).off("click.confirmAttendance").on("click.confirmAttendance", "#confirmAttendance", function () {
+    $(document).on('click','#confirmAttendance', function(){
+        if(selectedUser && currentAction) processAttendance(selectedUser, currentAction);
+    });
 
-    if (!currentUser || !pendingAction) return;
-    const action = pendingAction;
-    pendingAction = null;// clear after use
-    saveAttendance(currentUser, action);
-});
+    // ======================
+    // VALIDATE USER
+    // ======================
+    function validateUser() {
+        const idNumber = $("#inputStudentNumber").val().trim();
+        if(!idNumber) return alert("Please enter Identification Number");
 
-// Secret key for duplicate users
-$(document).off("input.modalSecretKey").on("input.modalSecretKey", "#modalSecretKey", function () {
-    const digits = $(this).val().replace(/\D/g, "").substring(0, 8);
-    const formatted = digits.length > 4 ? `${digits.slice(0,2)}/${digits.slice(2,4)}/${digits.slice(4)}`
-                    : digits.length > 2 ? `${digits.slice(0,2)}/${digits.slice(2)}`
-                    : digits;
-    $(this).val(formatted);
+        $.post("backend/bk_LibraryMenu/bk_libLogs-Test.php", { request: "validateUser", idNumber }, function(res) {
+            if(res.error){
+                selectedUser = { id_number:idNumber, name:"Guest", classification:"GUEST", college:null, course:null, sex:null };
+                currentAction = "checkin";
+                return showUserModal(selectedUser,"success","fa-sign-in-alt","Check In","Guest user");
+            }
 
-    if (digits.length < 8) {
-        $("#verifiedStudentContainer").hide().empty();
-        $("#secretKeyStatus").html(`<span class="text-muted"><i class="fas fa-info-circle me-1"></i>Enter birth date (MM/DD/YYYY)</span>`);
-        return;
+            if(res.duplicate){
+                duplicateCandidates = res.matches;
+                return showDuplicateModal();
+            }
+
+            selectedUser = res.data;
+            $.post("backend/bk_LibraryMenu/bk_libLogs-Test.php",{ request:"checkStatusToday", idNumber:selectedUser.id_number }, function(status){
+                determineAction(selectedUser,status);
+            });
+        });
     }
-    const match = duplicates.find(candidate => candidate.secretKey?.replace(/\D/g, "") === digits);
-    if (match) {
-    currentUser = match;
-    pendingAction = null; // <-- ADD THIS LINE
-    $("#secretKeyStatus").html(`<span class="text-success"><i class="fas fa-check-circle me-1"></i>Identity verified</span>`);
-    $("#verifiedStudentContainer").show();
-    checkAndShowAttendance(match);
-} else {
-        $("#secretKeyStatus").html(`<span class="text-danger"><i class="fas fa-exclamation-circle me-1"></i>Invalid key — try again</span>`);
-        $("#verifiedStudentContainer").hide().empty();
-    }
-});
 
-// Toggle ID visibility
-$("#toggleIdVisibility").on("click", function () {
-    const $input = $("#inputIDNumber");
-    const isHidden = $input.attr("type") === "password";
-    $input.attr("type", isHidden ? "text" : "password");
-    $("#secretIcon").toggleClass("fa-eye fa-eye-slash");
-});
+    // ======================
+    // DETERMINE ACTION
+    // ======================
+    function determineAction(user,status){
+        let action="checkin", color="success", icon="fa-sign-in-alt", btnText="Check In", message="Not checked in yet";
 
-// Toggle secret key visibility
-$(document).off("click.toggleSecretKey").on("click.toggleSecretKey", "#toggleSecretKey", function () {
-    const $input = $("#modalSecretKey");
-    const isHidden = $input.attr("type") === "password";
-    $input.attr("type", isHidden ? "text" : "password");
-    $("#secretIcon").toggleClass("fa-eye fa-eye-slash");
-});
+        const userSection = parseInt(status.sectionID || 0);
+        const currentSection = parseInt(currentLibraryID || 0);
 
-// Guest check-in
-$("#guestCheckIn").off("click.guestCheckIn").on("click.guestCheckIn", function (e) {
-    e.stopPropagation();
-    if (!libraryID) {
-        alert("Library section not loaded yet.");
-        return;
-    }
-    $.ajax({
-        type: "POST",
-        url: BACKEND,
-        data: {
-            request: "guestCheckIn",
-            libraryName: libraryName
-        },
-        success: function (response) {
-
-            if (response.success) {
-                showModal("Guest Check-In", response.body, response.footer);
+        if(status.checkedIn){
+            if(userSection===currentSection){
+                action="checkout"; color="danger"; icon="fa-sign-out-alt"; btnText="Check Out"; message="Currently in this library";
             } else {
-                alert(response.error || "Failed to load guest form.");
+                action="switch"; color="warning"; icon="fa-random"; btnText="Switch & Check In"; message="Checked in different library: auto-checkout previous";
             }
-        },
-        error: function () {
-            alert("Connection error.");
         }
-    });
-});
-
-$(document).off("click.confirmGuestCheckIn").on("click.confirmGuestCheckIn", "#confirmGuestCheckIn", function () {
-
-    const name = $("#guestName").val().trim();
-    const sex = $("#guestSex").val();
-    const organization = $("#guestAgency").val().trim();
-    if (!name)
-        { alert("Guest name is required.");
-    return; 
-    }if (!sex)
-        { alert("Please select a sex.");
-    return; 
-        }if (!organization)
-        { alert("Agency / Organization required."); 
-    return;
-}
-saveAttendance({
-    id_number: "",
-    name,
-    classification: "GUEST",
-        college: "", course: "", sex, agency_organization: organization
-    }, "checkin");
-});
-
-// Guest check-out
-$("#guestCheckOut").off("click.guestCheckOut").on("click.guestCheckOut", function (e) {
-    e.stopPropagation();
-    if (!libraryID) {
-        alert("Library section not loaded yet.");
-        return;
+        currentAction = action;
+        showUserModal(user, color, icon, btnText, message);
     }
-    $.ajax({
-        type: "POST",
-        url: BACKEND,
-        data: {
-            request: "getGuestCheckoutModal",
-            sectionID: libraryID,
-            libraryName: libraryName
-        },
-        success: function (response) {
 
-            if (response.success) {
-                showModal("Guest Check-Out", response.body, response.footer);
-            } else {
-                alert(response.error || "Failed to load guest list.");
-            }
-        },
-        error: function () {
-            alert("Connection error.");
-        }
-    });
-});
+    // ======================
+    // MODAL FUNCTIONS
+    // ======================
+    function showUserModal(user,color,icon,btnText,message){
+        const body = `
+            <div class="text-center mb-3">
+                <div class="badge bg-${color} fs-6 p-2"><i class="fas ${icon} me-2"></i>${btnText} Confirmation</div>
+                <p class="text-muted mt-2 small">${message}</p>
+            </div>
+            <div class="bg-light p-3 rounded">
+                <div class="row mb-2"><div class="col-5 fw-semibold">ID</div><div class="col-7">${user.id_number}</div></div>
+                <div class="row mb-2"><div class="col-5 fw-semibold">Name</div><div class="col-7">${user.name}</div></div>
+                <div class="row mb-2"><div class="col-5 fw-semibold">Sex</div><div class="col-7">${user.sex||'N/A'}</div></div>
+                <div class="row mb-2"><div class="col-5 fw-semibold">College</div><div class="col-7">${user.college||'N/A'}</div></div>
+                <div class="row mb-2"><div class="col-5 fw-semibold">Course</div><div class="col-7">${user.course||'N/A'}</div></div>
+                <hr>
+                <div class="text-center fw-bold text-primary">Library: ${currentLibraryName}</div>
+            </div>
+        `;
+        const footer = `
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-${color}" id="confirmAttendance"><i class="fas ${icon} me-1"></i>${btnText}</button>
+        `;
+        showModal("Attendance", body, footer);
+    }
 
-//Guest Check Out Action
-$(document).off("click.guestCheckout", ".btn-guest-checkout")
-           .on("click.guestCheckout", ".btn-guest-checkout", function () {
-    const logID = $(this).data("logid");
-    const guestName = $(this).data("name");
-    if (!logID) return;
-    $.ajax({
-        type: "POST",
-        url: BACKEND,
-        data: {
-            request: "guestCheckout",
-            logID: logID,
-            sectionID: libraryID
-        },
-        success: function (response) {
-
-            if (response.error) {
-                alert(response.error);
-                return;
-            }
-            $(`.btn-guest-checkout[data-logid="${logID}"]`)
-                .closest(".guest-row")
-                .fadeOut(200, function () {
-                    $(this).remove();
-                    updateGuestUI();
-                });
-            let $alert = $(`
-                <div class="alert alert-success py-2 px-3 mb-2 text-center">
-                    <i class="fas fa-check-circle me-1"></i>
-                    <strong>${guestName}</strong> successfully checked out.
+    function showDuplicateModal(){
+        const body = `
+            <div class="text-center mb-3">
+                <div class="badge bg-warning fs-6 p-2"><i class="fas fa-user-shield me-2"></i>Duplicate ID Found</div>
+                <p class="text-muted mt-2">Enter your secret key to verify identity</p>
+            </div>
+            <div class="card bg-light p-3 border-0">
+                <div class="input-group mb-2">
+                    <input type="password" id="modalSecretKey" class="form-control text-center fw-bold fs-4" maxlength="6" placeholder="••••••">
+                    <button class="btn btn-outline-secondary" type="button" id="toggleSecretKey"><i class="fas fa-eye" id="secretIcon"></i></button>
                 </div>
-            `).prependTo("#guestCheckoutList");
-            setTimeout(function () {
-                $alert.fadeOut(400, function () {
-                    $alert.remove();
-                });
-            }, 2000);
-            loadKPI();
-        },
-        error: function () {
-            alert("Connection error.");
+                <div id="secretKeyStatus" class="small text-muted mt-1"><i class="fas fa-info-circle me-1"></i>Enter 6-digit key</div>
+            </div>
+            <div id="verifiedStudentContainer" style="display:none;"></div>
+        `;
+        showModal("Identity Verification", body, "");
+    }
+
+    $(document).on('input','#modalSecretKey', function(){
+        const key = $(this).val();
+        if(key.length===6) validateSecretKey(key);
+        else {
+            $("#verifiedStudentContainer").hide().empty();
+            $("#secretKeyStatus").html('<i class="fas fa-info-circle me-1"></i>Enter 6-digit key').removeClass('text-success text-danger');
         }
     });
-});
 
-// Guest search
-$(document).off("input.guestSearch").on("input.guestSearch", "#guestSearchInput", function () {
+    function validateSecretKey(key){
+        const match = duplicateCandidates.find(u=>u.secretKey===key);
+        if(match){
+            selectedUser = match;
+            currentAction = "checkin";
+            $("#secretKeyStatus").html('<span class="text-success"><i class="fas fa-check-circle me-1"></i>Verified</span>');
+            $("#verifiedStudentContainer").show();
+            $.post("backend/bk_LibraryMenu/bk_libLogs-Test.php",{ request:"checkStatusToday", idNumber:selectedUser.id_number }, function(status){
+                determineAction(selectedUser,status);
+            });
+        } else {
+            $("#secretKeyStatus").html('<span class="text-danger"><i class="fas fa-exclamation-circle me-1"></i>Invalid Key</span>');
+            $("#verifiedStudentContainer").hide().empty();
+        }
+    }
 
-    const query = $(this).val().toLowerCase().trim();
-    let visible = 0;
-    $("#guestCheckoutList .guest-row").each(function () {
-        const matches = ($(this).data("name") || "").toLowerCase().includes(query);
-        $(this).toggle(matches);
-        if (matches) visible++;
-    });
-    $("#guestNoResults").toggle(visible === 0 && query !== "");
-});
+    function showModal(title, body, footer=""){
+        $("#dynamicModalTitle").html(title);
+        $("#dynamicModalBody").html(body);
+        $("#dynamicModalFooter").html(footer);
+        $("#dynamicModal").modal("show");
+    }
 
-// Close modal
-$(document).off("click.modalClose").on("click.modalClose",
-    "#dynamicModal .btn-close, #dynamicModal [data-dismiss='modal'], #dynamicModal [data-bs-dismiss='modal']",
-    hideModal
-);
+    // ======================
+    // PROCESS ATTENDANCE
+    // ======================
+    function processAttendance(user,action){
+        if(!currentLibraryID || !user.id_number) return;
+        $("#dynamicModal").modal("hide");
+        saveAttendance(user, action === "switch" ? "checkin" : action);
+    }
+
+    function saveAttendance(user, action){
+        $.post("backend/bk_LibraryMenu/bk_libLogs-Test.php",{
+            request:"saveAttendance",
+            action,
+            idNumber:user.id_number,
+            sectionID:currentLibraryID,
+            classification:user.classification || "STUDENT",
+            name:user.name,
+            college:user.college,
+            course:user.course,
+            sex:user.sex
+        }, function(res){
+            if(res.error) return alert(res.error);
+            loadKPI(currentLibraryID);
+            $("#inputStudentNumber").val("");
+            showModal("Success", `<div class="alert alert-success text-center"><i class="fas fa-check-circle me-2"></i>Successfully ${action}ed!</div>`);
+            setTimeout(()=>$("#dynamicModal").modal("hide"),2000);
+        });
+    }
+
 });
 </script>
