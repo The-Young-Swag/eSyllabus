@@ -103,30 +103,32 @@
         <!-- RIGHT: Controls (FORCED INLINE) -->
         <div class="d-flex align-items-center flex-nowrap">
 
-            <!-- Date Range Group -->
-            <div class="d-flex align-items-center mr-3">
+        <!-- Date Range Group -->
+<div class="d-flex align-items-center mr-3">
 
-                <div class="input-group input-group-sm mr-2" style="width: 150px;">
-                    <div class="input-group-prepend">
-                        <span class="input-group-text bg-light">
-                            <i class="fas fa-calendar text-muted small"></i>
-                        </span>
-                    </div>
-                    <input type="date" id="trendStartDate" class="form-control">
-                </div>
+    <div class="input-group input-group-sm mr-2" style="width: 150px;">
+        <div class="input-group-prepend">
+            <span class="input-group-text bg-light">
+                <i class="fas fa-calendar text-muted small"></i>
+            </span>
+        </div>
+        <input type="date" id="trendStartDate" class="form-control"
+               value="<?= date('Y-m-d') ?>">
+    </div>
 
-                <span class="text-muted mx-1">—</span>
+    <span class="text-muted mx-1">—</span>
 
-                <div class="input-group input-group-sm ml-2" style="width: 150px;">
-                    <div class="input-group-prepend">
-                        <span class="input-group-text bg-light">
-                            <i class="fas fa-calendar-check text-muted small"></i>
-                        </span>
-                    </div>
-                    <input type="date" id="trendEndDate" class="form-control">
-                </div>
+    <div class="input-group input-group-sm ml-2" style="width: 150px;">
+        <div class="input-group-prepend">
+            <span class="input-group-text bg-light">
+                <i class="fas fa-calendar-check text-muted small"></i>
+            </span>
+        </div>
+        <input type="date" id="trendEndDate" class="form-control"
+               value="<?= date('Y-m-d') ?>">
+    </div>
 
-            </div>
+</div>
 
             <!-- Divider -->
             <div class="border-left mx-3" style="height:28px;"></div>
@@ -253,8 +255,10 @@ $(document).ready(function () {
      CONFIG
    */
   const BACKEND_URL = "backend/bk_LibraryMenu/bk_libDashboard.php";
-  const TODAY_STR = new Date().toISOString().split('T')[0];
-
+  const now = new Date();
+const TODAY_STR = now.getFullYear() + '-'
+    + String(now.getMonth() + 1).padStart(2, '0') + '-'
+    + String(now.getDate()).padStart(2, '0');
   const PALETTE = [
     'rgba(59,130,246,0.85)', 'rgba(16,185,129,0.85)', 'rgba(245,158,11,0.85)',
     'rgba(239,68,68,0.85)', 'rgba(139,92,246,0.85)', 'rgba(20,184,166,0.85)',
@@ -279,8 +283,8 @@ $(document).ready(function () {
   /* 
      INIT — set defaults and load everything
    */
-  $('#trendStartDate').val(TODAY_STR);
-  $('#trendEndDate').val(TODAY_STR);
+  // $('#trendStartDate').val(TODAY_STR);
+  // $('#trendEndDate').val(TODAY_STR);
   updateDateBadge();
 
   loadSections(); // renders KPI cards first, then loadKPI fires inside

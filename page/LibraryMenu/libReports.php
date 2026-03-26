@@ -28,39 +28,65 @@ $librarySections = execsqlSRS(
     </div>
 
     <!-- FILTERS -->
-    <div class="card border-0 shadow-sm mb-4">
-        <div class="card-body py-3">
-            <div class="row g-3 align-items-end">
-                <div class="col-6 col-md-3">
-                    <label class="form-label small fw-semibold mb-1">Start Date</label>
-                    <div class="input-group input-group-sm">
-                        <span class="input-group-text bg-light border-end-0">
-                            <i class="fas fa-calendar text-muted"></i>
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body py-3">
+        <!-- row-cols-md-4 ensures 4 equal columns on desktop -->
+        <div class="row align-items-end">
+            
+            <!-- Start Date -->
+            <div class="col-md-3 mb-3 mb-md-0">
+                <label class="small font-weight-bold mb-1">Start Date</label>
+                <div class="input-group input-group-sm">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text bg-white text-muted border-right-0">
+                            <i class="fas fa-calendar-alt"></i>
                         </span>
-                        <input type="date" class="form-control border-start-0" id="startDate">
                     </div>
+                    <input type="date" class="form-control border-left-0" id="startDate" value="2026-03-19">
                 </div>
-                <div class="col-6 col-md-3">
-                    <label class="form-label small fw-semibold mb-1">End Date</label>
-                    <div class="input-group input-group-sm">
-                        <span class="input-group-text bg-light border-end-0">
-                            <i class="fas fa-calendar-check text-muted"></i>
+            </div>
+
+            <!-- End Date -->
+            <div class="col-md-3 mb-3 mb-md-0">
+                <label class="small font-weight-bold mb-1">End Date</label>
+                <div class="input-group input-group-sm">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text bg-white text-muted border-right-0">
+                            <i class="fas fa-calendar-check"></i>
                         </span>
-                        <input type="date" class="form-control border-start-0" id="endDate">
                     </div>
+                    <input type="date" class="form-control border-left-0" id="endDate" value="2026-03-26">
                 </div>
-                <div class="col-6 col-md-2">
-                    <label class="form-label small fw-semibold mb-1">Classification</label>
-                    <select class="form-select form-select-sm" id="classificationFilter">
+            </div>
+
+            <!-- Classification -->
+            <div class="col-md-3 mb-3 mb-md-0">
+                <label class="small font-weight-bold mb-1">Classification</label>
+                <div class="input-group input-group-sm">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text bg-white text-muted border-right-0">
+                            <i class="fas fa-filter"></i>
+                        </span>
+                    </div>
+                    <select class="custom-select border-left-0" id="classificationFilter">
                         <option value="All">All</option>
                         <option value="Student">Student</option>
                         <option value="Employee">Employee</option>
                         <option value="Guest">Guest</option>
                     </select>
                 </div>
-                <div class="col-6 col-md-2">
-                    <label class="form-label small fw-semibold mb-1">Library Section</label>
-                    <select class="form-select form-select-sm" id="libraryFilter">
+            </div>
+
+            <!-- Library Section -->
+            <div class="col-md-3">
+                <label class="small font-weight-bold mb-1">Library Section</label>
+                <div class="input-group input-group-sm">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text bg-white text-muted border-right-0">
+                            <i class="fas fa-book"></i>
+                        </span>
+                    </div>
+                    <select class="custom-select border-left-0" id="libraryFilter">
                         <option value="All">All Sections</option>
                         <?php foreach ($librarySections as $s): ?>
                             <option value="<?= $s['SectionID'] ?>">
@@ -70,8 +96,11 @@ $librarySections = execsqlSRS(
                     </select>
                 </div>
             </div>
+
         </div>
     </div>
+</div>
+
 
     <!-- KPI CARDS -->
     <div class="row g-3 mb-4">

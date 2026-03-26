@@ -1,4 +1,3 @@
-
 <div class="container-fluid py-4">
 
 <style>
@@ -84,27 +83,30 @@ style="background:linear-gradient(135deg,#ffffff,#ecfdf5);
 
       </div>
       <form id="logForm" autocomplete="off">
-        <label for="inputStudentNumber"
+        <label for="inputIDNumber"
                class="d-block fw-bold text-uppercase mb-2"
                style="font-size:.67rem;letter-spacing:.09em;color:#3d8a6e;">Identification Number</label>
         <div style="padding:2px;border-radius:11px;
                     background:linear-gradient(130deg,#10b981 0%,#3b82f6 55%,#06b6d4 100%);
                     box-shadow:0 3px 16px rgba(16,185,129,.15);">
           <div class="d-flex align-items-center bg-white" style="border-radius:9px;overflow:hidden;">
-            <input type="password"
-                   id="inputStudentNumber"
+            
+			<input type="password"
+                   id="inputIDNumber"
                    placeholder="Enter or scan identification number"
                    autocomplete="new-password"
                    spellcheck="false"
                    style="flex:1;border:none;outline:none;box-shadow:none;
                           background:transparent;padding:12px 16px;
                           font-size:.92rem;color:#0f172a;">
+						  
             <button type="button" id="toggleIdVisibility"
                     style="background:transparent;border:none;outline:none;
                            padding:0 14px;color:#94a3b8;cursor:pointer;
                            line-height:1;transition:color .15s;">
               <i class="fas fa-eye" id="toggleIcon"></i>
             </button>
+			
           </div>
         </div>
 
@@ -120,43 +122,48 @@ style="background:linear-gradient(135deg,#ffffff,#ecfdf5);
 	  
 <!-- ═══ GUEST CHECK-IN / CHECK-OUT BUTTONS ═══ -->
 <div class="text-center mt-3">
-  <div class="d-inline-flex gap-2 position-relative">
+  <!-- 1. Changed to d-flex for w-100 support; justify-content-center handles the alignment -->
+  <div class="d-flex justify-content-center align-items-center position-relative w-100">
 
-    <!-- CHECK IN -->
-    <div class="d-inline-block position-relative">
+    <!-- CHECK IN WRAPPER -->
+    <!-- 2. Added mr-4 (margin-right) to replace gap-50 -->
+    <div class="position-relative mr-4">
       <button type="button" id="guestCheckIn"
-              class="btn rounded-pill fw-semibold px-4 py-2"
+              class="btn rounded-pill font-weight-bold px-4 py-2"
               style="background:#f0fdf9;color:#047857;border:1.5px solid #6ee7b7;
                      font-size:.82rem;letter-spacing:.02em;
-                     transition:background .18s,box-shadow .18s,transform .15s;">
-        <i class="fas fa-user-clock me-2"></i>&nbsp;&nbsp;Check In as Guest
+                     transition:all .18s;">
+        <i class="fas fa-user-clock mr-2"></i>Check In as Guest
       </button>
-<div id="guestNudge" class="position-absolute" 
-     style="right:calc(100% + 12px);top:50%;transform:translateY(-50%);
-            background:#fff;border:1.5px solid #a7f3d0;border-radius:12px;
-            padding:6px 14px;font-size:.75rem;color:#047857;font-weight:600;
-            white-space:nowrap;box-shadow:0 4px 14px rgba(6,78,59,.12);
-            opacity:0;pointer-events:none;transition:opacity .4s ease;z-index:10;">
-  <span style="position:absolute;right:-8px;top:50%;transform:translateY(-50%);
-               border-top:7px solid transparent;border-bottom:7px solid transparent;
-               border-left:8px solid #a7f3d0;"></span>
-  <span style="position:absolute;right:-6px;top:50%;transform:translateY(-50%);
-               border-top:6px solid transparent;border-bottom:6px solid transparent;
-               border-left:7px solid #fff;"></span>
-  👋 Not a student / just visiting?
-</div>
+
+      <!-- GUEST NUDGE -->
+      <div id="guestNudge" class="position-absolute" 
+           style="right:calc(100% + 15px);top:50%;transform:translateY(-50%);
+                  background:#fff;border:1.5px solid #a7f3d0;border-radius:12px;
+                  padding:6px 14px;font-size:.75rem;color:#047857;font-weight:600;
+                  white-space:nowrap;box-shadow:0 4px 14px rgba(6,78,59,.12);
+                  opacity:1; /* Set to 1 to test visibility */
+                  pointer-events:none;transition:opacity .4s ease;z-index:10;">
+        <!-- Tooltip Arrow -->
+        <span style="position:absolute;right:-8px;top:50%;transform:translateY(-50%);
+                    border-top:7px solid transparent;border-bottom:7px solid transparent;
+                    border-left:8px solid #a7f3d0;"></span>
+        👋 Not a student / just visiting?
+      </div>
     </div>
+
     <!-- CHECK OUT -->
     <button type="button" id="guestCheckOut"
-            class="btn rounded-pill fw-semibold px-4 py-2"
+            class="btn rounded-pill font-weight-bold px-4 py-2"
             style="background:#fff5f5;color:#dc2626;border:1.5px solid #fca5a5;
                    font-size:.82rem;letter-spacing:.02em;
-                   transition:background .18s,box-shadow .18s,transform .15s;">
-      <i class="fas fa-sign-out-alt me-2"></i>&nbsp;&nbsp;Check Out as Guest
+                   transition:all .18s;">
+      <i class="fas fa-sign-out-alt mr-2"></i>Check Out as Guest
     </button>
 
   </div>
 </div>
+
     </div>
   </div>
 
@@ -247,7 +254,7 @@ let currentUser = null;
 let duplicates = [];
 let successTimer = null;
 
-// Prevent duplicate listeners on AJAX reload
+// Single teardown prevents stacked listeners on AJAX reload
 $(document).off(".libLogs");
 
 // Clock
@@ -275,16 +282,12 @@ function applyHover(selector, enterStyles, leaveStyles) {
 }
 
 applyHover("#guestCheckIn",
-    { background: "#d1fae5", boxShadow: "0 4px 14px rgba(6,78,59,.15)",   
-	transform: "translateY(-1px)" },
-    { background: "#f0fdf9", boxShadow: "",                                
-	transform: "" }
+    { background: "#d1fae5", boxShadow: "0 4px 14px rgba(6,78,59,.15)", transform: "translateY(-1px)" },
+    { background: "#f0fdf9", boxShadow: "", transform: "" }
 );
 applyHover("#guestCheckOut",
-    { background: "#fee2e2", boxShadow: "0 4px 14px rgba(220,38,38,.15)", 
-	transform: "translateY(-1px)" },
-    { background: "#fff5f5", boxShadow: "",                                
-	transform: "" }
+    { background: "#fee2e2", boxShadow: "0 4px 14px rgba(220,38,38,.15)", transform: "translateY(-1px)" },
+    { background: "#fff5f5", boxShadow: "", transform: "" }
 );
 
 // Modal helpers
@@ -304,15 +307,15 @@ function hideModal() {
 }
 
 function showMessage(type, message, autoClose) {
-    const styles = {
-        success: ["fa-check-circle", "alert-success", "Success"],
-        error:   ["fa-exclamation-circle", "alert-danger",  "Error"],
-        info:    ["fa-info-circle", "alert-info", "Info"]
+    const styleMap = {
+        success: { icon: "fa-check-circle", colorClass: "alert-success", title: "Success" },
+        error: { icon: "fa-exclamation-circle",  colorClass: "alert-danger",  title: "Error"   },
+        info: { icon: "fa-info-circle", colorClass: "alert-info", title: "Info"    }
     };
-    const [icon, colorClass, title] = styles[type];
-    showModal(title, `
-        <div class="alert ${colorClass} text-center mb-0">
-            <i class="fas ${icon} me-2"></i>${message}
+    const style = styleMap[type];
+    showModal(style.title, `
+        <div class="alert ${style.colorClass} text-center mb-0">
+            <i class="fas ${style.icon} me-2"></i>${message}
         </div>
     `);
     if (autoClose) successTimer = setTimeout(hideModal, autoClose);
@@ -322,70 +325,47 @@ function showMessage(type, message, autoClose) {
 $.ajax({
     type: "POST",
     url: BACKEND,
-    data: {
-        request: "getLibraries",
-        userID: UserInfo.UserID
-    },
+    data: { request: "getLibraries", userID: UserInfo.UserID },
     success: function (response) {
-
         if (!response.success || !response.data || !response.data.length) {
             $("#currentLibraryDisplay").text(response.error || "No Library Access");
             return;
         }
-
         libraryID = response.data[0].SectionID;
         libraryName = response.data[0].SectionName;
-
         $("#currentLibraryDisplay").text(libraryName);
-
         loadKPI();
     },
-    error: function () {
-        alert("Connection error.");
-    }
+    error: function () { alert("Connection error."); }
 });
 
 function loadKPI() {
-
     if (!libraryID) return;
-
     $.ajax({
         type: "POST",
         url: BACKEND,
-        data: {
-            request: "getKPI",
-            sectionID: libraryID
-        },
+        data: { request: "getKPI", sectionID: libraryID },
         success: function (response) {
-
             if (!response.success || !response.data) return;
-
             $("#kpiTotalCheckins").text(response.data.totalToday || 0);
             $("#kpiActiveStudents").text(response.data.currentlyInside || 0);
 
             function renderRankList(items, colorClass) {
                 if (!items) items = ["-", "-", "-"];
-
                 let html = "";
-
                 items.forEach(function (label, index) {
-                    html += `
-                        <div class="mb-1">
-                            <span class="fw-bold">${index + 1}.</span>
-                            <span class="${colorClass}">${label}</span>
-                        </div>
-                    `;
+                    html += `<div class="mb-1">
+                                <span class="fw-bold">${index + 1}.</span>
+                                <span class="${colorClass}">${label}</span>
+                             </div>`;
                 });
-
                 return html;
             }
 
             $("#topColleges").html(renderRankList(response.data.topColleges, "text-warning"));
             $("#topCourses").html(renderRankList(response.data.topCourses, "text-info"));
         },
-        error: function () {
-            alert("Connection error.");
-        }
+        error: function () { alert("Connection error."); }
     });
 }
 
@@ -398,16 +378,16 @@ function checkAndShowAttendance(user) {
         name: user.name
     })
     .then(function (status) {
-        const resolved = !status.checkedIn ? "checkin"
-                       : Number(status.sectionID) === Number(libraryID) ? "checkout"
-                       : "switch";
+        const rawAction = !status.checkedIn ? "checkin"
+                        : Number(status.sectionID) === Number(libraryID) ? "checkout"
+                        : "switch";
 
-        resolvedAction = resolved === "switch" ? "checkin" : resolved;
+        resolvedAction = rawAction === "switch" ? "checkin" : rawAction;
 
         return $.post(BACKEND, {
             request: "getAttendanceModal",
             user: JSON.stringify(user),
-            action: resolved,
+            action: rawAction,
             sectionName: status.sectionName || "",
             libraryName: libraryName
         });
@@ -415,25 +395,19 @@ function checkAndShowAttendance(user) {
     .then(function (modal) {
         if (modal.success) {
             showModal("Attendance Confirmation", modal.body, modal.footer);
+            // Store action on the button — no shared pendingAction variable needed
             $("#confirmAttendance").data("resolved-action", resolvedAction);
         }
     })
-    .fail(function () {
-        alert("Connection error.");
-    });
+    .fail(function () { alert("Connection error."); });
 }
 
 function saveAttendance(user, resolvedAction) {
-
     if (!libraryID) return;
     if (user.classification !== "GUEST" && !user.id_number) return;
 
-    let label = resolvedAction === "checkin" ? "checked in" : "checked out";
-
-    showMessage("success",
-        `<strong>${user.name}</strong> successfully ${label}.`,
-        2000
-    );
+    const actionLabel = resolvedAction === "checkin" ? "checked in" : "checked out";
+    showMessage("success", `<strong>${user.name}</strong> successfully ${actionLabel}.`, 2000);
 
     $.ajax({
         type: "POST",
@@ -451,52 +425,38 @@ function saveAttendance(user, resolvedAction) {
             agency_organization: user.agency_organization || ""
         },
         success: function (response) {
-
-            if (response.error) {
-                showMessage("error", response.error);
-                return;
-            }
-
+            if (response.error) { showMessage("error", response.error); return; }
             loadKPI();
-            $("#inputStudentNumber").val("");
-
+            $("#inputIDNumber").val("");
         },
-        error: function () {
-            alert("Connection error.");
-        }
+        error: function () { alert("Connection error."); }
     });
 }
 
 function updateGuestUI() {
-    const count = $("#guestCheckoutList .guest-row").length;
-    $("#dynamicModal .badge.rounded-pill").text(`${count} ${count === 1 ? "guest" : "guests"}`);
-    $("#guestEmptyState").toggle(count === 0);
+    const guestCount = $("#guestCheckoutList .guest-row").length;
+    const guestLabel = guestCount === 1 ? "guest" : "guests";
+    $("#dynamicModal .badge.rounded-pill").text(`${guestCount} ${guestLabel}`);
+    $("#guestEmptyState").toggle(guestCount === 0);
     $("#guestSearchInput").trigger("input");
 }
 
-// ID form
+// ── Event handlers ────────────────────────────────────────────────────────────
+
+// ID form submit
 $(document).on("submit.libLogs", "#logForm", function (event) {
-
     event.preventDefault();
-
-    let idNumber = $("#inputStudentNumber").val().trim();
-
-    if (!idNumber) {
-        alert("Please enter an Identification Number.");
-        return;
-    }
+    const idNumber = $("#inputIDNumber").val().trim();
+    if (!idNumber) { alert("Please enter an Identification Number."); return; }
 
     $.ajax({
         type: "POST",
         url: BACKEND,
-        data: {
-            request: "getValidateUser",
-            idNumber: idNumber
-        },
+        data: { request: "getValidateUser", idNumber: idNumber },
         success: function (response) {
             if (response.error) {
                 alert("No record found for that ID number.");
-                $("#inputStudentNumber").val("").focus();
+                $("#inputIDNumber").val("").focus();
                 return;
             }
             if (response.duplicate) {
@@ -507,13 +467,11 @@ $(document).on("submit.libLogs", "#logForm", function (event) {
             currentUser = response.data;
             checkAndShowAttendance(response.data);
         },
-        error: function () {
-            alert("Connection error.");
-        }
+        error: function () { alert("Connection error."); }
     });
 });
 
-// Confirm attendance
+// Confirm attendance — action is read from button data, not a shared variable
 $(document).on("click.libLogs", "#confirmAttendance", function () {
     if (!currentUser) return;
     saveAttendance(currentUser, $(this).data("resolved-action"));
@@ -532,12 +490,16 @@ $(document).on("input.libLogs", "#modalSecretKey", function () {
         $("#secretKeyStatus").html(`<span class="text-muted"><i class="fas fa-info-circle me-1"></i>Enter birth date (MM/DD/YYYY)</span>`);
         return;
     }
-    const match = duplicates.find(candidate => candidate.secretKey?.replace(/\D/g, "") === digits);
-    if (match) {
-        currentUser = match;
+
+    const matchedUser = duplicates.find(function (candidate) {
+        return candidate.secretKey?.replace(/\D/g, "") === digits;
+    });
+
+    if (matchedUser) {
+        currentUser = matchedUser;
         $("#secretKeyStatus").html(`<span class="text-success"><i class="fas fa-check-circle me-1"></i>Identity verified</span>`);
         $("#verifiedStudentContainer").show();
-        checkAndShowAttendance(match);
+        checkAndShowAttendance(matchedUser);
     } else {
         $("#secretKeyStatus").html(`<span class="text-danger"><i class="fas fa-exclamation-circle me-1"></i>Invalid key — try again</span>`);
         $("#verifiedStudentContainer").hide().empty();
@@ -546,149 +508,124 @@ $(document).on("input.libLogs", "#modalSecretKey", function () {
 
 // Toggle ID visibility
 $(document).on("click.libLogs", "#toggleIdVisibility", function () {
-    const $input = $("#inputStudentNumber");
-    const isHidden = $input.attr("type") === "password";
-    $input.attr("type", isHidden ? "text" : "password");
-    $("#toggleIcon").toggleClass("fa-eye", !isHidden).toggleClass("fa-eye-slash", isHidden);
+    const inputField = $("#inputIDNumber");
+    const isHidden = inputField.attr("type") === "password";
+    inputField.attr("type", isHidden ? "text" : "password");
+    $("#toggleIcon").toggleClass("fa-eye fa-eye-slash");
 });
 
 // Toggle secret key visibility
 $(document).on("click.libLogs", "#toggleSecretKey", function () {
-    const $input = $("#modalSecretKey");
-    const isHidden = $input.attr("type") === "password";
-    $input.attr("type", isHidden ? "text" : "password");
-    $("#secretIcon").toggleClass("fa-eye", !isHidden).toggleClass("fa-eye-slash", isHidden);
+    const inputField = $("#modalSecretKey");
+    const isHidden = inputField.attr("type") === "password";
+    inputField.attr("type", isHidden ? "text" : "password");
+    $("#secretIcon").toggleClass("fa-eye fa-eye-slash");
 });
 
-// Guest check-in
+// Guest check-in modal
 $(document).on("click.libLogs", "#guestCheckIn", function () {
-
-    if (!libraryID) {
-        alert("Library section not loaded yet.");
-        return;
-    }
-
+    if (!libraryID) { alert("Library section not loaded yet."); return; }
     $.ajax({
         type: "POST",
         url: BACKEND,
-        data: {
-            request: "guestCheckIn",
-            libraryName: libraryName
-        },
+        data: { request: "guestCheckIn", libraryName: libraryName },
         success: function (response) {
-
             if (response.success) {
                 showModal("Guest Check-In", response.body, response.footer);
             } else {
                 alert(response.error || "Failed to load guest form.");
             }
         },
-        error: function () {
-            alert("Connection error.");
-        }
+        error: function () { alert("Connection error."); }
     });
 });
 
+// Confirm guest check-in
 $(document).on("click.libLogs", "#confirmGuestCheckIn", function () {
-    const name = $("#guestName").val().trim();
-    const sex = $("#guestSex").val();
-    const organization = $("#guestAgency").val().trim();
-    if (!name){ alert("Guest name is required.");         
-	return; 
-	} if (!sex){ 
-	alert("Please select a sex.");            
-	return; 
-	} if (!organization) { alert("Agency / Organization required."); return; }
-saveAttendance({
-    id_number: "",
-    name,
-    classification: "GUEST",
-        college: "", course: "", sex, agency_organization: organization
+    const guestName = $("#guestName").val().trim();
+    const guestSex = $("#guestSex").val();
+    const guestOrganization = $("#guestAgency").val().trim();
+    if (!guestName)
+        { alert("Guest name is required.");
+    return; 
+    } if (!guestSex)
+        { alert("Please select a sex.");
+        return; 
+    } if (!guestOrganization)
+        { alert("Agency / Organization required."); 
+        return;
+    }
+    saveAttendance({
+        id_number: "",
+        name: guestName,
+        classification: "GUEST",
+        college: "",
+        course: "",
+        sex: guestSex,
+        agency_organization: guestOrganization
     }, "checkin");
 });
 
-// Guest check-out
+// Guest check-out modal
 $(document).on("click.libLogs", "#guestCheckOut", function () {
-    if (!libraryID) {
-        alert("Library section not loaded yet.");
-        return;
-    }
+    if (!libraryID) { alert("Library section not loaded yet."); return; }
     $.ajax({
         type: "POST",
         url: BACKEND,
-        data: {
-            request: "getGuestCheckoutModal",
-            sectionID: libraryID,
-            libraryName: libraryName
-        },
+        data: { request: "getGuestCheckoutModal", sectionID: libraryID, libraryName: libraryName },
         success: function (response) {
-
             if (response.success) {
                 showModal("Guest Check-Out", response.body, response.footer);
             } else {
                 alert(response.error || "Failed to load guest list.");
             }
         },
-        error: function () {
-            alert("Connection error.");
-        }
+        error: function () { alert("Connection error."); }
     });
 });
 
-//Guest Check Out Action
+// Guest check-out action
 $(document).on("click.libLogs", ".btn-guest-checkout", function () {
-    let logID = $(this).data("logid");
-    let guestName = $(this).data("name");
+    const logID = $(this).data("logid");
+    const guestName = $(this).data("name");
     if (!logID) return;
     $.ajax({
         type: "POST",
         url: BACKEND,
-        data: {
-            request: "guestCheckout",
-            logID: logID,
-            sectionID: libraryID
-        },
+        data: { request: "guestCheckout", logID: logID, sectionID: libraryID },
         success: function (response) {
-
-            if (response.error) {
-                alert(response.error);
-                return;
-            }
+            if (response.error) { alert(response.error); return; }
             $(`.btn-guest-checkout[data-logid="${logID}"]`)
                 .closest(".guest-row")
                 .fadeOut(200, function () {
                     $(this).remove();
                     updateGuestUI();
                 });
-            let $alert = $(`
+            const successAlert = $(`
                 <div class="alert alert-success py-2 px-3 mb-2 text-center">
                     <i class="fas fa-check-circle me-1"></i>
                     <strong>${guestName}</strong> successfully checked out.
                 </div>
             `).prependTo("#guestCheckoutList");
             setTimeout(function () {
-                $alert.fadeOut(400, function () {
-                    $alert.remove();
-                });
+                successAlert.fadeOut(400, function () { successAlert.remove(); });
             }, 2000);
             loadKPI();
         },
-        error: function () {
-            alert("Connection error.");
-        }
+        error: function () { alert("Connection error."); }
     });
 });
 
 // Guest search
 $(document).on("input.libLogs", "#guestSearchInput", function () {
-    const query = $(this).val().toLowerCase().trim();
-    let visible = 0;
+    const searchQuery = $(this).val().toLowerCase().trim();
+    let visibleCount = 0;
     $("#guestCheckoutList .guest-row").each(function () {
-        const matches = ($(this).data("name") || "").toLowerCase().includes(query);
-        $(this).toggle(matches);
-        if (matches) visible++;
+        const nameMatches = ($(this).data("name") || "").toLowerCase().includes(searchQuery);
+        $(this).toggle(nameMatches);
+        if (nameMatches) visibleCount++;
     });
-    $("#guestNoResults").toggle(visible === 0 && query !== "");
+    $("#guestNoResults").toggle(visibleCount === 0 && searchQuery !== "");
 });
 
 // Close modal

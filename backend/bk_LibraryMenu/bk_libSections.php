@@ -46,7 +46,7 @@ function showSection(): void {
             <td>$desc</td>
             <td>$name</td>
             <td class='text-center'>
-                <div class='form-check form-switch d-flex justify-content-center'>
+                <div class='custom-control custom-switch'>
                     <input class='form-check-input toggle-section-status'
                            type='checkbox' data-id='$id' $active>
                 </div>
