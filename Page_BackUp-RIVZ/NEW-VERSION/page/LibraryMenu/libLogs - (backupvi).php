@@ -1,3 +1,4 @@
+
 <div class="container-fluid py-4">
 
 <style>
@@ -122,48 +123,43 @@ style="background:linear-gradient(135deg,#ffffff,#ecfdf5);
 	  
 <!-- ═══ GUEST CHECK-IN / CHECK-OUT BUTTONS ═══ -->
 <div class="text-center mt-3">
-  <!-- 1. Changed to d-flex for w-100 support; justify-content-center handles the alignment -->
-  <div class="d-flex justify-content-center align-items-center position-relative w-100">
+  <div class="d-inline-flex gap-2 position-relative">
 
-    <!-- CHECK IN WRAPPER -->
-    <!-- 2. Added mr-4 (margin-right) to replace gap-50 -->
-    <div class="position-relative mr-4">
+    <!-- CHECK IN -->
+    <div class="d-inline-block position-relative">
       <button type="button" id="guestCheckIn"
-              class="btn rounded-pill font-weight-bold px-4 py-2"
+              class="btn rounded-pill fw-semibold px-4 py-2"
               style="background:#f0fdf9;color:#047857;border:1.5px solid #6ee7b7;
                      font-size:.82rem;letter-spacing:.02em;
-                     transition:all .18s;">
-        <i class="fas fa-user-clock mr-2"></i>Check In as Guest
+                     transition:background .18s,box-shadow .18s,transform .15s;">
+        <i class="fas fa-user-clock me-2"></i>&nbsp;&nbsp;Check In as Guest
       </button>
-
-      <!-- GUEST NUDGE -->
-      <div id="guestNudge" class="position-absolute" 
-           style="right:calc(100% + 15px);top:50%;transform:translateY(-50%);
-                  background:#fff;border:1.5px solid #a7f3d0;border-radius:12px;
-                  padding:6px 14px;font-size:.75rem;color:#047857;font-weight:600;
-                  white-space:nowrap;box-shadow:0 4px 14px rgba(6,78,59,.12);
-                  opacity:1; /* Set to 1 to test visibility */
-                  pointer-events:none;transition:opacity .4s ease;z-index:10;">
-        <!-- Tooltip Arrow -->
-        <span style="position:absolute;right:-8px;top:50%;transform:translateY(-50%);
-                    border-top:7px solid transparent;border-bottom:7px solid transparent;
-                    border-left:8px solid #a7f3d0;"></span>
-        👋 Not a student / just visiting?
-      </div>
+<div id="guestNudge" class="position-absolute" 
+     style="right:calc(100% + 12px);top:50%;transform:translateY(-50%);
+            background:#fff;border:1.5px solid #a7f3d0;border-radius:12px;
+            padding:6px 14px;font-size:.75rem;color:#047857;font-weight:600;
+            white-space:nowrap;box-shadow:0 4px 14px rgba(6,78,59,.12);
+            opacity:0;pointer-events:none;transition:opacity .4s ease;z-index:10;">
+  <span style="position:absolute;right:-8px;top:50%;transform:translateY(-50%);
+               border-top:7px solid transparent;border-bottom:7px solid transparent;
+               border-left:8px solid #a7f3d0;"></span>
+  <span style="position:absolute;right:-6px;top:50%;transform:translateY(-50%);
+               border-top:6px solid transparent;border-bottom:6px solid transparent;
+               border-left:7px solid #fff;"></span>
+  👋 Not a student / just visiting?
+</div>
     </div>
-
     <!-- CHECK OUT -->
     <button type="button" id="guestCheckOut"
-            class="btn rounded-pill font-weight-bold px-4 py-2"
+            class="btn rounded-pill fw-semibold px-4 py-2"
             style="background:#fff5f5;color:#dc2626;border:1.5px solid #fca5a5;
                    font-size:.82rem;letter-spacing:.02em;
-                   transition:all .18s;">
-      <i class="fas fa-sign-out-alt mr-2"></i>Check Out as Guest
+                   transition:background .18s,box-shadow .18s,transform .15s;">
+      <i class="fas fa-sign-out-alt me-2"></i>&nbsp;&nbsp;Check Out as Guest
     </button>
 
   </div>
 </div>
-
     </div>
   </div>
 
@@ -248,16 +244,17 @@ $(function () {
 
 const BACKEND = "backend/bk_LibraryMenu/bk_libLogs-Test.php";
 
+//  KEY FIX: wipe all previous handler registrations before re-binding 
+$(document).off(".libLogs");
+
 let libraryID = null;
 let libraryName = "";
 let currentUser = null;
+let currentAction = null;   // module-level (fixes the switch bug too)
 let duplicates = [];
 let successTimer = null;
 
-// Single teardown prevents stacked listeners on AJAX reload
-$(document).off(".libLogs");
-
-// Clock
+//  Clock 
 setInterval(function () {
     $("#kpiCurrentTime").text(new Date().toLocaleString("en-US", {
         hour: "2-digit", minute: "2-digit", second: "2-digit",
@@ -265,7 +262,7 @@ setInterval(function () {
     }));
 }, 1000);
 
-// Nudge animation
+//  Nudge animation 
 setTimeout(function cycle() {
     $("#guestNudge").css("opacity", "1");
     setTimeout(function () {
@@ -274,13 +271,12 @@ setTimeout(function cycle() {
     }, 5000);
 }, 2000);
 
-// Hover effects
+//  Hover effects 
 function applyHover(selector, enterStyles, leaveStyles) {
     $(selector)
         .on("mouseenter", function () { $(this).css(enterStyles); })
         .on("mouseleave", function () { $(this).css(leaveStyles); });
 }
-
 applyHover("#guestCheckIn",
     { background: "#d1fae5", boxShadow: "0 4px 14px rgba(6,78,59,.15)", transform: "translateY(-1px)" },
     { background: "#f0fdf9", boxShadow: "", transform: "" }
@@ -290,7 +286,7 @@ applyHover("#guestCheckOut",
     { background: "#fff5f5", boxShadow: "", transform: "" }
 );
 
-// Modal helpers
+//  Modal helpers 
 function showModal(title, body, footer) {
     clearTimeout(successTimer);
     successTimer = null;
@@ -307,21 +303,48 @@ function hideModal() {
 }
 
 function showMessage(type, message, autoClose) {
-    const styleMap = {
-        success: { icon: "fa-check-circle", colorClass: "alert-success", title: "Success" },
-        error: { icon: "fa-exclamation-circle",  colorClass: "alert-danger",  title: "Error"   },
-        info: { icon: "fa-info-circle", colorClass: "alert-info", title: "Info"    }
+    const styles = {
+        success: ["fa-check-circle", "alert-success", "Success"],
+        error: ["fa-exclamation-circle", "alert-danger",  "Error"],
+        info: ["fa-info-circle", "alert-info",    "Info"]
     };
-    const style = styleMap[type];
-    showModal(style.title, `
-        <div class="alert ${style.colorClass} text-center mb-0">
-            <i class="fas ${style.icon} me-2"></i>${message}
+    const [icon, colorClass, title] = styles[type];
+    showModal(title, `
+        <div class="alert ${colorClass} text-center mb-0">
+            <i class="fas ${icon} me-2"></i>${message}
         </div>
     `);
     if (autoClose) successTimer = setTimeout(hideModal, autoClose);
 }
 
-// Load library on boot
+//  KPI 
+function loadKPI() {
+    if (!libraryID) return;
+    $.ajax({
+        type: "POST",
+        url: BACKEND,
+        data: { request: "getKPI", sectionID: libraryID },
+        success: function (response) {
+            if (!response.success || !response.data) return;
+            $("#kpiTotalCheckins").text(response.data.totalToday    || 0);
+            $("#kpiActiveStudents").text(response.data.currentlyInside || 0);
+            function renderRankList(items, colorClass) {
+                if (!items) items = ["-", "-", "-"];
+                return items.map((label, i) =>
+                    `<div class="mb-1">
+                        <span class="fw-bold">${i + 1}.</span>
+                        <span class="${colorClass}">${label}</span>
+                    </div>`
+                ).join("");
+            }
+            $("#topColleges").html(renderRankList(response.data.topColleges, "text-warning"));
+            $("#topCourses").html(renderRankList(response.data.topCourses, "text-info"));
+        },
+        error: function () { alert("Connection error."); }
+    });
+}
+
+//  Boot: load library 
 $.ajax({
     type: "POST",
     url: BACKEND,
@@ -339,82 +362,54 @@ $.ajax({
     error: function () { alert("Connection error."); }
 });
 
-function loadKPI() {
-    if (!libraryID) return;
-    $.ajax({
-        type: "POST",
-        url: BACKEND,
-        data: { request: "getKPI", sectionID: libraryID },
-        success: function (response) {
-            if (!response.success || !response.data) return;
-            $("#kpiTotalCheckins").text(response.data.totalToday || 0);
-            $("#kpiActiveStudents").text(response.data.currentlyInside || 0);
-
-            function renderRankList(items, colorClass) {
-                if (!items) items = ["-", "-", "-"];
-                let html = "";
-                items.forEach(function (label, index) {
-                    html += `<div class="mb-1">
-                                <span class="fw-bold">${index + 1}.</span>
-                                <span class="${colorClass}">${label}</span>
-                             </div>`;
-                });
-                return html;
-            }
-
-            $("#topColleges").html(renderRankList(response.data.topColleges, "text-warning"));
-            $("#topCourses").html(renderRankList(response.data.topCourses, "text-info"));
-        },
-        error: function () { alert("Connection error."); }
-    });
+//  Guest UI update 
+function updateGuestUI() {
+    const count = $("#guestCheckoutList .guest-row").length;
+    $("#dynamicModal .badge.rounded-pill").text(`${count} ${count === 1 ? "guest" : "guests"}`);
+    $("#guestEmptyState").toggle(count === 0);
+    $("#guestSearchInput").trigger("input");
 }
 
+//  Attendance helpers 
 function checkAndShowAttendance(user) {
-    let resolvedAction;
-
     $.post(BACKEND, {
         request: "checkStatusToday",
         idNumber: user.id_number,
         name: user.name
     })
     .then(function (status) {
-        const rawAction = !status.checkedIn ? "checkin"
-                        : Number(status.sectionID) === Number(libraryID) ? "checkout"
-                        : "switch";
+        const resolved = !status.checkedIn ? "checkin"
+                       : Number(status.sectionID) === Number(libraryID) ? "checkout"
+                       : "switch";
 
-        resolvedAction = rawAction === "switch" ? "checkin" : rawAction;
+        currentAction = resolved === "switch" ? "checkin" : resolved;  // set module-level
 
         return $.post(BACKEND, {
             request: "getAttendanceModal",
             user: JSON.stringify(user),
-            action: rawAction,
+            action: resolved,
             sectionName: status.sectionName || "",
             libraryName: libraryName
         });
     })
     .then(function (modal) {
-        if (modal.success) {
-            showModal("Attendance Confirmation", modal.body, modal.footer);
-            // Store action on the button — no shared pendingAction variable needed
-            $("#confirmAttendance").data("resolved-action", resolvedAction);
-        }
+        if (modal.success) showModal("Attendance Confirmation", modal.body, modal.footer);
     })
-    .fail(function () { alert("Connection error."); });
+    .fail(function () {
+        showMessage("error", "Connection error. Please try again.");
+    });
 }
 
-function saveAttendance(user, resolvedAction) {
+function saveAttendance(user, action) {
     if (!libraryID) return;
     if (user.classification !== "GUEST" && !user.id_number) return;
-
-    const actionLabel = resolvedAction === "checkin" ? "checked in" : "checked out";
-    showMessage("success", `<strong>${user.name}</strong> successfully ${actionLabel}.`, 2000);
 
     $.ajax({
         type: "POST",
         url: BACKEND,
         data: {
             request: "getSaveAttendance",
-            action: resolvedAction,
+            action: action,
             idNumber: user.id_number,
             sectionID: libraryID,
             classification: user.classification || "STUDENT",
@@ -426,33 +421,27 @@ function saveAttendance(user, resolvedAction) {
         },
         success: function (response) {
             if (response.error) { showMessage("error", response.error); return; }
+            //  Success message AFTER DB confirms — not before 
+            const label = action === "checkin" ? "checked in" : "checked out";
+            showMessage("success", `<strong>${user.name}</strong> successfully ${label}.`, 2000);
             loadKPI();
             $("#inputIDNumber").val("");
         },
-        error: function () { alert("Connection error."); }
+        error: function () {
+            showMessage("error", "Connection error. Please try again.");
+        }
     });
 }
 
-function updateGuestUI() {
-    const guestCount = $("#guestCheckoutList .guest-row").length;
-    const guestLabel = guestCount === 1 ? "guest" : "guests";
-    $("#dynamicModal .badge.rounded-pill").text(`${guestCount} ${guestLabel}`);
-    $("#guestEmptyState").toggle(guestCount === 0);
-    $("#guestSearchInput").trigger("input");
-}
-
-// ── Event handlers ────────────────────────────────────────────────────────────
-
-// ID form submit
-$(document).on("submit.libLogs", "#logForm", function (event) {
-    event.preventDefault();
-    const idNumber = $("#inputIDNumber").val().trim();
-    if (!idNumber) { alert("Please enter an Identification Number."); return; }
-
+//  Form submit 
+$("#logForm").off("submit.libLogs").on("submit.libLogs", function (e) {
+    e.preventDefault();
+    const id = $("#inputIDNumber").val().trim();
+    if (!id) { alert("Please enter an Identification Number."); return; }
     $.ajax({
         type: "POST",
         url: BACKEND,
-        data: { request: "getValidateUser", idNumber: idNumber },
+        data: { request: "getValidateUser", idNumber: id },
         success: function (response) {
             if (response.error) {
                 alert("No record found for that ID number.");
@@ -471,120 +460,98 @@ $(document).on("submit.libLogs", "#logForm", function (event) {
     });
 });
 
-// Confirm attendance — action is read from button data, not a shared variable
+//  Confirm attendance 
 $(document).on("click.libLogs", "#confirmAttendance", function () {
-    if (!currentUser) return;
-    saveAttendance(currentUser, $(this).data("resolved-action"));
+    if (!currentUser || !currentAction) return;
+    saveAttendance(currentUser, currentAction);   // reads module-level, no .data() needed
 });
 
-// Secret key for duplicate users
+//  Duplicate ID secret key 
 $(document).on("input.libLogs", "#modalSecretKey", function () {
     const digits = $(this).val().replace(/\D/g, "").substring(0, 8);
     const formatted = digits.length > 4 ? `${digits.slice(0,2)}/${digits.slice(2,4)}/${digits.slice(4)}`
                     : digits.length > 2 ? `${digits.slice(0,2)}/${digits.slice(2)}`
                     : digits;
     $(this).val(formatted);
-
     if (digits.length < 8) {
         $("#verifiedStudentContainer").hide().empty();
         $("#secretKeyStatus").html(`<span class="text-muted"><i class="fas fa-info-circle me-1"></i>Enter birth date (MM/DD/YYYY)</span>`);
         return;
     }
-
-    const matchedUser = duplicates.find(function (candidate) {
-        return candidate.secretKey?.replace(/\D/g, "") === digits;
-    });
-
-    if (matchedUser) {
-        currentUser = matchedUser;
+    const match = duplicates.find(c => c.secretKey?.replace(/\D/g, "") === digits);
+    if (match) {
+        currentUser = match;
         $("#secretKeyStatus").html(`<span class="text-success"><i class="fas fa-check-circle me-1"></i>Identity verified</span>`);
         $("#verifiedStudentContainer").show();
-        checkAndShowAttendance(matchedUser);
+        checkAndShowAttendance(match);
     } else {
         $("#secretKeyStatus").html(`<span class="text-danger"><i class="fas fa-exclamation-circle me-1"></i>Invalid key — try again</span>`);
         $("#verifiedStudentContainer").hide().empty();
     }
 });
 
-// Toggle ID visibility
-$(document).on("click.libLogs", "#toggleIdVisibility", function () {
-    const inputField = $("#inputIDNumber");
-    const isHidden = inputField.attr("type") === "password";
-    inputField.attr("type", isHidden ? "text" : "password");
-    $("#toggleIcon").toggleClass("fa-eye fa-eye-slash");
+//  Toggle ID visibility 
+$("#toggleIdVisibility").off("click.libLogs").on("click.libLogs", function () {
+    const $input = $("#inputIDNumber");
+    const isHidden = $input.attr("type") === "password";
+    $input.attr("type", isHidden ? "text" : "password");
+    $("#toggleIcon").toggleClass("fa-eye", !isHidden).toggleClass("fa-eye-slash", isHidden);
 });
 
-// Toggle secret key visibility
+//  Toggle secret key visibility 
 $(document).on("click.libLogs", "#toggleSecretKey", function () {
-    const inputField = $("#modalSecretKey");
-    const isHidden = inputField.attr("type") === "password";
-    inputField.attr("type", isHidden ? "text" : "password");
-    $("#secretIcon").toggleClass("fa-eye fa-eye-slash");
+    const $input = $("#modalSecretKey");
+    const isHidden = $input.attr("type") === "password";
+    $input.attr("type", isHidden ? "text" : "password");
+    $("#secretIcon").toggleClass("fa-eye", !isHidden).toggleClass("fa-eye-slash", isHidden);
 });
 
-// Guest check-in modal
-$(document).on("click.libLogs", "#guestCheckIn", function () {
+//  Guest check-in 
+$("#guestCheckIn").off("click.libLogs").on("click.libLogs", function () {
     if (!libraryID) { alert("Library section not loaded yet."); return; }
     $.ajax({
         type: "POST",
         url: BACKEND,
         data: { request: "guestCheckIn", libraryName: libraryName },
         success: function (response) {
-            if (response.success) {
-                showModal("Guest Check-In", response.body, response.footer);
-            } else {
-                alert(response.error || "Failed to load guest form.");
-            }
+            if (response.success) showModal("Guest Check-In", response.body, response.footer);
+            else alert(response.error || "Failed to load guest form.");
         },
         error: function () { alert("Connection error."); }
     });
 });
 
-// Confirm guest check-in
 $(document).on("click.libLogs", "#confirmGuestCheckIn", function () {
-    const guestName = $("#guestName").val().trim();
-    const guestSex = $("#guestSex").val();
-    const guestOrganization = $("#guestAgency").val().trim();
-    if (!guestName)
-        { alert("Guest name is required.");
-    return; 
-    } if (!guestSex)
-        { alert("Please select a sex.");
-        return; 
-    } if (!guestOrganization)
-        { alert("Agency / Organization required."); 
-        return;
-    }
+    const name = $("#guestName").val().trim();
+    const sex = $("#guestSex").val();
+    const organization = $("#guestAgency").val().trim();
+    if (!name) { alert("Guest name is required."); return; }
+    if (!sex) { alert("Please select a sex."); return; }
+    if (!organization) { alert("Agency / Organization required."); return; }
     saveAttendance({
-        id_number: "",
-        name: guestName,
+        id_number: "", name,
         classification: "GUEST",
-        college: "",
-        course: "",
-        sex: guestSex,
-        agency_organization: guestOrganization
+        college: "", course: "", sex,
+        agency_organization: organization
     }, "checkin");
 });
 
-// Guest check-out modal
-$(document).on("click.libLogs", "#guestCheckOut", function () {
+//  Guest check-out modal 
+$("#guestCheckOut").off("click.libLogs").on("click.libLogs", function () {
     if (!libraryID) { alert("Library section not loaded yet."); return; }
     $.ajax({
         type: "POST",
         url: BACKEND,
         data: { request: "getGuestCheckoutModal", sectionID: libraryID, libraryName: libraryName },
         success: function (response) {
-            if (response.success) {
-                showModal("Guest Check-Out", response.body, response.footer);
-            } else {
-                alert(response.error || "Failed to load guest list.");
-            }
+            if (response.success) showModal("Guest Check-Out", response.body, response.footer);
+            else alert(response.error || "Failed to load guest list.");
         },
         error: function () { alert("Connection error."); }
     });
 });
 
-// Guest check-out action
+//  Individual guest checkout 
 $(document).on("click.libLogs", ".btn-guest-checkout", function () {
     const logID = $(this).data("logid");
     const guestName = $(this).data("name");
@@ -597,38 +564,33 @@ $(document).on("click.libLogs", ".btn-guest-checkout", function () {
             if (response.error) { alert(response.error); return; }
             $(`.btn-guest-checkout[data-logid="${logID}"]`)
                 .closest(".guest-row")
-                .fadeOut(200, function () {
-                    $(this).remove();
-                    updateGuestUI();
-                });
-            const successAlert = $(`
-                <div class="alert alert-success py-2 px-3 mb-2 text-center">
-                    <i class="fas fa-check-circle me-1"></i>
-                    <strong>${guestName}</strong> successfully checked out.
-                </div>
-            `).prependTo("#guestCheckoutList");
-            setTimeout(function () {
-                successAlert.fadeOut(400, function () { successAlert.remove(); });
-            }, 2000);
+                .fadeOut(200, function () { $(this).remove(); updateGuestUI(); });
+            $(`<div class="alert alert-success py-2 px-3 mb-2 text-center">
+                   <i class="fas fa-check-circle me-1"></i>
+                   <strong>${guestName}</strong> successfully checked out.
+               </div>`)
+                .prependTo("#guestCheckoutList")
+                .delay(2000)
+                .fadeOut(400, function () { $(this).remove(); });
             loadKPI();
         },
         error: function () { alert("Connection error."); }
     });
 });
 
-// Guest search
+//  Guest search 
 $(document).on("input.libLogs", "#guestSearchInput", function () {
-    const searchQuery = $(this).val().toLowerCase().trim();
-    let visibleCount = 0;
+    const query = $(this).val().toLowerCase().trim();
+    let visible = 0;
     $("#guestCheckoutList .guest-row").each(function () {
-        const nameMatches = ($(this).data("name") || "").toLowerCase().includes(searchQuery);
-        $(this).toggle(nameMatches);
-        if (nameMatches) visibleCount++;
+        const matches = ($(this).data("name") || "").toLowerCase().includes(query);
+        $(this).toggle(matches);
+        if (matches) visible++;
     });
-    $("#guestNoResults").toggle(visibleCount === 0 && searchQuery !== "");
+    $("#guestNoResults").toggle(visible === 0 && query !== "");
 });
 
-// Close modal
+//  Modal close 
 $(document).on("click.libLogs",
     "#dynamicModal .btn-close, #dynamicModal [data-dismiss='modal'], #dynamicModal [data-bs-dismiss='modal']",
     hideModal
@@ -636,3 +598,6 @@ $(document).on("click.libLogs",
 
 });
 </script>
+
+
+
