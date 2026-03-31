@@ -5,7 +5,7 @@
             <div class="modal-header border-0 pb-0 position-relative">
                 <div class="w-100 text-center pe-4">
                     <h5 class="modal-title fw-bold" id="dynamicModalTitle"></h5>
-                    
+                    <small class="text-muted d-block">Please verify the information before proceeding</small>
                 </div>
                 <button type="button" class="close" data-dismiss="modal" data-bs-dismiss="modal">&times;</button>
             </div>

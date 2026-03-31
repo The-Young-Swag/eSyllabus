@@ -336,12 +336,7 @@ $.ajax({
         $("#currentLibraryDisplay").text(libraryName);
         loadKPI();
     },
-    error: function (xhr) {
-    const msg = xhr.status === 0
-        ? "Cannot reach the server. Check your connection."
-        : "A server error occurred. Please try again.";
-    showMessage("error", msg);
-}
+    error: function () { alert("Connection error."); }
 });
 
 function loadKPI() {
@@ -370,12 +365,7 @@ function loadKPI() {
             $("#topColleges").html(renderRankList(response.data.topColleges, "text-warning"));
             $("#topCourses").html(renderRankList(response.data.topCourses, "text-info"));
         },
-        error: function (xhr) {
-    const msg = xhr.status === 0
-        ? "Cannot reach the server. Check your connection."
-        : "A server error occurred. Please try again.";
-    showMessage("error", msg);
-}
+        error: function () { alert("Connection error."); }
     });
 }
 
@@ -439,17 +429,12 @@ function saveAttendance(user, resolvedAction) {
             loadKPI();
             $("#inputIDNumber").val("");
         },
-        error: function (xhr) {
-    const msg = xhr.status === 0
-        ? "Cannot reach the server. Check your connection."
-        : "A server error occurred. Please try again.";
-    showMessage("error", msg);
-}
+        error: function () { alert("Connection error."); }
     });
 }
 
 function updateGuestUI() {
-    const guestCount = $("#guestCheckOutList .guest-row").length;
+    const guestCount = $("#guestCheckoutList .guest-row").length;
     const guestLabel = guestCount === 1 ? "guest" : "guests";
     $("#dynamicModal .badge.rounded-pill").text(`${guestCount} ${guestLabel}`);
     $("#guestEmptyState").toggle(guestCount === 0);
@@ -482,12 +467,7 @@ $(document).on("submit.libLogs", "#logForm", function (event) {
             currentUser = response.data;
             checkAndShowAttendance(response.data);
         },
-        error: function (xhr) {
-    const msg = xhr.status === 0
-        ? "Cannot reach the server. Check your connection."
-        : "A server error occurred. Please try again.";
-    showMessage("error", msg);
-}
+        error: function () { alert("Connection error."); }
     });
 });
 
@@ -556,28 +536,19 @@ $(document).on("click.libLogs", "#guestCheckIn", function () {
                 alert(response.error || "Failed to load guest form.");
             }
         },
-        error: function (xhr) {
-    const msg = xhr.status === 0
-        ? "Cannot reach the server. Check your connection."
-        : "A server error occurred. Please try again.";
-    showMessage("error", msg);
-}
+        error: function () { alert("Connection error."); }
     });
 });
 
 // Confirm guest check-in
 $(document).on("click.libLogs", "#confirmGuestCheckIn", function () {
-    const guestFirst = $("#guestFirstName").val().trim();
-    const guestMI    = $("#guestMiddleInitial").val().trim().replace(/\.+$/, "");
-    const guestLast  = $("#guestLastName").val().trim();
-    const guestName  = guestMI
-    ? `${guestFirst} ${guestMI}. ${guestLast}`
-    : `${guestFirst} ${guestLast}`;
+    const guestName = $("#guestName").val().trim();
     const guestSex = $("#guestSex").val();
     const guestOrganization = $("#guestAgency").val().trim();
-    if (!guestFirst) { alert("First name is required."); return; }
-    if (!guestLast)  { alert("Last name is required.");  return; } 
-    if (!guestSex)
+    if (!guestName)
+        { alert("Guest name is required.");
+    return; 
+    } if (!guestSex)
         { alert("Please select a sex.");
         return; 
     } if (!guestOrganization)
@@ -601,7 +572,7 @@ $(document).on("click.libLogs", "#guestCheckOut", function () {
     $.ajax({
         type: "POST",
         url: BACKEND,
-        data: { request: "getGuestCheckOutModal", sectionID: libraryID, libraryName: libraryName },
+        data: { request: "getGuestCheckoutModal", sectionID: libraryID, libraryName: libraryName },
         success: function (response) {
             if (response.success) {
                 showModal("Guest Check-Out", response.body, response.footer);
@@ -609,12 +580,7 @@ $(document).on("click.libLogs", "#guestCheckOut", function () {
                 alert(response.error || "Failed to load guest list.");
             }
         },
-        error: function (xhr) {
-    const msg = xhr.status === 0
-        ? "Cannot reach the server. Check your connection."
-        : "A server error occurred. Please try again.";
-    showMessage("error", msg);
-}
+        error: function () { alert("Connection error."); }
     });
 });
 
@@ -626,7 +592,7 @@ $(document).on("click.libLogs", ".btn-guest-checkout", function () {
     $.ajax({
         type: "POST",
         url: BACKEND,
-        data: { request: "guestCheckOut", logID: logID, sectionID: libraryID },
+        data: { request: "guestCheckout", logID: logID, sectionID: libraryID },
         success: function (response) {
             if (response.error) { alert(response.error); return; }
             $(`.btn-guest-checkout[data-logid="${logID}"]`)
@@ -640,18 +606,13 @@ $(document).on("click.libLogs", ".btn-guest-checkout", function () {
                     <i class="fas fa-check-circle me-1"></i>
                     <strong>${guestName}</strong> successfully checked out.
                 </div>
-            `).prependTo("#guestCheckOutList");
+            `).prependTo("#guestCheckoutList");
             setTimeout(function () {
                 successAlert.fadeOut(400, function () { successAlert.remove(); });
             }, 2000);
             loadKPI();
         },
-        error: function (xhr) {
-    const msg = xhr.status === 0
-        ? "Cannot reach the server. Check your connection."
-        : "A server error occurred. Please try again.";
-    showMessage("error", msg);
-}
+        error: function () { alert("Connection error."); }
     });
 });
 
@@ -659,7 +620,7 @@ $(document).on("click.libLogs", ".btn-guest-checkout", function () {
 $(document).on("input.libLogs", "#guestSearchInput", function () {
     const searchQuery = $(this).val().toLowerCase().trim();
     let visibleCount = 0;
-    $("#guestCheckOutList .guest-row").each(function () {
+    $("#guestCheckoutList .guest-row").each(function () {
         const nameMatches = ($(this).data("name") || "").toLowerCase().includes(searchQuery);
         $(this).toggle(nameMatches);
         if (nameMatches) visibleCount++;

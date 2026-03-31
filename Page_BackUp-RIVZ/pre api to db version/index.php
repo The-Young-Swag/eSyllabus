@@ -1,74 +1,64 @@
-<?php
-session_start();
-include "db/dbconnection.php";
-
-// ── Pull sync helper ──────────────────────────────────────────────────────────
-include "syncAPIToDatabase.php";   // adjust path to wherever you placed the file
-
-// ── Fetch from upstream APIs ──────────────────────────────────────────────────
-$student  = curl_init();
+<?php 
+session_start(); // REQUIRED
+$student = curl_init();
 $employee = curl_init();
 
 curl_setopt_array($student, [
-    CURLOPT_URL            => 'http://tau.edu.ph:8087/ProxyTAUService/studentLibrary',
-    CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_CUSTOMREQUEST  => 'POST',
-    CURLOPT_POSTFIELDS     => json_encode([
-        "UserAccount" => "LibrarySys",
-        "Password"    => "libraryAPI",
-        "deviceUUID"  => "LibSys",
-    ]),
-    CURLOPT_HTTPHEADER => [
-        'Content-Type: application/json',
-        'Authorization: Bearer accessLibrary',
-    ],
+  CURLOPT_URL => 'http://tau.edu.ph:8087/ProxyTAUService/studentLibrary',
+  CURLOPT_RETURNTRANSFER => true,
+  CURLOPT_CUSTOMREQUEST => 'POST',
+  CURLOPT_POSTFIELDS => json_encode([
+      "UserAccount" => "LibrarySys",
+      "Password" => "libraryAPI",
+      "deviceUUID" => "LibSys"
+  ]),
+  CURLOPT_HTTPHEADER => [
+      'Content-Type: application/json',
+      'Authorization: Bearer accessLibrary'
+  ],
 ]);
-
 curl_setopt_array($employee, [
-    CURLOPT_URL            => 'http://tau.edu.ph:8087/ProxyTAUService/employeeLibrary',
-    CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_CUSTOMREQUEST  => 'POST',
-    CURLOPT_POSTFIELDS     => json_encode([
-        "UserAccount" => "LibrarySys",
-        "Password"    => "libraryAPI",
-        "deviceUUID"  => "LibSys",
-    ]),
-    CURLOPT_HTTPHEADER => [
-        'Content-Type: application/json',
-        'Authorization: Bearer accessLibrary',
-    ],
+  CURLOPT_URL => 'http://tau.edu.ph:8087/ProxyTAUService/employeeLibrary',
+  CURLOPT_RETURNTRANSFER => true,
+  CURLOPT_CUSTOMREQUEST => 'POST',
+  CURLOPT_POSTFIELDS => json_encode([
+      "UserAccount" => "LibrarySys",
+      "Password" => "libraryAPI",
+      "deviceUUID" => "LibSys"
+  ]),
+  CURLOPT_HTTPHEADER => [
+      'Content-Type: application/json',
+      'Authorization: Bearer accessLibrary'
+  ],
 ]);
 
-$studentResponse  = curl_exec($student);
+$studentResponse = curl_exec($student);
+
+// Check for cURL execution errors first
+if ($studentResponse === false) {
+    die("Student API cURL Error: " . curl_error($student));
+}
+
+// THEN check HTTP response code
+$httpCode = curl_getinfo($student, CURLINFO_HTTP_CODE);
+
+
 $employeeResponse = curl_exec($employee);
 
-$studentOk  = $studentResponse  !== false;
-$employeeOk = $employeeResponse !== false;
+if ($employeeResponse === false) {
+    die("Employee API cURL Error: " . curl_error($employee));
+}
 
-if (!$studentOk)  error_log("Student API cURL Error: "  . curl_error($student));
-if (!$employeeOk) error_log("Employee API cURL Error: " . curl_error($employee));
+$httpCodeEmp = curl_getinfo($employee, CURLINFO_HTTP_CODE);
+
 
 curl_close($student);
 curl_close($employee);
 
-// ── Cache in session (keep whatever was there if the call failed) ─────────────
-if ($studentOk)  $_SESSION["studentAPI"]  = $studentResponse;
-if ($employeeOk) $_SESSION["employeeAPI"] = $employeeResponse;
-
-// ── Sync fresh API data to DB for offline fallback ────────────────────────────
-// Only runs when at least one API actually returned something.
-// Uses the freshly-fetched strings, not the session, so stale session data
-// from a previous load can never overwrite newer DB rows.
-if ($studentOk || $employeeOk) {
-    syncAPIToDatabase(
-        $studentOk  ? $studentResponse  : "[]",
-        $employeeOk ? $employeeResponse : "[]",
-        dbconES()   // your existing PDO factory
-    );
-}
-
+// store the **JSON strings**, not the cURL handles
+$_SESSION["studentAPI"] = $studentResponse;
+$_SESSION["employeeAPI"] = $employeeResponse;
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>

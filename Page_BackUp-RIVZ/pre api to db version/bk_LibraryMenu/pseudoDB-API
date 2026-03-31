@@ -1,0 +1,263 @@
+<?php 
+session_start();
+include "../../db/dbconnection.php";
+date_default_timezone_set("Asia/Manila");
+header("Content-Type: application/json");
+
+$student = $_SESSION["studentAPI"];
+$employee = $_SESSION["employeeAPI"];
+
+/**
+ * -- AUTOMATED API TO DATABASE SAVING
+ * -- UPON LOAD - IT QUERIES AND SAVE API TO DATABASE
+ * -- SHOULD DETECT ANY CHANGES AND UPDATE THE AFFECTED DATA IN DATABASE IF A STUDENT CHANGES ITS DATA
+ * 1--FETCH THE API
+ * 2--MAP THE STUDENT AND EMPLOYEE
+ * 3--RESOLVE THE ID 
+ * 4--INSERT TO THEIR RESPECTIVE DATABASE
+ * 
+ * 
+ * 
+ * 
+ * 
+ * 
+ * 
+ */
+
+function mapStudent(array $student): array
+{
+    $status = strtoupper(trim($student["enrollment_status"] ?? ""));
+    $isGuest = $status === "NOT ENROLLED";
+    $college = $student["college"] ?? "";
+    $course = $student["course"]  ?? "";
+
+    return [
+        "id_number" => $student["id_number"] ?? "",
+        "name" => $student["name"] ?? "",
+        "sex" => $student["sex"] ?? null,
+        "college" => $college,
+        "course" => $course,
+        "classification" => $isGuest ? "GUEST" : "STUDENT",
+        "secretKey" => $student["birthDate"] ?? null,
+        "agency_organization" => $isGuest ? trim("{$college} - {$course}", " -") : "",
+    ];
+}
+
+function mapEmployee(array $employee): array
+{
+    return [
+        "id_number" => $employee["employee_number"] ?? $employee["id_number"] ?? "",
+        "name" => $employee["name"] ?? "",
+        "sex" => $employee["sex"]  ?? null,
+        "college" => "",
+        "course" => "",
+        "classification" => "EMPLOYEE",
+        "secretKey" => null,
+    ];
+}
+
+
+
+//VALIDATION SECTION
+function resolveUserById(string $id): array
+{
+    global $USER_SOURCE;
+
+    $id = strtoupper(trim($id)); // normalize input
+
+// Define all employee prefixes
+    $employeePrefixes = ["TAU", "JO"];
+
+// Determine group based on prefix
+    $group = "students"; // default
+    foreach ($employeePrefixes as $prefix) {
+        if (str_starts_with($id, $prefix)) {
+            $group = "employees";
+            break;
+        }
+    }
+
+    $jsonData = $USER_SOURCE[$group] ?? null;
+    if (!is_array($jsonData)) return [];
+
+// Normalize JSON structure
+    $records = isset($jsonData[0])
+        ? $jsonData
+        : ($jsonData["data"]
+        ?? $jsonData["employees"]
+        ?? $jsonData["students"]
+        ?? $jsonData["records"]
+        ?? $jsonData["items"]
+        ?? []);
+
+    $mapper  = $group === "employees" ? "mapEmployee" : "mapStudent";
+    $matches = [];
+
+    foreach ($records as $record) {
+        $user = $mapper($record);
+        if (strtoupper(trim($user["id_number"])) === $id) {
+            $matches[] = $user;
+        }
+    }
+
+    return $matches;
+}
+
+//SAVE TO DATABASE
+function saveAPItoDB(PDO $pdo, string $idNumber)
+{
+    $matches = resolveUserById($idNumber);
+
+    if (empty($matches)) {
+        // optional retry ONCE
+        sleep(1);
+        $matches = resolveUserById($idNumber);
+    }
+    
+    if (empty($matches)) {
+        return ["error" => "User not found"];
+    }
+
+// Determine table + key
+    $isEmployee = $user["classification"] === "EMPLOYEE";
+
+    $table = $isEmployee ? "employeeData" : "studentData";
+    $idCol = $isEmployee ? "empNumber" : "studNumber";
+
+    // Check if exists
+    $stmt = $pdo->prepare("SELECT * FROM $table WHERE $idCol = :id");
+    $stmt->execute([":id" => $user["id_number"]]);
+    $existing = $stmt->fetch(PDO::FETCH_ASSOC);
+
+// =========================
+// IF EXISTS → UPDATE IF CHANGED
+// =========================
+    if ($existing) {
+
+        $hasChanges = false;
+        $fields = [];
+
+        if ($existing["name"] !== $user["name"]) {
+            $fields["name"] = $user["name"];
+            $hasChanges = true;
+        }
+        if ($existing["sex"] !== $user["sex"]) {
+            $fields["sex"] = $user["sex"];
+            $hasChanges = true;
+        }
+        // Student-only fields
+        if (!$isEmployee) {
+
+            if ($existing["college"] !== $user["college"]) {
+                $fields["college"] = $user["college"];
+                $hasChanges = true;
+            }
+            if ($existing["course"] !== $user["course"]) {
+                $fields["course"] = $user["course"];
+                $hasChanges = true;
+            }
+            if ($existing["enrollment_status"] !== $user["classification"]) {
+                $fields["enrollment_status"] = $user["classification"];
+                $hasChanges = true;
+            }
+            if ($existing["birthDate"] !== $user["secretKey"]) {
+                $fields["birthDate"] = $user["secretKey"];
+                $hasChanges = true;
+            }
+        }
+
+	// UPDATE ONLY IF THERE ARE CHANGES
+        if ($hasChanges) {
+
+            $setParts = [];
+            foreach ($fields as $col => $val) {
+                $setParts[] = "$col = :$col";
+            }
+
+            $sql = "UPDATE $table SET " . implode(", ", $setParts) . " WHERE $idCol = :id";
+
+            $stmt = $pdo->prepare($sql);
+            $fields[":id"] = $user["id_number"];
+
+            $stmt->execute($fields);
+
+            return ["updated" => true];
+        }
+
+        return ["message" => "No changes"];
+    }
+
+    // =========================
+    // IF NOT EXISTS → INSERT
+    // =========================
+    if ($isEmployee) {
+
+        $stmt = $pdo->prepare("
+            INSERT INTO employeeData (empNumber, name, sex)
+            VALUES (:id, :name, :sex)
+        ");
+
+        $stmt->execute([
+            ":id" => $user["id_number"],
+            ":name" => $user["name"],
+            ":sex" => $user["sex"],
+        ]);
+
+    } else {
+
+        $stmt = $pdo->prepare("
+            INSERT INTO studentData 
+            (studNumber, name, sex, college, course, enrollment_status, birthDate)
+            VALUES (:id, :name, :sex, :college, :course, :status, :birthDate)
+        ");
+
+        $stmt->execute([
+            ":id" => $user["id_number"],
+            ":name" => $user["name"],
+            ":sex" => $user["sex"],
+            ":college" => $user["college"],
+            ":course" => $user["course"],
+            ":status" => $user["classification"],
+            ":birthDate" => $user["secretKey"],
+        ]);
+    }
+
+    return ["inserted" => true];
+}
+    
+// function saveAPItoDB(){
+
+// $params = [
+//     ":idNumber" => $idNumber,
+//     ":name" => $user["name"],
+
+// ];
+
+// $stmt = $pdo->prepare("
+//     SELECT 'student' AS type, COUNT(*) AS total FROM studentData WHERE id_number = :idNumber
+//     UNION ALL
+//     SELECT 'employee' AS type, COUNT(*) AS total FROM employeetData WHERE id_number = :idNumber
+// ");
+
+// $stmt->execute(['idNumber' => $idNumber]);
+// $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// $stmt->execute($params);
+// if ((int) $stmt->fetchColumn() > 0) return;
+
+// execsqlSRS("
+// INSERT INTO studentData (studNumber, name, sex, college, 
+//                      course, enrollment_status, birthDate) 
+// VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+// ", "Insert", [$stud_Number, $name, $sex, $college, $course, $enrollment_status, $birthDate]);
+
+
+// execsqlSRS("
+// INSERT INTO employeeData (empNumber, name, sex) 
+// VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+// ", "Insert", [$employee_Number, $name, $sex]);
+
+
+// }
+
+

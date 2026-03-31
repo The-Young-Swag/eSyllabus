@@ -13,11 +13,8 @@ if ($_SERVER["REQUEST_METHOD"] !== "POST") {
     echo json_encode(["error" => "Invalid request method."]); exit;
 }
 
-//null for offline
-//means if the session key doesn't exist, it silently returns null instead of emitting a notice. 
-//json_decode(null, true) returns null, which resolveUserById() already handles correctly by falling through to the DB fallback.
-$student  = $_SESSION["studentAPI"]  ?? null;
-$employee = $_SESSION["employeeAPI"] ?? null;
+$student = $_SESSION["studentAPI"];
+$employee = $_SESSION["employeeAPI"];
 $now = date("Y-m-d H:i:s");
 
 $USER_SOURCE = [
@@ -32,111 +29,49 @@ const ACTION_CONFIG = [
 ];
 
 //VALIDATION SECTION
-function resolveUserFromDatabase(string $id, string $group): array
-{
-    $pdo = dbconES();
-
-    if ($group === "employees") {
-        $stmt = $pdo->prepare("
-            SELECT empNumber AS id_number, name, sex
-            FROM   employeeData
-            WHERE  empNumber = :id
-        ");
-
-        $stmt->execute([":id" => $id]);
-        $employeeRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-        return array_map(fn($employee) => [
-            "id_number"           => $employee["id_number"],
-            "name"                => $employee["name"],
-            "sex"                 => $employee["sex"] ?? null,
-            "college"             => "",
-            "course"              => "",
-            "classification"      => "EMPLOYEE",
-            "secretKey"           => null,
-            "agency_organization" => "",
-        ], $employeeRows);
-    }
-
-    // Students
-    $stmt = $pdo->prepare("
-        SELECT studNumber AS id_number, name, sex,
-               college, course, enrollment_status, birthDate
-        FROM   studentData
-        WHERE  studNumber = :id
-    ");
-
-    $stmt->execute([":id" => $id]);
-    $studentRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    return array_map(fn($student) => [
-        "id_number"           => $student["id_number"],
-        "name"                => $student["name"],
-        "sex"                 => $student["sex"] ?? null,
-        "college"             => $student["college"] ?? "",
-        "course"              => $student["course"] ?? "",
-        "classification"      => $student["enrollment_status"] ?? "STUDENT",
-        "secretKey"           => $student["birthDate"] ?? null,
-        "agency_organization" => "",
-    ], $studentRows);
-}
- 
-// ─────────────────────────────────────────────────────────────────────────────
-// REPLACE your existing resolveUserById() with this version
-// Only two lines changed — marked with  ← ADDED
-// ─────────────────────────────────────────────────────────────────────────────
- 
 function resolveUserById(string $id): array
 {
     global $USER_SOURCE;
 
-    $inputId = strtoupper(trim($id));
+    $id = strtoupper(trim($id)); // normalize input
 
+    // Define all employee prefixes
     $employeePrefixes = ["TAU", "JO"];
-    $group = "students";
 
+    // Determine group based on prefix
+    $group = "students"; // default
     foreach ($employeePrefixes as $prefix) {
-        if (str_starts_with($inputId, $prefix)) {
+        if (str_starts_with($id, $prefix)) {
             $group = "employees";
             break;
         }
     }
 
-    $sourceData = $USER_SOURCE[$group] ?? null;
+    $jsonData = $USER_SOURCE[$group] ?? null;
+    if (!is_array($jsonData)) return [];
 
-    // API missing → fallback to DB
-    if (!is_array($sourceData) || empty($sourceData)) {
-        return resolveUserFromDatabase($id, $group);
-    }
-
-    $records = isset($sourceData[0])
-        ? $sourceData
-        : ($sourceData["data"]
-        ?? $sourceData["employees"]
-        ?? $sourceData["students"]
-        ?? $sourceData["records"]
-        ?? $sourceData["items"]
+    // Normalize JSON structure
+    $records = isset($jsonData[0])
+        ? $jsonData
+        : ($jsonData["data"]
+        ?? $jsonData["employees"]
+        ?? $jsonData["students"]
+        ?? $jsonData["records"]
+        ?? $jsonData["items"]
         ?? []);
 
-    $mapFunction = $group === "employees" ? "mapEmployee" : "mapStudent";
-    $matchedUsers = [];
+    $mapper  = $group === "employees" ? "mapEmployee" : "mapStudent";
+    $matches = [];
 
     foreach ($records as $record) {
-        $mappedUser = $mapFunction($record);
-
-        if (strtoupper(trim($mappedUser["id_number"])) === $inputId) {
-            $matchedUsers[] = $mappedUser;
+        $user = $mapper($record);
+        if (strtoupper(trim($user["id_number"])) === $id) {
+            $matches[] = $user;
         }
     }
 
-    // Not found in API → fallback to DB
-    if (empty($matchedUsers)) {
-        return resolveUserFromDatabase($inputId, $group);
-    }
-
-    return $matchedUsers;
+    return $matches;
 }
- 
 // function resolveUserById(string $id): array
 // {
 //     global $USER_SOURCE;
@@ -202,7 +137,7 @@ function mapEmployee(array $employee): array
 
 // Skips silently if already checked in here; auto-closes any other open session
 // (switch scenario); then inserts a new log entry.
-function performCheckin(PDO $pdo, string $idNumber, int $libraryID, string $now, array $user)
+function performCheckin(PDO $pdo, string $idNumber, int $sectionID, string $now, array $user)
 {
     $start = date("Y-m-d 00:00:00");
     $end = date("Y-m-d 00:00:00", strtotime("+1 day"));
@@ -210,7 +145,7 @@ function performCheckin(PDO $pdo, string $idNumber, int $libraryID, string $now,
     $params = [
         ":idNumber" => $idNumber,
         ":name" => $user["name"],
-        ":sectionID" => $libraryID,
+        ":sectionID" => $sectionID,
         ":start" => $start,
         ":end" => $end,
     ];
@@ -251,14 +186,14 @@ function performCheckin(PDO $pdo, string $idNumber, int $libraryID, string $now,
         ":classification" => $user["classification"],
         ":college" => $user["college"],
         ":course" => $user["course"],
-        ":sectionID" => $libraryID,
+        ":sectionID" => $sectionID,
         ":now" => $now,
         ":sex" => $user["sex"],
         ":agency" => $user["agency_organization"] ?? "",
     ]);
 }
 
-function performCheckout(PDO $pdo, string $idNumber, int $libraryID, string $now)
+function performCheckout(PDO $pdo, string $idNumber, int $sectionID, string $now)
 {
     $start = date("Y-m-d 00:00:00");
     $end = date("Y-m-d 00:00:00", strtotime("+1 day"));
@@ -275,14 +210,14 @@ function performCheckout(PDO $pdo, string $idNumber, int $libraryID, string $now
     $stmt->execute([
         ":now" => $now,
         ":idNumber" => $idNumber,
-        ":sectionID" => $libraryID,
+        ":sectionID" => $sectionID,
         ":start" => $start,
         ":end" => $end,
     ]);
 }
 
 // Every guest scan is a fresh record — id_number is '0' (no institutional ID).
-function performGuestCheckin(PDO $pdo, int $libraryID, string $now, array $user)
+function performGuestCheckin(PDO $pdo, int $sectionID, string $now, array $user)
 {
     $stmt = $pdo->prepare("
         INSERT INTO Library_logs
@@ -291,7 +226,7 @@ function performGuestCheckin(PDO $pdo, int $libraryID, string $now, array $user)
     ");
     $stmt->execute([
         ":name" => $user["name"],
-        ":sectionID" => $libraryID,
+        ":sectionID" => $sectionID,
         ":now" => $now,
         ":sex" => $user["sex"],
         ":agency" => $user["agency_organization"],
@@ -302,11 +237,11 @@ function performGuestCheckin(PDO $pdo, int $libraryID, string $now, array $user)
 
 // Uses checkin_time >= start AND < end instead of CAST()/CONVERT()
 // so SQL Server can use an index on checkin_time if one exists.
-function kpiData(PDO $pdo, int $libraryID): array
+function kpiData(PDO $pdo, int $sectionID): array
 {
     $start = date("Y-m-d 00:00:00");
     $end = date("Y-m-d 00:00:00", strtotime("+1 day"));
-    $params = [":sectionID" => $libraryID, ":start" => $start, ":end" => $end];
+    $params = [":sectionID" => $sectionID, ":start" => $start, ":end" => $end];
 
     $stmt = $pdo->prepare("
         SELECT
@@ -351,20 +286,13 @@ function GetLibraries()
     $userID = (int) ($_POST["userID"] ?? 0);
     if (!$userID) { echo json_encode(["error" => "Missing or invalid userID."]); exit; }
 
-    try {
-        $data = execsqlSRS("
-            SELECT ls.SectionID, ls.SectionName
-            FROM   LibraryAccess  la
-            JOIN   LibrarySection ls ON ls.SectionID = la.SectionID
-            WHERE  la.UserID  = ?
-              AND  ls.IsActive = 1
-        ", "Query", [$userID]);
-        echo json_encode(["success" => true, "data" => $data]);
-    } catch (Exception $e) {
-        error_log("[LibraryLogs] GetLibraries: " . $e->getMessage());
-        echo json_encode(["error" => "A database error occurred. Please try again."]);
-    }
-    exit;
+    echo json_encode(["success" => true, "data" => execsqlSRS("
+        SELECT ls.SectionID, ls.SectionName
+        FROM   LibraryAccess  la
+        JOIN   LibrarySection ls ON ls.SectionID = la.SectionID
+        WHERE  la.UserID  = ?
+          AND  ls.IsActive = 1
+    ", "Query", [$userID])]); exit;
 }
 
 function ValidateUser()
@@ -375,19 +303,15 @@ function ValidateUser()
     if (!preg_match('/^[A-Z0-9-]+$/i', $idNumber))
         { echo json_encode(["error" => "Invalid ID format."]); exit; }
 
-    try {
-        $matches = resolveUserById($idNumber);
-    } catch (Exception $e) {
-        error_log("[LibraryLogs] ValidateUser: " . $e->getMessage());
-        echo json_encode(["error" => "A database error occurred. Please try again."]); exit;
-    }
-
-    $count = count($matches);
+    $matches = resolveUserById($idNumber);
+    $count   = count($matches);
 
     if (!$count)
-        { echo json_encode(["error" => "User not found."]); exit; }
-    if ($count === 1)
-        { echo json_encode(["success" => true, "data" => $matches[0]]); exit; }
+        { echo json_encode(["error" => "User not found."]); 
+    exit; }
+    if ($count === 1) 
+        { echo json_encode(["success" => true, "data" => $matches[0]]); 
+    exit; }
 
     echo json_encode(["duplicate" => true, "matches" => $matches, "modalHTML" => buildDuplicateModal()]); exit;
 }
@@ -404,24 +328,19 @@ function CheckStatusToday()
     $start = date("Y-m-d 00:00:00");
     $end = date("Y-m-d 00:00:00", strtotime("+1 day"));
 
-    try {
-        $stmt = dbconES()->prepare("
-            SELECT TOP 1 ll.library, ls.SectionName
-            FROM Library_logs ll
-            LEFT JOIN LibrarySection ls ON ls.SectionID = ll.library
-            WHERE ll.id_number = :idNumber
-              AND ll.name = :name
-              AND ll.checkout_time IS NULL
-              AND ll.checkin_time >= :start
-              AND ll.checkin_time < :end
-            ORDER BY ll.checkin_time DESC
-        ");
-        $stmt->execute([":idNumber" => $idNumber, ":name" => $name, ":start" => $start, ":end" => $end]);
-        $session = $stmt->fetch(PDO::FETCH_ASSOC);
-    } catch (Exception $e) {
-        error_log("[LibraryLogs] CheckStatusToday: " . $e->getMessage());
-        echo json_encode(["error" => "A database error occurred. Please try again."]); exit;
-    }
+    $stmt = dbconES()->prepare("
+        SELECT TOP 1 ll.library, ls.SectionName
+        FROM Library_logs ll
+        LEFT JOIN LibrarySection ls ON ls.SectionID = ll.library
+        WHERE ll.id_number = :idNumber
+          AND ll.name = :name
+          AND ll.checkout_time IS NULL
+          AND ll.checkin_time >= :start
+          AND ll.checkin_time < :end
+        ORDER BY ll.checkin_time DESC
+    ");
+    $stmt->execute([":idNumber" => $idNumber, ":name" => $name, ":start" => $start, ":end" => $end]);
+    $session = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$session) { echo json_encode(["checkedIn" => false]); exit; }
 
@@ -494,24 +413,10 @@ function GuestCheckInModal()
         </span>
     </div>
     <div class='mb-3'>
-    <label class='text-uppercase fw-semibold mb-1' style='$labelStyle'>First Name</label>
-    <input type='text' id='guestFirstName' class='form-control'
-           placeholder='Enter first name' autocomplete='off' style='$inputStyle'>
-</div>
-<div class='row g-3 mb-3'>
-    <div class='col-4'>
-        <label class='text-uppercase fw-semibold mb-1' style='$labelStyle'>
-            M.I. <span style='font-weight:400;opacity:.55;font-size:.6rem;'>(optional)</span>
-        </label>
-        <input type='text' id='guestMiddleInitial' class='form-control text-center'
-               placeholder='A.' maxlength='2' autocomplete='off' style='$inputStyle'>
+        <label class='text-uppercase fw-semibold mb-1' style='$labelStyle'>Full Name</label>
+        <input type='text' id='guestName' class='form-control'
+               placeholder='Enter full name' autocomplete='off' style='$inputStyle'>
     </div>
-    <div class='col-8'>
-        <label class='text-uppercase fw-semibold mb-1' style='$labelStyle'>Last Name</label>
-        <input type='text' id='guestLastName' class='form-control'
-               placeholder='Enter last name' autocomplete='off' style='$inputStyle'>
-    </div>
-</div>
     <div class='row g-3'>
         <div class='col-6'>
             <label class='text-uppercase fw-semibold mb-1' style='$labelStyle'>Sex</label>
@@ -547,32 +452,27 @@ HTML;
     echo json_encode(["success" => true, "body" => $body, "footer" => $footer]); exit;
 }
 
-function GuestCheckOutModal()
+function GuestCheckoutModal()
 {
-    $libraryID = (int) ($_POST["sectionID"] ?? 0);
+    $sectionID = (int) ($_POST["sectionID"] ?? 0);
     $libraryName = htmlspecialchars((string) trim($_POST["libraryName"] ?? ""), ENT_QUOTES, "UTF-8");
-    if (!$libraryID) { echo json_encode(["error" => "Missing section ID."]); exit; }
+    if (!$sectionID) { echo json_encode(["error" => "Missing section ID."]); exit; }
 
     $start = date("Y-m-d 00:00:00");
     $end   = date("Y-m-d 00:00:00", strtotime("+1 day"));
 
-    try {
-        $stmt = dbconES()->prepare("
-            SELECT id, name, sex, agency_organization, checkin_time
-            FROM   Library_logs
-            WHERE  library = :sectionID
-              AND  classification = 'GUEST'
-              AND  checkout_time  IS NULL
-              AND  checkin_time >= :start
-              AND  checkin_time < :end
-            ORDER  BY checkin_time DESC
-        ");
-        $stmt->execute([":sectionID" => $libraryID, ":start" => $start, ":end" => $end]);
-        $guests = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    } catch (Exception $e) {
-        error_log("[LibraryLogs] GuestCheckOutModal: " . $e->getMessage());
-        echo json_encode(["error" => "A database error occurred. Please try again."]); exit;
-    }
+    $stmt = dbconES()->prepare("
+        SELECT id, name, sex, agency_organization, checkin_time
+        FROM   Library_logs
+        WHERE  library = :sectionID
+          AND  classification = 'GUEST'
+          AND  checkout_time  IS NULL
+          AND  checkin_time >= :start
+          AND  checkin_time < :end
+        ORDER  BY checkin_time DESC
+    ");
+    $stmt->execute([":sectionID" => $sectionID, ":start" => $start, ":end" => $end]);
+    $guests = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $guestRows = implode("", array_map("buildGuestRow", $guests));
     $guestCount = count($guests);
@@ -607,7 +507,7 @@ function GuestCheckOutModal()
                    placeholder='Search guest name'
                    style='padding-left:36px;border-radius:12px;height:40px;font-size:.9rem;border-color:#fca5a5;'>
         </div>
-        <div id='guestCheckOutList' style='max-height:300px;overflow-y:auto;padding-right:2px;'>
+        <div id='guestCheckoutList' style='max-height:300px;overflow-y:auto;padding-right:2px;'>
             {$guestRows}
             <div id='guestEmptyState' class='text-center text-muted py-4' style='font-size:.85rem;{$emptyStyle}'>
                 <i class='fas fa-users-slash mb-2 d-block' style='font-size:1.5rem;opacity:.35;'></i>
@@ -624,27 +524,22 @@ function GuestCheckOutModal()
     echo json_encode(["success" => true, "body" => $body, "footer" => $footer]); exit;
 }
 
-function GuestCheckOut()
+function GuestCheckout()
 {
     global $now;
     $logID = (int) ($_POST["logID"] ?? 0);
-    $libraryID = (int) ($_POST["sectionID"] ?? 0);
-    if (!$logID || !$libraryID) { echo json_encode(["error" => "Missing log ID or section ID."]); exit; }
+    $sectionID = (int) ($_POST["sectionID"] ?? 0);
+    if (!$logID || !$sectionID) { echo json_encode(["error" => "Missing log ID or section ID."]); exit; }
 
-    try {
-        $stmt = dbconES()->prepare("
-            UPDATE Library_logs
-            SET    checkout_time = :now
-            WHERE  id = :logID
-              AND  library = :sectionID
-              AND  classification = 'GUEST'
-              AND  checkout_time  IS NULL
-        ");
-        $stmt->execute([":now" => $now, ":logID" => $logID, ":sectionID" => $libraryID]);
-    } catch (Exception $e) {
-        error_log("[LibraryLogs] GuestCheckOut: " . $e->getMessage());
-        echo json_encode(["error" => "A database error occurred. Please try again."]); exit;
-    }
+    $stmt = dbconES()->prepare("
+        UPDATE Library_logs
+        SET    checkout_time = :now
+        WHERE  id = :logID
+          AND  library = :sectionID
+          AND  classification = 'GUEST'
+          AND  checkout_time  IS NULL
+    ");
+    $stmt->execute([":now" => $now, ":logID" => $logID, ":sectionID" => $sectionID]);
 
     echo json_encode(["success" => true]); exit;
 }
@@ -654,7 +549,7 @@ function SaveAttendance()
     global $now;
 
     $idNumber = trim($_POST["idNumber"] ?? "");
-    $libraryID = (int)  ($_POST["sectionID"] ?? 0);
+    $sectionID = (int)  ($_POST["sectionID"] ?? 0);
     $action = trim($_POST["action"] ?? "");
     $classification = trim($_POST["classification"] ?? "STUDENT");
 
@@ -670,7 +565,7 @@ function SaveAttendance()
     if ($classification !== "GUEST" && !$idNumber){ 
         echo json_encode(["error" => "Missing required attendance data."]); 
     exit; }
-    if (!$libraryID || !$action){ 
+    if (!$sectionID || !$action){ 
         echo json_encode(["error" => "Missing required attendance data."]); 
     exit; }
     if ($idNumber && !preg_match('/^[A-Z0-9-]+$/i', $idNumber)) { 
@@ -688,11 +583,11 @@ function SaveAttendance()
         $isRealGuest = empty($idNumber);
 
         if ($isRealGuest) {
-            performGuestCheckin($pdo, $libraryID, $now, $user);
+            performGuestCheckin($pdo, $sectionID, $now, $user);
         } elseif ($action === "checkin") {
-            performCheckin($pdo, $idNumber, $libraryID, $now, $user);
+            performCheckin($pdo, $idNumber, $sectionID, $now, $user);
         } else {
-            performCheckout($pdo, $idNumber, $libraryID, $now);
+            performCheckout($pdo, $idNumber, $sectionID, $now);
         }
 
         $pdo->commit();
@@ -708,17 +603,10 @@ function SaveAttendance()
 
 function ShowKPI()
 {
-    $libraryID = (int) ($_POST["sectionID"] ?? 0);
-    if (!$libraryID) { echo json_encode(["error" => "Missing or invalid sectionID."]); exit; }
+    $sectionID = (int) ($_POST["sectionID"] ?? 0);
+    if (!$sectionID) { echo json_encode(["error" => "Missing or invalid sectionID."]); exit; }
 
-    try {
-        $data = kpiData(dbconES(), $libraryID);
-        echo json_encode(["success" => true, "data" => $data]);
-    } catch (Exception $e) {
-        error_log("[LibraryLogs] ShowKPI: " . $e->getMessage());
-        echo json_encode(["error" => "A database error occurred. Please try again."]);
-    }
-    exit;
+    echo json_encode(["success" => true, "data" => kpiData(dbconES(), $sectionID)]); exit;
 }
 
 //  HTML BUILDERS 
@@ -741,20 +629,17 @@ function buildAttendanceModal(
             <div class='col-7'>{$value}</div>
          </div>";
 
-         $rows = "";
-         if (!$isGuest) {
-             $rows .= $buildRow("ID",   htmlspecialchars((string) ($user["id_number"]     ?? ""),    ENT_QUOTES, "UTF-8"));
-         }
-         $rows .= $buildRow("Name", htmlspecialchars((string) ($user["name"]           ?? ""),    ENT_QUOTES, "UTF-8"));
-         $rows .= $buildRow("Sex",  htmlspecialchars((string) ($user["sex"]            ?? "N/A"), ENT_QUOTES, "UTF-8"));
-         $rows .= $buildRow("Type", htmlspecialchars((string) ($user["classification"] ?? ""),    ENT_QUOTES, "UTF-8"));
-         if (!$isEmployee && !$isGuest) {
-             $rows .= $buildRow("College", htmlspecialchars((string) ($user["college"] ?? "N/A"), ENT_QUOTES, "UTF-8"));
-             $rows .= $buildRow("Course",  htmlspecialchars((string) ($user["course"]  ?? "N/A"), ENT_QUOTES, "UTF-8"));
-         }
-         if ($isGuest) {
-             $rows .= $buildRow("Agency", htmlspecialchars((string) ($user["agency_organization"] ?? "N/A"), ENT_QUOTES, "UTF-8"));
-         }
+    $rows = "";
+    if (!$isGuest)
+        $rows .= $buildRow("ID", htmlspecialchars((string) ($user["id_number"] ?? ""), ENT_QUOTES, "UTF-8"));
+        $rows .= $buildRow("Name", htmlspecialchars((string) ($user["name"] ?? ""), ENT_QUOTES, "UTF-8"));
+        $rows .= $buildRow("Sex", htmlspecialchars((string) ($user["sex"] ?? "N/A"), ENT_QUOTES, "UTF-8"));
+        $rows .= $buildRow("Type", htmlspecialchars((string) ($user["classification"] ?? ""), ENT_QUOTES, "UTF-8"));
+    if (!$isEmployee && !$isGuest)
+        $rows .= $buildRow("College", htmlspecialchars((string) ($user["college"] ?? "N/A"), ENT_QUOTES, "UTF-8"))
+               . $buildRow("Course",  htmlspecialchars((string) ($user["course"]  ?? "N/A"), ENT_QUOTES, "UTF-8"));
+    if ($isGuest)
+        $rows .= $buildRow("Agency", htmlspecialchars((string) ($user["agency_organization"] ?? "N/A"), ENT_QUOTES, "UTF-8"));
 
     $safeLibrary = htmlspecialchars((string) $libraryName, ENT_QUOTES, "UTF-8");
 
@@ -868,11 +753,11 @@ switch ($request) {
     case "getSaveAttendance":
         SaveAttendance();
         break;
-    case "getGuestCheckOutModal":
-        GuestCheckOutModal();
+    case "getGuestCheckoutModal":
+        GuestCheckoutModal();
         break;
-    case "guestCheckOut":
-        GuestCheckOut();
+    case "guestCheckout":
+        GuestCheckout();
         break;
     case "getKPI":
         ShowKPI();
