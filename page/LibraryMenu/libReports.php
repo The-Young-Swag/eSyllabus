@@ -42,7 +42,8 @@ $librarySections = execsqlSRS(
                             <i class="fas fa-calendar-alt"></i>
                         </span>
                     </div>
-                    <input type="date" class="form-control border-left-0" id="startDate" value="2026-03-19">
+                    <input type="date" class="form-control border-left-0" id="startDate">
+
                 </div>
             </div>
 
@@ -55,8 +56,8 @@ $librarySections = execsqlSRS(
                             <i class="fas fa-calendar-check"></i>
                         </span>
                     </div>
-                    <input type="date" class="form-control border-left-0" id="endDate" value="2026-03-26">
-                </div>
+                    <input type="date" class="form-control border-left-0" id="endDate">
+                    </div>
             </div>
 
             <!-- Classification -->
@@ -235,11 +236,9 @@ const COLORS = {
     course:       ["rgba(59,130,246,0.82)",  "rgba(16,185,129,0.82)",  "rgba(245,158,11,0.82)",  "rgba(139,92,246,0.82)", "rgba(239,68,68,0.82)", "rgba(20,184,166,0.82)", "rgba(100,116,139,0.82)"],
 };
 
-const EXPORT_LIBS = {
-    jspdf:     "libs/jspdf.umd.min.js",
-    autotable: "libs/jspdf.plugin.autotable.min.js",
-    exceljs:   "libs/exceljs.min.js",
-};
+const LIB_JSPDF     = "libs/jspdf.umd.min.js";
+const LIB_AUTOTABLE = "libs/jspdf.plugin.autotable.min.js";
+const LIB_EXCELJS   = "libs/exceljs.min.js";
 
 const OFFSCREEN = { barW: 900, barH: 220, donutW: 500, donutH: 380 };
 
@@ -412,7 +411,7 @@ function buildPagerHtml(currentPage, totalPages, totalRowCount, pageSize) {
 
     const pageButton = (label, targetPage, isDisabled, isActive) =>
         `<li class="page-item ${isDisabled ? "disabled" : ""} ${isActive ? "active" : ""}">
-            <a class="page-link" href="#" data-p="${targetPage}">${label}</a>
+            <a class="page-link" href="#" data-page="${targetPage}">${label}</a>
          </li>`;
 
     let pageItems = pageButton("«", 1, isFirstPage, false) + pageButton("‹", currentPage - 1, isFirstPage, false);
@@ -458,7 +457,7 @@ function paginateInlineTable(cardId, tbodyId, pagerId) {
             $pager.html(buildPagerHtml(currentPage, totalPages, rows.length, pageSize));
             $pager.find(".page-link").off("click").on("click", function (event) {
                 event.preventDefault();
-                const targetPage = parseInt($(this).data("p"), 10);
+                const targetPage = parseInt($(this).data("page"), 10);
                 if (!isNaN(targetPage) && targetPage > 0) showPage(targetPage);
             });
         } else {
@@ -520,10 +519,10 @@ function initDemographicsTab(response) {
 
 function initActiveTab(tabName, response) {
     switch (tabName) {
-        case "logs":         initLogsTab();           break;
-        case "users":        initUsersTab(response);  break;
-        case "colleges":     initCollegesTab(response); break;
-        case "courses":      initCoursesTab(response); break;
+        case "logs":         initLogsTab();                break;
+        case "users":        initUsersTab(response);       break;
+        case "colleges":     initCollegesTab(response);    break;
+        case "courses":      initCoursesTab(response);     break;
         case "demographics": initDemographicsTab(response); break;
     }
 }
@@ -564,7 +563,7 @@ function loadTab(tabName) {
             preloadExportLibraries();
             $("#exportBtn").prop("disabled", false);
         })
-        .fail(function (unusedXhr, status) {
+        .fail(function (_xhr, status) {
             hideSpinner();
             if (status !== "abort")
                 $("#tabContent").html('<div class="alert alert-danger m-3">Failed to load analytics. Please try again.</div>');
@@ -668,7 +667,7 @@ const EXPORT_SCHEMA = {
         label:   "Demographics",
         headers: ["Sex", "Visitors", "% of Total"],
         rowMapper: (response) => (response.flatDemographics || []).map(entry => [
-            entry.sex, entry.count, entry.pct + "%",
+            entry.sex, entry.count, entry.percentage + "%",
         ]),
     },
 };
@@ -679,24 +678,22 @@ async function fetchMissingTabsForExport(selectedTabs) {
     if (!unloadedTabs.length) return;
 
     await Promise.all(unloadedTabs.map(tabName =>
-        new Promise(function (resolve) {
-            $.post(BACKEND_TAB, { request: TAB_REQUESTS[tabName], ...getFilters() })
-                .always(function (raw) {
-                    const response = parseJsonResponse(raw);
-                    if (response?.status === "success") cachedResponses[tabName] = response;
-                    resolve();
-                });
-        })
+        $.post(BACKEND_TAB, { request: TAB_REQUESTS[tabName], ...getFilters() })
+            .then(raw => {
+                const response = parseJsonResponse(raw);
+                if (response?.status === "success") cachedResponses[tabName] = response;
+            })
+            .catch(() => {}) // swallow failures; partial export is acceptable
     ));
 }
 
 // OFFSCREEN CHART — renders a Chart.js chart on a hidden canvas for PDF export
 function buildOffscreenChart(type, labels, values, colors, unitLabel, title) {
-    const isBar    = type === "bar";
-    const canvasW  = isBar ? OFFSCREEN.barW  : OFFSCREEN.donutW;
-    const canvasH  = isBar ? OFFSCREEN.barH  : OFFSCREEN.donutH;
-    const total    = isBar ? 0 : values.reduce((sum, value) => sum + value, 0);
-    const canvas   = Object.assign(document.createElement("canvas"), { width: canvasW, height: canvasH });
+    const isBar   = type === "bar";
+    const canvasW = isBar ? OFFSCREEN.barW  : OFFSCREEN.donutW;
+    const canvasH = isBar ? OFFSCREEN.barH  : OFFSCREEN.donutH;
+    const total   = isBar ? 0 : values.reduce((sum, value) => sum + value, 0);
+    const canvas  = Object.assign(document.createElement("canvas"), { width: canvasW, height: canvasH });
 
     const config = isBar ? {
         type: "bar",
@@ -801,11 +798,11 @@ function buildChartsForTab(tabName, response) {
 }
 
 // SCRIPT LOADER — loads a JS file once and caches the promise so it's never loaded twice
-const scriptLoadCache = {};
+const loadedScripts = {};
 
 function loadScript(url) {
-    if (scriptLoadCache[url]) return scriptLoadCache[url];
-    scriptLoadCache[url] = new Promise(function (resolve, reject) {
+    if (loadedScripts[url]) return loadedScripts[url];
+    loadedScripts[url] = new Promise(function (resolve, reject) {
         if (document.querySelector(`script[src="${url}"]`)) { setTimeout(resolve, 0); return; }
         const script   = document.createElement("script");
         script.src     = url;
@@ -813,12 +810,12 @@ function loadScript(url) {
         script.onerror = () => reject(new Error("Failed to load: " + url));
         document.head.appendChild(script);
     });
-    return scriptLoadCache[url];
+    return loadedScripts[url];
 }
 
 function preloadExportLibraries() {
-    loadScript(EXPORT_LIBS.jspdf).then(() => loadScript(EXPORT_LIBS.autotable)).catch(() => {});
-    loadScript(EXPORT_LIBS.exceljs).catch(() => {});
+    loadScript(LIB_JSPDF).then(() => loadScript(LIB_AUTOTABLE)).catch(() => {});
+    loadScript(LIB_EXCELJS).catch(() => {});
 }
 
 // FILE SAVER — uses File System Access API if available, falls back to anchor click
@@ -955,7 +952,7 @@ async function runExportPDF(selectedTabs, responses) {
             columnStyles:       { 0: { fontStyle: "bold" } },
             margin:             { left: margin, right: margin },
             tableLineColor:     [226, 232, 240], tableLineWidth: 0.2,
-            didDrawPage:        pageHook => drawFooter(pageHook.pageNumber),
+            didDrawPage:        pageInfo => drawFooter(pageInfo.pageNumber),
         });
 
         cursorY = pdf.lastAutoTable.finalY + 8;
@@ -1092,11 +1089,11 @@ $(document).off(".analytics")
             await fetchMissingTabsForExport(selectedSections);
 
             if (exportFormat === "pdf") {
-                await loadScript(EXPORT_LIBS.jspdf);
-                await loadScript(EXPORT_LIBS.autotable);
+                await loadScript(LIB_JSPDF);
+                await loadScript(LIB_AUTOTABLE);
                 await runExportPDF(selectedSections, cachedResponses);
             } else {
-                await loadScript(EXPORT_LIBS.exceljs);
+                await loadScript(LIB_EXCELJS);
                 await runExportExcel(selectedSections, cachedResponses);
             }
         } catch (error) {

@@ -12,30 +12,30 @@
 
 function buildWhereClause(array $post): array
 {
-    $clauses = [];
-    $params  = [];
+    $conditions  = [];
+    $queryParams = [];
 
     if (!empty($post['startDate'])) {
-        $clauses[]            = 'CAST(l.checkin_time AS DATE) >= :startDate';
-        $params[':startDate'] = $post['startDate'];
+        $conditions[]              = 'CAST(l.checkin_time AS DATE) >= :startDate';
+        $queryParams[':startDate'] = $post['startDate'];
     }
     if (!empty($post['endDate'])) {
-        $clauses[]          = 'CAST(l.checkin_time AS DATE) <= :endDate';
-        $params[':endDate'] = $post['endDate'];
+        $conditions[]            = 'CAST(l.checkin_time AS DATE) <= :endDate';
+        $queryParams[':endDate'] = $post['endDate'];
     }
     if (!empty($post['classification']) && $post['classification'] !== 'All') {
-        $clauses[]                 = 'l.classification = :classification';
-        $params[':classification'] = $post['classification'];
+        $conditions[]                   = 'l.classification = :classification';
+        $queryParams[':classification'] = $post['classification'];
     }
     if (!empty($post['library']) && $post['library'] !== 'All') {
-        $clauses[]          = 'l.library = :library';   // fix: was :libraryId (placeholder mismatch)
-        $params[':library'] = $post['library'];
+        $conditions[]             = 'l.library = :library';
+        $queryParams[':library']  = $post['library'];
     }
 
-    return [$clauses ? ' AND ' . implode(' AND ', $clauses) : '', $params];
+    return [$conditions ? ' AND ' . implode(' AND ', $conditions) : '', $queryParams];
 }
 
-function fetchVisitLogs(string $where, array $params): array
+function fetchVisitLogs(string $whereClause, array $queryParams): array
 {
     return execsqlSRS("
         SELECT l.id,
@@ -52,9 +52,9 @@ function fetchVisitLogs(string $where, array $params): array
                l.agency_organization
         FROM   Library_logs l
         LEFT JOIN LibrarySection s ON l.library = s.SectionID
-        WHERE  1=1 {$where}
+        WHERE  1=1 {$whereClause}
         ORDER  BY l.checkin_time DESC
-    ", 'Select', $params);
+    ", 'Select', $queryParams);
 }
 
 // ---------------------------------------------------------------------------
@@ -65,9 +65,11 @@ function fetchVisitLogs(string $where, array $params): array
 function minutesBetween(?string $start, ?string $end): float
 {
     if (!$start || !$end) return 0.0;
-    $s = strtotime($start);
-    $e = strtotime($end);
-    return ($s && $e && $e > $s) ? ($e - $s) / 60.0 : 0.0;
+    $startTimestamp = strtotime($start);
+    $endTimestamp   = strtotime($end);
+    return ($startTimestamp && $endTimestamp && $endTimestamp > $startTimestamp)
+        ? ($endTimestamp - $startTimestamp) / 60.0
+        : 0.0;
 }
 
 /** True when the log record belongs to a student. */
@@ -101,29 +103,29 @@ function aggregateUsers(array $logs): array
 {
     $users = [];
 
-    foreach ($logs as $log) {
-        $uid = $log['id_number'];
+    foreach ($logs as $logEntry) {
+        $idNumber = $logEntry['id_number'];
 
-        if (!isset($users[$uid])) {
-            $users[$uid] = [
-                'display_label'       => ($uid === '0') ? ($log['name'] ?? 'Guest') : $uid,
-                'name'                => $log['name'] ?? '',
-                'college'             => $log['college'] ?? '',
-                'course'              => $log['course'] ?? '',
-                'classification'      => $log['classification'] ?? '',
-                'library'             => $log['library_section_name'] ?? '',
-                'agency_organization' => $log['agency_organization'] ?? '',
+        if (!isset($users[$idNumber])) {
+            $users[$idNumber] = [
+                'display_label'       => ($idNumber === '0') ? ($logEntry['name'] ?? 'Guest') : $idNumber,
+                'name'                => $logEntry['name'] ?? '',
+                'college'             => $logEntry['college'] ?? '',
+                'course'              => $logEntry['course'] ?? '',
+                'classification'      => $logEntry['classification'] ?? '',
+                'library'             => $logEntry['library_section_name'] ?? '',
+                'agency_organization' => $logEntry['agency_organization'] ?? '',
                 'checkins'            => 0,
                 'duration'            => 0.0,
-                'last_checkin'        => $log['checkin_time'],
+                'last_checkin'        => $logEntry['checkin_time'],
             ];
         }
 
-        $users[$uid]['checkins']++;
-        $users[$uid]['duration'] += minutesBetween($log['checkin_time'], $log['checkout_time'] ?? null);
+        $users[$idNumber]['checkins']++;
+        $users[$idNumber]['duration'] += minutesBetween($logEntry['checkin_time'], $logEntry['checkout_time'] ?? null);
 
-        if ($log['checkin_time'] > $users[$uid]['last_checkin']) {
-            $users[$uid]['last_checkin'] = $log['checkin_time'];
+        if ($logEntry['checkin_time'] > $users[$idNumber]['last_checkin']) {
+            $users[$idNumber]['last_checkin'] = $logEntry['checkin_time'];
         }
     }
 
@@ -138,30 +140,30 @@ function aggregateUsers(array $logs): array
  */
 function aggregateColleges(array $logs): array
 {
-    $data      = [];
-    $uniqueIds = [];
+    $collegeStats     = [];
+    $uniqueVisitorIds = [];
 
-    foreach ($logs as $log) {
-        if (!isStudent($log)) continue;
+    foreach ($logs as $logEntry) {
+        if (!isStudent($logEntry)) continue;
 
-        $name = $log['college'] ?: 'Unknown';
+        $college = $logEntry['college'] ?: 'Unknown';
 
-        if (!isset($data[$name])) {
-            $data[$name]      = ['duration' => 0.0, 'last_checkin' => $log['checkin_time']];
-            $uniqueIds[$name] = [];
+        if (!isset($collegeStats[$college])) {
+            $collegeStats[$college]     = ['duration' => 0.0, 'last_checkin' => $logEntry['checkin_time']];
+            $uniqueVisitorIds[$college] = [];
         }
 
-        $uniqueIds[$name][$log['id_number']] = true;
-        $data[$name]['duration'] += minutesBetween($log['checkin_time'], $log['checkout_time'] ?? null);
+        $uniqueVisitorIds[$college][$logEntry['id_number']] = true;
+        $collegeStats[$college]['duration'] += minutesBetween($logEntry['checkin_time'], $logEntry['checkout_time'] ?? null);
 
-        if ($log['checkin_time'] > $data[$name]['last_checkin']) {
-            $data[$name]['last_checkin'] = $log['checkin_time'];
+        if ($logEntry['checkin_time'] > $collegeStats[$college]['last_checkin']) {
+            $collegeStats[$college]['last_checkin'] = $logEntry['checkin_time'];
         }
     }
 
     $result = [];
-    foreach ($data as $name => $rec) {
-        $result[$name] = array_merge($rec, ['visitors' => count($uniqueIds[$name])]);
+    foreach ($collegeStats as $college => $collegeData) {
+        $result[$college] = array_merge($collegeData, ['visitors' => count($uniqueVisitorIds[$college])]);
     }
 
     return $result;
@@ -175,32 +177,32 @@ function aggregateColleges(array $logs): array
  */
 function aggregateCourses(array $logs): array
 {
-    $data      = [];
-    $uniqueIds = [];
+    $courseStats      = [];
+    $uniqueVisitorIds = [];
 
-    foreach ($logs as $log) {
-        if (!isStudent($log)) continue;
+    foreach ($logs as $logEntry) {
+        if (!isStudent($logEntry)) continue;
 
-        $college = $log['college'] ?: 'Unknown';
-        $course  = $log['course']  ?: 'Unknown';
-        $key     = "{$college}|{$course}";
+        $college = $logEntry['college'] ?: 'Unknown';
+        $course  = $logEntry['course']  ?: 'Unknown';
+        $courseKey   = "{$college}|{$course}";
 
-        if (!isset($data[$key])) {
-            $data[$key]      = ['college' => $college, 'course' => $course, 'duration' => 0.0, 'last_checkin' => $log['checkin_time']];
-            $uniqueIds[$key] = [];
+        if (!isset($courseStats[$courseKey])) {
+            $courseStats[$courseKey]      = ['college' => $college, 'course' => $course, 'duration' => 0.0, 'last_checkin' => $logEntry['checkin_time']];
+            $uniqueVisitorIds[$courseKey] = [];
         }
 
-        $uniqueIds[$key][$log['id_number']] = true;
-        $data[$key]['duration'] += minutesBetween($log['checkin_time'], $log['checkout_time'] ?? null);
+        $uniqueVisitorIds[$courseKey][$logEntry['id_number']] = true;
+        $courseStats[$courseKey]['duration'] += minutesBetween($logEntry['checkin_time'], $logEntry['checkout_time'] ?? null);
 
-        if ($log['checkin_time'] > $data[$key]['last_checkin']) {
-            $data[$key]['last_checkin'] = $log['checkin_time'];
+        if ($logEntry['checkin_time'] > $courseStats[$courseKey]['last_checkin']) {
+            $courseStats[$courseKey]['last_checkin'] = $logEntry['checkin_time'];
         }
     }
 
     $result = [];
-    foreach ($data as $key => $rec) {
-        $result[$key] = array_merge($rec, ['visitors' => count($uniqueIds[$key])]);
+    foreach ($courseStats as $courseKey => $courseData) {
+        $result[$courseKey] = array_merge($courseData, ['visitors' => count($uniqueVisitorIds[$courseKey])]);
     }
 
     return $result;

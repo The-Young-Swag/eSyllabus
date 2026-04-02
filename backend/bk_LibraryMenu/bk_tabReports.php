@@ -29,10 +29,12 @@ const COLLEGE_COLOR_MAP = [
 
 function resolveCollegeColor(string $collegeName): string
 {
-    $upper = strtoupper($collegeName);
-    foreach (COLLEGE_COLOR_MAP as $abbreviation => $color) {
-        if (str_contains($upper, $abbreviation)) return $color;
+    $upperCollegeName = strtoupper($collegeName);
+
+    foreach (COLLEGE_COLOR_MAP as $abbreviation => $colorValue) {
+        if (str_contains($upperCollegeName, $abbreviation)) return $colorValue;
     }
+
     return COLLEGE_COLOR_FALLBACK;
 }
 
@@ -40,137 +42,165 @@ function resolveCollegeColor(string $collegeName): string
 //  Row renderers for client-side-paginated tables
 // ---------------------------------------------------------------------------
 
-function renderLogRows(array $logs): array
+function renderLogRows(array $logEntries): array
 {
-    return array_map(fn($log) =>
+    return array_map(fn($logEntry) =>
         '<tr>' .
-        '<td class="ps-3 fw-semibold">'     . htmlspecialchars((string) ($log['id_number']          ?? ''), ENT_QUOTES, 'UTF-8') . '</td>' .
-        '<td class="text-muted">'            . htmlspecialchars((string) ($log['name']               ?: '—'), ENT_QUOTES, 'UTF-8') . '</td>' .
-        '<td class="text-muted">'            . htmlspecialchars((string) ($log['college']            ?: '—'), ENT_QUOTES, 'UTF-8') . '</td>' .
-        '<td class="text-muted">'            . htmlspecialchars((string) ($log['course']             ?: '—'), ENT_QUOTES, 'UTF-8') . '</td>' .
-        '<td>'                               . getTypeBadge($log['classification'] ?: '—')                                         . '</td>' .
-        '<td class="text-muted">'            . htmlspecialchars((string) ($log['library']            ?: '—'), ENT_QUOTES, 'UTF-8') . '</td>' .
-        '<td class="text-muted">'            . htmlspecialchars((string) ($log['sex']                ?: '—'), ENT_QUOTES, 'UTF-8') . '</td>' .
-        '<td class="text-muted">'            . htmlspecialchars((string) ($log['checkin_formatted']  ?: '—'), ENT_QUOTES, 'UTF-8') . '</td>' .
-        '<td class="text-muted">'            . htmlspecialchars((string) ($log['checkout_formatted'] ?: '—'), ENT_QUOTES, 'UTF-8') . '</td>' .
-        '<td class="text-muted">'            . htmlspecialchars((string) ($log['agency_organization']?: '—'), ENT_QUOTES, 'UTF-8') . '</td>' .
-        '<td class="text-end pe-3">'         . (int) round($log['duration_minutes'])                                               . '</td>' .
+        '<td class="ps-3 fw-semibold">'     . htmlspecialchars((string) ($logEntry['id_number']          ?? ''), ENT_QUOTES, 'UTF-8') . '</td>' .
+        '<td class="text-muted">'            . htmlspecialchars((string) ($logEntry['name']               ?: '—'), ENT_QUOTES, 'UTF-8') . '</td>' .
+        '<td class="text-muted">'            . htmlspecialchars((string) ($logEntry['college']            ?: '—'), ENT_QUOTES, 'UTF-8') . '</td>' .
+        '<td class="text-muted">'            . htmlspecialchars((string) ($logEntry['course']             ?: '—'), ENT_QUOTES, 'UTF-8') . '</td>' .
+        '<td>'                               . getTypeBadge($logEntry['classification'] ?: '—')                                         . '</td>' .
+        '<td class="text-muted">'            . htmlspecialchars((string) ($logEntry['library']            ?: '—'), ENT_QUOTES, 'UTF-8') . '</td>' .
+        '<td class="text-muted">'            . htmlspecialchars((string) ($logEntry['sex']                ?: '—'), ENT_QUOTES, 'UTF-8') . '</td>' .
+        '<td class="text-muted">'            . htmlspecialchars((string) ($logEntry['checkin_formatted']  ?: '—'), ENT_QUOTES, 'UTF-8') . '</td>' .
+        '<td class="text-muted">'            . htmlspecialchars((string) ($logEntry['checkout_formatted'] ?: '—'), ENT_QUOTES, 'UTF-8') . '</td>' .
+        '<td class="text-muted">'            . htmlspecialchars((string) ($logEntry['agency_organization']?: '—'), ENT_QUOTES, 'UTF-8') . '</td>' .
+        '<td class="text-end pe-3">'         . (int) round($logEntry['duration_minutes'])                                               . '</td>' .
         '</tr>',
-    $logs);
+    $logEntries);
 }
 
-function renderCheckinRows(array $rows): array
+function renderCheckinRows(array $checkinRows): array
 {
-    return array_map(fn($row) =>
+    return array_map(fn($rowData) =>
         '<tr>' .
-        '<td class="ps-3 fw-semibold">'                  . htmlspecialchars((string) ($row['display_label']       ?? ''), ENT_QUOTES, 'UTF-8') . '</td>' .
-        '<td class="text-muted">'                         . htmlspecialchars((string) ($row['college']             ?: '—'), ENT_QUOTES, 'UTF-8') . '</td>' .
-        '<td class="text-muted">'                         . htmlspecialchars((string) ($row['course']              ?: '—'), ENT_QUOTES, 'UTF-8') . '</td>' .
-        '<td>'                                            . getTypeBadge($row['type'])                                                            . '</td>' .
-        '<td class="text-muted">'                         . htmlspecialchars((string) ($row['library']             ?? '—'), ENT_QUOTES, 'UTF-8') . '</td>' .
-        '<td class="text-end fw-semibold text-primary">'  . number_format($row['count'])                                                         . '</td>' .
-        '<td class="text-muted">'                         . htmlspecialchars((string) ($row['agency_organization'] ?? '—'), ENT_QUOTES, 'UTF-8') . '</td>' .
-        '<td class="text-end text-muted pe-3">'           . htmlspecialchars((string) ($row['last_checkin']        ?? ''), ENT_QUOTES, 'UTF-8') . '</td>' .
+        '<td class="ps-3 fw-semibold">'                  . htmlspecialchars((string) ($rowData['display_label']       ?? ''), ENT_QUOTES, 'UTF-8') . '</td>' .
+        '<td class="text-muted">'                         . htmlspecialchars((string) ($rowData['college']             ?: '—'), ENT_QUOTES, 'UTF-8') . '</td>' .
+        '<td class="text-muted">'                         . htmlspecialchars((string) ($rowData['course']              ?: '—'), ENT_QUOTES, 'UTF-8') . '</td>' .
+        '<td>'                                            . getTypeBadge($rowData['type'])                                                            . '</td>' .
+        '<td class="text-muted">'                         . htmlspecialchars((string) ($rowData['library']             ?? '—'), ENT_QUOTES, 'UTF-8') . '</td>' .
+        '<td class="text-end fw-semibold text-primary">'  . number_format($rowData['count'])                                                         . '</td>' .
+        '<td class="text-muted">'                         . htmlspecialchars((string) ($rowData['agency_organization'] ?? '—'), ENT_QUOTES, 'UTF-8') . '</td>' .
+        '<td class="text-end text-muted pe-3">'           . htmlspecialchars((string) ($rowData['last_checkin']        ?? ''), ENT_QUOTES, 'UTF-8') . '</td>' .
         '</tr>',
-    $rows);
+    $checkinRows);
 }
 
-function renderDurationRows(array $rows): array
+function renderDurationRows(array $durationRows): array
 {
-    return array_map(fn($row) =>
+    return array_map(fn($rowData) =>
         '<tr>' .
-        '<td class="ps-3 fw-semibold">'                 . htmlspecialchars((string) ($row['display_label']       ?? ''), ENT_QUOTES, 'UTF-8') . '</td>' .
-        '<td class="text-muted">'                        . htmlspecialchars((string) ($row['college']             ?: '—'), ENT_QUOTES, 'UTF-8') . '</td>' .
-        '<td class="text-muted">'                        . htmlspecialchars((string) ($row['course']              ?: '—'), ENT_QUOTES, 'UTF-8') . '</td>' .
-        '<td>'                                           . getTypeBadge($row['type'])                                                            . '</td>' .
-        '<td class="text-end fw-semibold text-success">' . number_format($row['minutes'])                                                        . '</td>' .
-        '<td class="text-muted pe-3">'                   . htmlspecialchars((string) ($row['agency_organization'] ?? '—'), ENT_QUOTES, 'UTF-8') . '</td>' .
+        '<td class="ps-3 fw-semibold">'                 . htmlspecialchars((string) ($rowData['display_label']       ?? ''), ENT_QUOTES, 'UTF-8') . '</td>' .
+        '<td class="text-muted">'                        . htmlspecialchars((string) ($rowData['college']             ?: '—'), ENT_QUOTES, 'UTF-8') . '</td>' .
+        '<td class="text-muted">'                        . htmlspecialchars((string) ($rowData['course']              ?: '—'), ENT_QUOTES, 'UTF-8') . '</td>' .
+        '<td>'                                           . getTypeBadge($rowData['type'])                                                            . '</td>' .
+        '<td class="text-end fw-semibold text-success">' . number_format($rowData['minutes'])                                                        . '</td>' .
+        '<td class="text-muted pe-3">'                   . htmlspecialchars((string) ($rowData['agency_organization'] ?? '—'), ENT_QUOTES, 'UTF-8') . '</td>' .
         '</tr>',
-    $rows);
+    $durationRows);
 }
 
 // ---------------------------------------------------------------------------
 //  KPI sidebar
 // ---------------------------------------------------------------------------
 
-/** Marks each item 'tied' when its count is shared by at least one other item. */
 function annotateTies(array $items): array
 {
-    $freq = array_count_values(array_column($items, 'count'));
-    return array_map(fn($item) => array_merge($item, ['tied' => $freq[$item['count']] > 1]), $items);
+    $countFrequency = array_count_values(array_column($items, 'count'));
+
+    return array_map(
+        fn($item) => array_merge($item, ['tied' => $countFrequency[$item['count']] > 1]),
+        $items
+    );
 }
 
-function renderKpiSections(array $top3Students, array $top3Colleges, array $top3Courses): array
+function renderKpiSections(array $topStudents, array $topColleges, array $topCourses): array
 {
-    $medals = [1 => '🥇', 2 => '🥈', 3 => '🥉'];
-    $noData = '<div class="text-muted small fst-italic">No data</div>';
+    $medalIcons = [1 => '🥇', 2 => '🥈', 3 => '🥉'];
+    $noDataHtml = '<div class="text-muted small fst-italic">No data</div>';
 
-    $rankOf = function(array $items): array {
+    $computeRanks = function(array $items): array {
         $ranks = [];
-        $prev  = null;
-        $rank  = 0;
+        $previousCount = null;
+        $currentRank   = 0;
+
         foreach ($items as $item) {
-            if ($item['count'] !== $prev) $rank++;
-            $ranks[] = $rank;
-            $prev    = $item['count'];
+            if ($item['count'] !== $previousCount) $currentRank++;
+            $ranks[] = $currentRank;
+            $previousCount = $item['count'];
         }
+
         return $ranks;
     };
 
-    $medalHtml = fn(int $rank, bool $tied): string =>
-        ($medals[$rank] ?? "{$rank}.")
-        . ($tied ? '<span class="badge bg-secondary-subtle text-secondary rounded-pill ms-1" style="font-size:.55rem;vertical-align:middle;">tied</span>' : '');
+    $buildMedalHtml = fn(int $rank, bool $isTied): string =>
+        ($medalIcons[$rank] ?? "{$rank}.")
+        . ($isTied ? '<span class="badge bg-secondary-subtle text-secondary rounded-pill ms-1" style="font-size:.55rem;vertical-align:middle;">tied</span>' : '');
 
-    $row = fn(string $medal, string $left, string $right, bool $isLast): string =>
+    $buildRowHtml = fn(string $medal, string $leftHtml, string $rightHtml, bool $isLast): string =>
         '<div class="d-flex align-items-center justify-content-between gap-2 py-1 ' . ($isLast ? '' : 'border-bottom') . '">' .
             '<div class="d-flex align-items-center gap-2 min-w-0">' .
-                '<span style="font-size:.9rem;flex-shrink:0;">' . $medal . '</span>' . $left .
+                '<span style="font-size:.9rem;flex-shrink:0;">' . $medal . '</span>' . $leftHtml .
             '</div>' .
-            '<div class="d-flex flex-column align-items-end" style="flex-shrink:0;">' . $right . '</div>' .
+            '<div class="d-flex flex-column align-items-end" style="flex-shrink:0;">' . $rightHtml . '</div>' .
         '</div>';
 
     // Students
-    $studentsHtml = $noData;
-    if ($top3Students) {
-        $ranks        = $rankOf($top3Students);
+    $studentsHtml = $noDataHtml;
+    if ($topStudents) {
+        $ranks        = $computeRanks($topStudents);
         $studentsHtml = '';
-        foreach ($top3Students as $i => $s) {
-            $left  = '<div class="min-w-0">'
-                   . '<div class="fw-bold text-dark" style="font-size:.85rem;line-height:1.2;">' . htmlspecialchars($s['id_number'], ENT_QUOTES, 'UTF-8') . '</div>'
-                   . '<div class="text-muted" style="font-size:.68rem;">' . htmlspecialchars($s['college'] ?: '—', ENT_QUOTES, 'UTF-8') . ($s['course'] ? ' · ' . htmlspecialchars($s['course'], ENT_QUOTES, 'UTF-8') : '') . '</div>'
-                   . '</div>';
-            $right = '<span class="badge rounded-pill bg-primary-subtle text-primary fw-semibold" style="font-size:.72rem;">' . number_format($s['count']) . '</span>'
-                   . '<span class="text-muted" style="font-size:.62rem;">check-ins</span>';
-            $studentsHtml .= $row($medalHtml($ranks[$i], $s['tied']), $left, $right, $i === count($top3Students) - 1);
+
+        foreach ($topStudents as $index => $studentData) {
+            $leftHtml  = '<div class="min-w-0">'
+                       . '<div class="fw-bold text-dark" style="font-size:.85rem;line-height:1.2;">' . htmlspecialchars($studentData['id_number'], ENT_QUOTES, 'UTF-8') . '</div>'
+                       . '<div class="text-muted" style="font-size:.68rem;">' . htmlspecialchars($studentData['college'] ?: '—', ENT_QUOTES, 'UTF-8') . ($studentData['course'] ? ' · ' . htmlspecialchars($studentData['course'], ENT_QUOTES, 'UTF-8') : '') . '</div>'
+                       . '</div>';
+
+            $rightHtml = '<span class="badge rounded-pill bg-primary-subtle text-primary fw-semibold" style="font-size:.72rem;">' . number_format($studentData['count']) . '</span>'
+                       . '<span class="text-muted" style="font-size:.62rem;">check-ins</span>';
+
+            $studentsHtml .= $buildRowHtml(
+                $buildMedalHtml($ranks[$index], $studentData['tied']),
+                $leftHtml,
+                $rightHtml,
+                $index === count($topStudents) - 1
+            );
         }
     }
 
     // Colleges
-    $collegesHtml = $noData;
-    if ($top3Colleges) {
-        $ranks        = $rankOf($top3Colleges);
+    $collegesHtml = $noDataHtml;
+    if ($topColleges) {
+        $ranks        = $computeRanks($topColleges);
         $collegesHtml = '';
-        foreach ($top3Colleges as $i => $c) {
-            $left  = '<div class="fw-bold text-dark text-truncate" style="font-size:.85rem;">' . htmlspecialchars($c['name'], ENT_QUOTES, 'UTF-8') . '</div>';
-            $right = '<span class="badge rounded-pill bg-success-subtle text-success fw-semibold" style="font-size:.72rem;">' . number_format($c['count']) . '</span>'
-                   . '<span class="text-muted" style="font-size:.62rem;">students</span>';
-            $collegesHtml .= $row($medalHtml($ranks[$i], $c['tied']), $left, $right, $i === count($top3Colleges) - 1);
+
+        foreach ($topColleges as $index => $collegeData) {
+            $leftHtml  = '<div class="fw-bold text-dark text-truncate" style="font-size:.85rem;">' . htmlspecialchars($collegeData['name'], ENT_QUOTES, 'UTF-8') . '</div>';
+            $rightHtml = '<span class="badge rounded-pill bg-success-subtle text-success fw-semibold" style="font-size:.72rem;">' . number_format($collegeData['count']) . '</span>'
+                       . '<span class="text-muted" style="font-size:.62rem;">students</span>';
+
+            $collegesHtml .= $buildRowHtml(
+                $buildMedalHtml($ranks[$index], $collegeData['tied']),
+                $leftHtml,
+                $rightHtml,
+                $index === count($topColleges) - 1
+            );
         }
     }
 
     // Courses
-    $coursesHtml = $noData;
-    if ($top3Courses) {
-        $ranks       = $rankOf($top3Courses);
+    $coursesHtml = $noDataHtml;
+    if ($topCourses) {
+        $ranks       = $computeRanks($topCourses);
         $coursesHtml = '';
-        foreach ($top3Courses as $i => $cr) {
-            $left  = '<div class="min-w-0">'
-                   . '<div class="fw-bold text-dark" style="font-size:.85rem;line-height:1.2;">' . htmlspecialchars($cr['course'], ENT_QUOTES, 'UTF-8') . '</div>'
-                   . '<div style="font-size:.68rem;"><span class="badge rounded-pill bg-secondary-subtle text-secondary px-2 py-0">' . htmlspecialchars($cr['college'] ?: '—', ENT_QUOTES, 'UTF-8') . '</span></div>'
-                   . '</div>';
-            $right = '<span class="badge rounded-pill bg-warning-subtle text-warning fw-semibold" style="font-size:.72rem;">' . number_format($cr['count']) . '</span>'
-                   . '<span class="text-muted" style="font-size:.62rem;">students</span>';
-            $coursesHtml .= $row($medalHtml($ranks[$i], $cr['tied']), $left, $right, $i === count($top3Courses) - 1);
+
+        foreach ($topCourses as $index => $courseData) {
+            $leftHtml  = '<div class="min-w-0">'
+                       . '<div class="fw-bold text-dark" style="font-size:.85rem;line-height:1.2;">' . htmlspecialchars($courseData['course'], ENT_QUOTES, 'UTF-8') . '</div>'
+                       . '<div style="font-size:.68rem;"><span class="badge rounded-pill bg-secondary-subtle text-secondary px-2 py-0">' . htmlspecialchars($courseData['college'] ?: '—', ENT_QUOTES, 'UTF-8') . '</span></div>'
+                       . '</div>';
+
+            $rightHtml = '<span class="badge rounded-pill bg-warning-subtle text-warning fw-semibold" style="font-size:.72rem;">' . number_format($courseData['count']) . '</span>'
+                       . '<span class="text-muted" style="font-size:.62rem;">students</span>';
+
+            $coursesHtml .= $buildRowHtml(
+                $buildMedalHtml($ranks[$index], $courseData['tied']),
+                $leftHtml,
+                $rightHtml,
+                $index === count($topCourses) - 1
+            );
         }
     }
 
@@ -183,64 +213,78 @@ function renderKpiSections(array $top3Students, array $top3Colleges, array $top3
 }
 
 // ---------------------------------------------------------------------------
-//  Common KPI computation (shared across all tabs)
+//  Common KPI computation
 // ---------------------------------------------------------------------------
 
-function getKpiData(array $logs, ?string $endDate): array
+function getKpiData(array $visitLogs, ?string $endDate): array
 {
-    $totalMinutes    = 0.0;
-    $uniqueUsers     = [];
-    $endDateCheckins = 0;
+    $totalMinutes      = 0.0;
+    $seenUserIds       = [];
+    $endDateCheckins   = 0;
 
-    foreach ($logs as $log) {
-        $uniqueUsers[$log['id_number']] = true;
-        $totalMinutes += minutesBetween($log['checkin_time'], $log['checkout_time'] ?? null);
+    foreach ($visitLogs as $logEntry) {
+        $seenUserIds[$logEntry['id_number']] = true;
 
-        if ($endDate && substr($log['checkin_time'], 0, 10) === $endDate) {
+        $totalMinutes += minutesBetween(
+            $logEntry['checkin_time'],
+            $logEntry['checkout_time'] ?? null
+        );
+
+        if ($endDate && substr($logEntry['checkin_time'], 0, 10) === $endDate) {
             $endDateCheckins++;
         }
     }
 
-    $totalVisits = count($logs);
+    $totalVisits = count($visitLogs);
 
-    // Top 3 students by check-in count
-    $students = aggregateUsers(array_filter($logs, 'isStudent'));
-    uasort($students, fn($a, $b) => $b['checkins'] <=> $a['checkins']);
-    $top3Students = [];
-    foreach (array_slice($students, 0, 3, true) as $rec) {
-        $top3Students[] = ['id_number' => $rec['display_label'], 'college' => $rec['college'], 'course' => $rec['course'], 'count' => $rec['checkins']];
+    $studentStats = aggregateUsers(array_filter($visitLogs, 'isStudent'));
+    uasort($studentStats, fn($userA, $userB) => $userB['checkins'] <=> $userA['checkins']);
+
+    $topStudents = [];
+    foreach (array_slice($studentStats, 0, 3, true) as $userData) {
+        $topStudents[] = [
+            'id_number' => $userData['display_label'],
+            'college'   => $userData['college'],
+            'course'    => $userData['course'],
+            'count'     => $userData['checkins']
+        ];
     }
 
-    // Top 3 colleges by unique student visitors
-    $colleges = aggregateColleges($logs);
-    uasort($colleges, fn($a, $b) => $b['visitors'] <=> $a['visitors']);
-    $top3Colleges = [];
-    foreach (array_slice($colleges, 0, 3, true) as $name => $rec) {
-        $top3Colleges[] = ['name' => $name, 'count' => $rec['visitors']];
+    $collegeStats = aggregateColleges($visitLogs);
+    uasort($collegeStats, fn($collegeA, $collegeB) => $collegeB['visitors'] <=> $collegeA['visitors']);
+
+    $topColleges = [];
+    foreach (array_slice($collegeStats, 0, 3, true) as $collegeName => $collegeData) {
+        $topColleges[] = ['name' => $collegeName, 'count' => $collegeData['visitors']];
     }
 
-    // Top 3 courses by unique student visitors
-    $courses = aggregateCourses($logs);
-    uasort($courses, fn($a, $b) => $b['visitors'] <=> $a['visitors']);
-    $top3Courses = [];
-    foreach (array_slice($courses, 0, 3) as $rec) {
-        $top3Courses[] = ['college' => $rec['college'], 'course' => $rec['course'], 'count' => $rec['visitors']];
+    $courseStats = aggregateCourses($visitLogs);
+    uasort($courseStats, fn($courseA, $courseB) => $courseB['visitors'] <=> $courseA['visitors']);
+
+    $topCourses = [];
+    foreach (array_slice($courseStats, 0, 3) as $courseData) {
+        $topCourses[] = [
+            'college' => $courseData['college'],
+            'course'  => $courseData['course'],
+            'count'   => $courseData['visitors']
+        ];
     }
 
-    $top3Students = annotateTies($top3Students);
-    $top3Colleges = annotateTies($top3Colleges);
-    $top3Courses  = annotateTies($top3Courses);
-    $kpiSections  = renderKpiSections($top3Students, $top3Colleges, $top3Courses);
+    $topStudents = annotateTies($topStudents);
+    $topColleges = annotateTies($topColleges);
+    $topCourses  = annotateTies($topCourses);
+
+    $kpiSections = renderKpiSections($topStudents, $topColleges, $topCourses);
 
     return [
         'totalVisits'     => $totalVisits,
         'totalDuration'   => round($totalMinutes),
-        'uniqueUsers'     => count($uniqueUsers),
+        'uniqueUsers'     => count($seenUserIds),
         'avgDuration'     => $totalVisits ? round($totalMinutes / $totalVisits, 1) : 0,
         'endDateCheckins' => $endDateCheckins,
-        'top3Students'    => $top3Students,
-        'top3Colleges'    => $top3Colleges,
-        'top3Courses'     => $top3Courses,
+        'top3Students'    => $topStudents,
+        'top3Colleges'    => $topColleges,
+        'top3Courses'     => $topCourses,
         ...$kpiSections,
     ];
 }
@@ -251,7 +295,7 @@ function getKpiData(array $logs, ?string $endDate): array
 
 function renderLogsTab(array $flatLogs): string
 {
-    $rowsJson = htmlspecialchars(json_encode(renderLogRows($flatLogs)), ENT_QUOTES);
+    $encodedLogRows = htmlspecialchars(json_encode(renderLogRows($flatLogs)), ENT_QUOTES);
     ob_start(); ?>
     <div class="card border-0 shadow-sm">
         <div class="card-header bg-white border-bottom py-2 px-3">
@@ -260,7 +304,7 @@ function renderLogsTab(array $flatLogs): string
         </div>
         <div class="card-body p-0"
              id="allLogsCard"
-             data-rows="<?= $rowsJson ?>"
+             data-rows="<?= $encodedLogRows ?>"
              data-per-page="10">
             <div class="table-responsive">
                 <table class="table table-sm table-hover align-middle mb-0">
@@ -297,10 +341,10 @@ function renderUsersTab(
     array $courseChartData
 ): string {
     // Flatten top-N per-type lists into a single sorted list for the limited tables.
-    $flatCheckins = [];
+    $checkinTableRows = [];
     foreach ($topCheckins as $classification => $users) {
         foreach ($users as $user) {
-            $flatCheckins[] = [
+            $checkinTableRows[] = [
                 'display_label'       => $user['display_label'],
                 'college'             => $user['college'],
                 'course'              => $user['course'],
@@ -312,12 +356,12 @@ function renderUsersTab(
             ];
         }
     }
-    usort($flatCheckins, fn($a, $b) => $b['count'] <=> $a['count']);
+    usort($checkinTableRows, fn($a, $b) => $b['count'] <=> $a['count']);
 
-    $flatDuration = [];
+    $durationTableRows = [];
     foreach ($topDuration as $classification => $users) {
         foreach ($users as $user) {
-            $flatDuration[] = [
+            $durationTableRows[] = [
                 'display_label'       => $user['display_label'],
                 'college'             => $user['college'],
                 'course'              => $user['course'],
@@ -327,10 +371,10 @@ function renderUsersTab(
             ];
         }
     }
-    usort($flatDuration, fn($a, $b) => $b['minutes'] <=> $a['minutes']);
+    usort($durationTableRows, fn($a, $b) => $b['minutes'] <=> $a['minutes']);
 
-    $checkinRowsJson  = htmlspecialchars(json_encode(renderCheckinRows($flatCheckins)),  ENT_QUOTES);
-    $durationRowsJson = htmlspecialchars(json_encode(renderDurationRows($flatDuration)), ENT_QUOTES);
+    $encodedCheckinRows  = htmlspecialchars(json_encode(renderCheckinRows($checkinTableRows)),  ENT_QUOTES);
+    $encodedDurationRows = htmlspecialchars(json_encode(renderDurationRows($durationTableRows)), ENT_QUOTES);
 
     ob_start(); ?>
     <div class="row g-4">
@@ -388,7 +432,7 @@ function renderUsersTab(
                 </div>
                 <div class="card-body p-0" style="min-height:175px;"
                      id="checkinDetailsCard"
-                     data-rows="<?= $checkinRowsJson ?>"
+                     data-rows="<?= $encodedCheckinRows ?>"
                      data-per-page="3">
                     <div class="table-responsive">
                         <table class="table table-sm table-hover align-middle mb-0">
@@ -418,7 +462,7 @@ function renderUsersTab(
                 </div>
                 <div class="card-body p-0" style="min-height:175px;"
                      id="durationDetailsCard"
-                     data-rows="<?= $durationRowsJson ?>"
+                     data-rows="<?= $encodedDurationRows ?>"
                      data-per-page="3">
                     <div class="table-responsive">
                         <table class="table table-sm table-hover align-middle mb-0">
@@ -502,7 +546,7 @@ function renderCollegesTab(array $topByCheckins, array $topByDuration): string
 function renderCoursesTab(array $topByCheckins, array $topByDuration, array $courseChartData): string
 {
     // Flatten the nested [college][course] structure for table display.
-    $flatten = function(array $data): array {
+    $flattenNestedCourses = function(array $data): array {
         $rows = [];
         foreach ($data as $college => $courses) {
             foreach ($courses as $course => $courseData) {
@@ -512,15 +556,15 @@ function renderCoursesTab(array $topByCheckins, array $topByDuration, array $cou
         return $rows;
     };
 
-    $flatCheckins = $flatten($topByCheckins);
-    usort($flatCheckins, fn($a, $b) => $b['count'] <=> $a['count']);
+    $checkinTableRows = $flattenNestedCourses($topByCheckins);
+    usort($checkinTableRows, fn($a, $b) => $b['count'] <=> $a['count']);
 
-    $flatDuration = $flatten($topByDuration);
-    usort($flatDuration, fn($a, $b) => $b['minutes'] <=> $a['minutes']);
+    $durationTableRows = $flattenNestedCourses($topByDuration);
+    usort($durationTableRows, fn($a, $b) => $b['minutes'] <=> $a['minutes']);
 
     $panels = [
-        ['title' => 'Check-ins', 'canvas' => 'chartCoursesCheckin',  'subtitle' => 'Unique visitors per course',    'valueKey' => 'count',   'columnLabel' => 'Visitors',       'rows' => $flatCheckins, 'showViewAll' => false],
-        ['title' => 'Duration',  'canvas' => 'chartCoursesDuration', 'subtitle' => 'Total session time per course', 'valueKey' => 'minutes', 'columnLabel' => 'Duration (min)', 'rows' => $flatDuration, 'showViewAll' => true],
+        ['title' => 'Check-ins', 'canvas' => 'chartCoursesCheckin',  'subtitle' => 'Unique visitors per course',    'valueKey' => 'count',   'columnLabel' => 'Visitors',       'rows' => $checkinTableRows, 'showViewAll' => false],
+        ['title' => 'Duration',  'canvas' => 'chartCoursesDuration', 'subtitle' => 'Total session time per course', 'valueKey' => 'minutes', 'columnLabel' => 'Duration (min)', 'rows' => $durationTableRows, 'showViewAll' => true],
     ];
 
     ob_start(); ?>
@@ -575,14 +619,14 @@ function renderCoursesTab(array $topByCheckins, array $topByDuration, array $cou
 function renderDemographicsTab(array $sexDistribution, int $totalVisitors): string
 {
     $sexBreakdown = [
-        'Male'    => ['icon' => 'bi-gender-male',    'bg' => 'info',      'count' => $sexDistribution['Male']    ?? 0],
-        'Female'  => ['icon' => 'bi-gender-female',  'bg' => 'danger',    'count' => $sexDistribution['Female']  ?? 0],
-        'Unknown' => ['icon' => 'bi-question-circle', 'bg' => 'secondary', 'count' => $sexDistribution['Unknown'] ?? 0],
+        'Male'    => ['icon' => 'bi-gender-male',    'colorVariant' => 'info',      'count' => $sexDistribution['Male']    ?? 0],
+        'Female'  => ['icon' => 'bi-gender-female',  'colorVariant' => 'danger',    'count' => $sexDistribution['Female']  ?? 0],
+        'Unknown' => ['icon' => 'bi-question-circle', 'colorVariant' => 'secondary', 'count' => $sexDistribution['Unknown'] ?? 0],
     ];
-    foreach ($sexBreakdown as &$data) {
-        $data['pct'] = $totalVisitors ? round($data['count'] / $totalVisitors * 100, 1) : 0;
+    foreach ($sexBreakdown as &$entry) {
+        $entry['percentage'] = $totalVisitors ? round($entry['count'] / $totalVisitors * 100, 1) : 0;
     }
-    unset($data);
+    unset($entry);
 
     ob_start(); ?>
     <div class="row g-4">
@@ -613,19 +657,19 @@ function renderDemographicsTab(array $sexDistribution, int $totalVisitors): stri
                         </div>
                     </div>
                 </div>
-                <?php foreach ($sexBreakdown as $label => $data): if ($data['count'] > 0 || $label !== 'Unknown'): ?>
+                <?php foreach ($sexBreakdown as $label => $entry): if ($entry['count'] > 0 || $label !== 'Unknown'): ?>
                 <div class="col-sm-6">
                     <div class="card border-0 shadow-sm">
                         <div class="card-body d-flex align-items-center gap-3 py-3">
-                            <div class="rounded-3 bg-<?= $data['bg'] ?>-subtle d-flex align-items-center justify-content-center"
+                            <div class="rounded-3 bg-<?= $entry['colorVariant'] ?>-subtle d-flex align-items-center justify-content-center"
                                  style="width:46px;height:46px;flex-shrink:0;">
-                                <i class="bi <?= $data['icon'] ?> text-<?= $data['bg'] ?>"></i>
+                                <i class="bi <?= $entry['icon'] ?> text-<?= $entry['colorVariant'] ?>"></i>
                             </div>
                             <div>
                                 <p class="text-muted small mb-0"><?= $label ?></p>
-                                <h4 class="fw-bold mb-0"><?= number_format($data['count']) ?></h4>
+                                <h4 class="fw-bold mb-0"><?= number_format($entry['count']) ?></h4>
                                 <?php if ($label !== 'Unknown'): ?>
-                                <small class="text-muted"><?= $data['pct'] ?>% of total</small>
+                                <small class="text-muted"><?= $entry['percentage'] ?>% of total</small>
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -647,276 +691,328 @@ function renderDemographicsTab(array $sexDistribution, int $totalVisitors): stri
 //  Handlers
 // ---------------------------------------------------------------------------
 
-function TabLogs(): void
+function tabLogs(): void
 {
-    [$where, $params] = buildWhereClause($_POST);
-    $logs = fetchVisitLogs($where, $params);
-    $kpi  = getKpiData($logs, $_POST['endDate'] ?? null);
+    [$whereClause, $queryParams] = buildWhereClause($_POST);
 
-    $flatLogs = array_map(function ($log) {
-        $checkout = $log['checkout_time'] ?? null;
+    $visitLogs = fetchVisitLogs($whereClause, $queryParams);
+    $kpiData   = getKpiData($visitLogs, $_POST['endDate'] ?? null);
+
+    $flatLogs = array_map(function ($logEntry) {
+        $checkoutTime = $logEntry['checkout_time'] ?? null;
+
         return [
-            'id_number'           => $log['id_number'] ?? '',
-            'name'                => $log['name'] ?? '',
-            'college'             => $log['college'] ?? '',
-            'course'              => $log['course'] ?? '',
-            'classification'      => $log['classification'] ?? '',
-            'library'             => $log['library_section_name'] ?? '',
-            'sex'                 => $log['sex'] ?? '',
-            'checkin_time'        => $log['checkin_time'] ?? '',
-            'checkout_time'       => $checkout,
-            'agency_organization' => $log['agency_organization'] ?? '',
-            'duration_minutes'    => minutesBetween($log['checkin_time'] ?? null, $checkout),
-            'checkin_formatted'   => date('M j, Y g:i A', strtotime($log['checkin_time'])),
-            'checkout_formatted'  => $checkout ? date('M j, Y g:i A', strtotime($checkout)) : '—',
+            'id_number'           => $logEntry['id_number'] ?? '',
+            'name'                => $logEntry['name'] ?? '',
+            'college'             => $logEntry['college'] ?? '',
+            'course'              => $logEntry['course'] ?? '',
+            'classification'      => $logEntry['classification'] ?? '',
+            'library'             => $logEntry['library_section_name'] ?? '',
+            'sex'                 => $logEntry['sex'] ?? '',
+            'checkin_time'        => $logEntry['checkin_time'] ?? '',
+            'checkout_time'       => $checkoutTime,
+            'agency_organization' => $logEntry['agency_organization'] ?? '',
+            'duration_minutes'    => minutesBetween($logEntry['checkin_time'] ?? null, $checkoutTime),
+            'checkin_formatted'   => date('M j, Y g:i A', strtotime($logEntry['checkin_time'])),
+            'checkout_formatted'  => $checkoutTime ? date('M j, Y g:i A', strtotime($checkoutTime)) : '—',
         ];
-    }, $logs);
+    }, $visitLogs);
 
     echo json_encode(array_merge([
         'status'   => 'success',
         'html'     => renderLogsTab($flatLogs),
         'flatLogs' => $flatLogs,
-    ], $kpi));
+    ], $kpiData));
+
     exit;
 }
 
-function TabUsers(): void
+function tabUsers(): void
 {
-    [$where, $params] = buildWhereClause($_POST);
-    $logs = fetchVisitLogs($where, $params);
-    $kpi  = getKpiData($logs, $_POST['endDate'] ?? null);
+    [$whereClause, $queryParams] = buildWhereClause($_POST);
+
+    $visitLogs = fetchVisitLogs($whereClause, $queryParams);
+    $kpiData   = getKpiData($visitLogs, $_POST['endDate'] ?? null);
 
     // Classification distribution for the donut chart.
     $classificationDistribution = [];
-    foreach ($logs as $log) {
-        $type = $log['classification'] ?? 'Unknown';
-        $classificationDistribution[$type] = ($classificationDistribution[$type] ?? 0) + 1;
+    foreach ($visitLogs as $logEntry) {
+        $classification = $logEntry['classification'] ?? 'Unknown';
+        $classificationDistribution[$classification] = ($classificationDistribution[$classification] ?? 0) + 1;
     }
 
     // Aggregate all users, then split by classification for per-type top-3 tables.
-    $users  = aggregateUsers($logs);
-    $byType = [];
-    foreach ($users as $rec) {
-        $byType[$rec['classification']][] = $rec;
+    $userStats = aggregateUsers($visitLogs);
+    $usersByClassification = [];
+
+    foreach ($userStats as $userData) {
+        $usersByClassification[$userData['classification']][] = $userData;
     }
 
-    $topCheckins = [];
-    $topDuration = [];
+    $topUsersByCheckins = [];
+    $topUsersByDuration = [];
 
-    foreach ($byType as $type => $typeUsers) {
-        usort($typeUsers, fn($a, $b) => $b['checkins'] <=> $a['checkins']);
-        $topCheckins[$type] = array_map(fn($r) => [
-            'display_label'       => $r['display_label'],
-            'name'                => $r['name'],
-            'college'             => $r['college'],
-            'course'              => $r['course'],
-            'type'                => $r['classification'],
-            'library'             => $r['library'],
-            'agency_organization' => $r['agency_organization'],
-            'count'               => $r['checkins'],
-            'last_checkin'        => $r['last_checkin'],
+    foreach ($usersByClassification as $classification => $typeUsers) {
+        usort($typeUsers, fn($userA, $userB) => $userB['checkins'] <=> $userA['checkins']);
+
+        $topUsersByCheckins[$classification] = array_map(fn($userData) => [
+            'display_label'       => $userData['display_label'],
+            'name'                => $userData['name'],
+            'college'             => $userData['college'],
+            'course'              => $userData['course'],
+            'type'                => $userData['classification'],
+            'library'             => $userData['library'],
+            'agency_organization' => $userData['agency_organization'],
+            'count'               => $userData['checkins'],
+            'last_checkin'        => $userData['last_checkin'],
         ], array_slice($typeUsers, 0, 3));
 
-        usort($typeUsers, fn($a, $b) => $b['duration'] <=> $a['duration']);
-        $topDuration[$type] = array_map(fn($r) => [
-            'display_label'       => $r['display_label'],
-            'name'                => $r['name'],
-            'college'             => $r['college'],
-            'course'              => $r['course'],
-            'type'                => $r['classification'],
-            'library'             => $r['library'],
-            'agency_organization' => $r['agency_organization'],
-            'minutes'             => (int) round($r['duration']),
-            'last_checkin'        => $r['last_checkin'],
+        usort($typeUsers, fn($userA, $userB) => $userB['duration'] <=> $userA['duration']);
+
+        $topUsersByDuration[$classification] = array_map(fn($userData) => [
+            'display_label'       => $userData['display_label'],
+            'name'                => $userData['name'],
+            'college'             => $userData['college'],
+            'course'              => $userData['course'],
+            'type'                => $userData['classification'],
+            'library'             => $userData['library'],
+            'agency_organization' => $userData['agency_organization'],
+            'minutes'             => (int) round($userData['duration']),
+            'last_checkin'        => $userData['last_checkin'],
         ], array_slice($typeUsers, 0, 3));
     }
 
     // Chart data: top 3 overall (across all types).
-    $allUsers = array_values($users);
+    $allUsers = array_values($userStats);
 
-    usort($allUsers, fn($a, $b) => $b['checkins'] <=> $a['checkins']);
+    usort($allUsers, fn($userA, $userB) => $userB['checkins'] <=> $userA['checkins']);
     $chartTopCheckins = array_map(
-        fn($r) => ['label' => $r['display_label'], 'value' => $r['checkins']],
+        fn($userData) => ['label' => $userData['display_label'], 'value' => $userData['checkins']],
         array_slice($allUsers, 0, 3)
     );
 
-    usort($allUsers, fn($a, $b) => $b['duration'] <=> $a['duration']);
+    usort($allUsers, fn($userA, $userB) => $userB['duration'] <=> $userA['duration']);
     $chartTopDuration = array_map(
-        fn($r) => ['label' => $r['display_label'], 'value' => round($r['duration'])],
+        fn($userData) => ['label' => $userData['display_label'], 'value' => round($userData['duration'])],
         array_slice($allUsers, 0, 3)
     );
 
     // Top 3 student courses by check-ins (for the course chart).
-    $courses = aggregateCourses($logs);
-    uasort($courses, fn($a, $b) => $b['visitors'] <=> $a['visitors']);
+    $courseStats = aggregateCourses($visitLogs);
+    uasort($courseStats, fn($courseA, $courseB) => $courseB['visitors'] <=> $courseA['visitors']);
+
     $courseChartData = array_map(
-        fn($r) => ['label' => "{$r['college']} · {$r['course']}", 'checkins' => $r['visitors'], 'duration' => round($r['duration'])],
-        array_slice(array_values($courses), 0, 3)
+        fn($courseData) => [
+            'label'    => "{$courseData['college']} · {$courseData['course']}",
+            'checkins' => $courseData['visitors'],
+            'duration' => round($courseData['duration'])
+        ],
+        array_slice(array_values($courseStats), 0, 3)
     );
 
     // Flat user list for export.
     $flatUsers = array_values(array_map(
-        fn($r) => array_merge($r, ['last_checkin_formatted' => date('M j, Y g:i A', strtotime($r['last_checkin']))]),
-        $users
+        fn($userData) => array_merge(
+            $userData,
+            ['last_checkin_formatted' => date('M j, Y g:i A', strtotime($userData['last_checkin']))]
+        ),
+        $userStats
     ));
 
     echo json_encode(array_merge([
         'status'                     => 'success',
-        'html'                       => renderUsersTab($topCheckins, $topDuration, $classificationDistribution, $chartTopCheckins, $chartTopDuration, $courseChartData),
+        'html'                       => renderUsersTab(
+            $topUsersByCheckins,
+            $topUsersByDuration,
+            $classificationDistribution,
+            $chartTopCheckins,
+            $chartTopDuration,
+            $courseChartData
+        ),
         'classificationDistribution' => $classificationDistribution,
         'chartTopCheckins'           => $chartTopCheckins,
         'chartTopDuration'           => $chartTopDuration,
         'courseChartData'            => $courseChartData,
         'flatUsers'                  => $flatUsers,
-    ], $kpi));
+    ], $kpiData));
+
     exit;
 }
 
-function TabColleges(): void
+function tabColleges(): void 
 {
-    [$where, $params] = buildWhereClause($_POST);
-    $logs = fetchVisitLogs($where, $params);
-    $kpi  = getKpiData($logs, $_POST['endDate'] ?? null);
+    [$whereClause, $queryParams] = buildWhereClause($_POST);
 
-    $colleges = aggregateColleges($logs);
+    $visitLogs = fetchVisitLogs($whereClause, $queryParams);
+    $kpiData   = getKpiData($visitLogs, $_POST['endDate'] ?? null);
+
+    $collegeStats = aggregateColleges($visitLogs);
 
     // Two independent sorted views of the same data.
-    $sortedByVisitors = $colleges;
-    uasort($sortedByVisitors, fn($a, $b) => $b['visitors'] <=> $a['visitors']);
+    $collegesByVisitors = $collegeStats;
+    uasort($collegesByVisitors, fn($collegeA, $collegeB) => $collegeB['visitors'] <=> $collegeA['visitors']);
 
-    $sortedByDuration = $colleges;
-    uasort($sortedByDuration, fn($a, $b) => $b['duration'] <=> $a['duration']);
+    $collegesByDuration = $collegeStats;
+    uasort($collegesByDuration, fn($collegeA, $collegeB) => $collegeB['duration'] <=> $collegeA['duration']);
 
     // Build the top-3 dicts in the shape the render function and JS charts expect.
-    $topByCheckins = [];
-    foreach (array_slice($sortedByVisitors, 0, 3, true) as $name => $rec) {
-        $topByCheckins[$name] = ['count' => $rec['visitors'], 'last_checkin' => $rec['last_checkin'], 'color' => resolveCollegeColor($name)];
+    $topCollegesByCheckins = [];
+    foreach (array_slice($collegesByVisitors, 0, 3, true) as $collegeName => $collegeData) {
+        $topCollegesByCheckins[$collegeName] = [
+            'count'        => $collegeData['visitors'],
+            'last_checkin' => $collegeData['last_checkin'],
+            'color'        => resolveCollegeColor($collegeName)
+        ];
     }
 
-    $topByDuration = [];
-    foreach (array_slice($sortedByDuration, 0, 3, true) as $name => $rec) {
-        $topByDuration[$name] = ['minutes' => round($rec['duration']), 'last_checkin' => $rec['last_checkin'], 'color' => resolveCollegeColor($name)];
+    $topCollegesByDuration = [];
+    foreach (array_slice($collegesByDuration, 0, 3, true) as $collegeName => $collegeData) {
+        $topCollegesByDuration[$collegeName] = [
+            'minutes'      => round($collegeData['duration']),
+            'last_checkin' => $collegeData['last_checkin'],
+            'color'        => resolveCollegeColor($collegeName)
+        ];
     }
 
     // Flat list for export (all colleges, sorted by unique visitors).
-    $flatColleges = [];
-    foreach ($sortedByVisitors as $name => $rec) {
-        $flatColleges[] = [
-            'name'         => $name,
-            'visitors'     => $rec['visitors'],
-            'duration'     => round($rec['duration']),
-            'last_checkin' => date('M j, Y g:i A', strtotime($rec['last_checkin'])),
+    $exportableColleges = [];
+    foreach ($collegesByVisitors as $collegeName => $collegeData) {
+        $exportableColleges[] = [
+            'name'         => $collegeName,
+            'visitors'     => $collegeData['visitors'],
+            'duration'     => round($collegeData['duration']),
+            'last_checkin' => date('M j, Y g:i A', strtotime($collegeData['last_checkin'])),
         ];
     }
 
     echo json_encode(array_merge([
-        'status'               => 'success',
-        'html'                 => renderCollegesTab($topByCheckins, $topByDuration),
-        'top3CollegesCheckin'  => $topByCheckins,
-        'top3CollegesDuration' => $topByDuration,
-        'flatColleges'         => $flatColleges,
-    ], $kpi));
+        'status'                     => 'success',
+        'html'                       => renderCollegesTab($topCollegesByCheckins, $topCollegesByDuration),
+        'top3CollegesCheckin'        => $topCollegesByCheckins,
+        'top3CollegesDuration'       => $topCollegesByDuration,
+        'flatColleges'               => $exportableColleges,
+    ], $kpiData));
+
     exit;
 }
 
-function TabCourses(): void
+function tabCourses(): void 
 {
-    [$where, $params] = buildWhereClause($_POST);
-    $logs = fetchVisitLogs($where, $params);
-    $kpi  = getKpiData($logs, $_POST['endDate'] ?? null);
+    [$whereClause, $queryParams] = buildWhereClause($_POST);
 
-    $courses = aggregateCourses($logs);
+    $visitLogs = fetchVisitLogs($whereClause, $queryParams);
+    $kpiData   = getKpiData($visitLogs, $_POST['endDate'] ?? null);
 
-    $sortedByVisitors = $courses;
-    uasort($sortedByVisitors, fn($a, $b) => $b['visitors'] <=> $a['visitors']);
+    $courseStats = aggregateCourses($visitLogs);
 
-    $sortedByDuration = $courses;
-    uasort($sortedByDuration, fn($a, $b) => $b['duration'] <=> $a['duration']);
+    $coursesByVisitors = $courseStats;
+    uasort($coursesByVisitors, fn($courseA, $courseB) => $courseB['visitors'] <=> $courseA['visitors']);
+
+    $coursesByDuration = $courseStats;
+    uasort($coursesByDuration, fn($courseA, $courseB) => $courseB['duration'] <=> $courseA['duration']);
 
     // Rebuild the nested [college][course] structure the render function and JS charts expect.
-    $topByCheckins = [];
-    foreach ($sortedByVisitors as $rec) {
-        $topByCheckins[$rec['college']][$rec['course']] = ['count' => $rec['visitors'], 'last_checkin' => $rec['last_checkin']];
+    $topCoursesByCheckins = [];
+    foreach ($coursesByVisitors as $courseData) {
+        $topCoursesByCheckins[$courseData['college']][$courseData['course']] = [
+            'count'        => $courseData['visitors'],
+            'last_checkin' => $courseData['last_checkin']
+        ];
     }
 
-    $topByDuration = [];
-    foreach ($sortedByDuration as $rec) {
-        $topByDuration[$rec['college']][$rec['course']] = ['minutes' => round($rec['duration']), 'last_checkin' => $rec['last_checkin']];
+    $topCoursesByDuration = [];
+    foreach ($coursesByDuration as $courseData) {
+        $topCoursesByDuration[$courseData['college']][$courseData['course']] = [
+            'minutes'      => round($courseData['duration']),
+            'last_checkin' => $courseData['last_checkin']
+        ];
     }
 
     // Top 3 courses by unique visitors for the chart.
     $courseChartData = array_map(
-        fn($r) => ['label' => "{$r['college']} · {$r['course']}", 'checkins' => $r['visitors'], 'duration' => round($r['duration'])],
-        array_slice(array_values($sortedByVisitors), 0, 3)
+        fn($courseData) => [
+            'label'    => "{$courseData['college']} · {$courseData['course']}",
+            'checkins' => $courseData['visitors'],
+            'duration' => round($courseData['duration'])
+        ],
+        array_slice(array_values($coursesByVisitors), 0, 3)
     );
 
     // Flat list for export.
-    $flatCourses = [];
-    foreach ($sortedByVisitors as $rec) {
-        $flatCourses[] = [
-            'college'      => $rec['college'],
-            'course'       => $rec['course'],
-            'visitors'     => $rec['visitors'],
-            'duration'     => round($rec['duration']),
-            'last_checkin' => date('M j, Y g:i A', strtotime($rec['last_checkin'])),
+    $exportableCourses = [];
+    foreach ($coursesByVisitors as $courseData) {
+        $exportableCourses[] = [
+            'college'      => $courseData['college'],
+            'course'       => $courseData['course'],
+            'visitors'     => $courseData['visitors'],
+            'duration'     => round($courseData['duration']),
+            'last_checkin' => date('M j, Y g:i A', strtotime($courseData['last_checkin'])),
         ];
     }
 
     echo json_encode(array_merge([
         'status'             => 'success',
-        'html'               => renderCoursesTab($topByCheckins, $topByDuration, $courseChartData),
-        'topCoursesCheckin'  => $topByCheckins,
-        'topCoursesDuration' => $topByDuration,
+        'html'               => renderCoursesTab($topCoursesByCheckins, $topCoursesByDuration, $courseChartData),
+        'topCoursesCheckin'  => $topCoursesByCheckins,
+        'topCoursesDuration' => $topCoursesByDuration,
         'courseChartData'    => $courseChartData,
-        'flatCourses'        => $flatCourses,
-    ], $kpi));
+        'flatCourses'        => $exportableCourses,
+    ], $kpiData));
+
     exit;
 }
 
-function TabDemographics(): void
+function tabDemographics(): void
 {
-    [$where, $params] = buildWhereClause($_POST);
-    $logs = fetchVisitLogs($where, $params);
-    $kpi  = getKpiData($logs, $_POST['endDate'] ?? null);
+    [$whereClause, $queryParams] = buildWhereClause($_POST);
+
+    $visitLogs = fetchVisitLogs($whereClause, $queryParams);
+    $kpiData   = getKpiData($visitLogs, $_POST['endDate'] ?? null);
 
     $sexDistribution = [];
-    foreach ($logs as $log) {
-        $sex = $log['sex'] ?: 'Unknown';
+    foreach ($visitLogs as $logEntry) {
+        $sex = $logEntry['sex'] ?: 'Unknown';
         $sexDistribution[$sex] = ($sexDistribution[$sex] ?? 0) + 1;
     }
 
-    $totalLogs = count($logs);
+    $totalLogCount = count($visitLogs);
 
     $flatDemographics = array_map(
-        fn($sex, $count) => ['sex' => $sex, 'count' => $count, 'pct' => $totalLogs ? round($count / $totalLogs * 100, 1) : 0],
+        fn($sex, $count) => [
+            'sex'        => $sex,
+            'count'      => $count,
+            'percentage' => $totalLogCount ? round($count / $totalLogCount * 100, 1) : 0
+        ],
         array_keys($sexDistribution),
         array_values($sexDistribution)
     );
 
-    $flatLogs = array_map(function ($log) {
-        $checkout = $log['checkout_time'] ?? null;
+    $flatLogs = array_map(function ($logEntry) {
+        $checkoutTime = $logEntry['checkout_time'] ?? null;
+
         return [
-            'id_number'           => $log['id_number'] ?? '',
-            'name'                => $log['name'] ?? '',
-            'college'             => $log['college'] ?? '',
-            'course'              => $log['course'] ?? '',
-            'classification'      => $log['classification'] ?? '',
-            'library'             => $log['library_section_name'] ?? '',
-            'sex'                 => $log['sex'] ?? '',
-            'checkin_time'        => $log['checkin_time'] ?? '',
-            'checkout_time'       => $checkout,
-            'agency_organization' => $log['agency_organization'] ?? '',
-            'duration'            => minutesBetween($log['checkin_time'] ?? null, $checkout),
+            'id_number'           => $logEntry['id_number'] ?? '',
+            'name'                => $logEntry['name'] ?? '',
+            'college'             => $logEntry['college'] ?? '',
+            'course'              => $logEntry['course'] ?? '',
+            'classification'      => $logEntry['classification'] ?? '',
+            'library'             => $logEntry['library_section_name'] ?? '',
+            'sex'                 => $logEntry['sex'] ?? '',
+            'checkin_time'        => $logEntry['checkin_time'] ?? '',
+            'checkout_time'       => $checkoutTime,
+            'agency_organization' => $logEntry['agency_organization'] ?? '',
+            'duration'            => minutesBetween($logEntry['checkin_time'] ?? null, $checkoutTime),
         ];
-    }, $logs);
+    }, $visitLogs);
 
     echo json_encode(array_merge([
         'status'           => 'success',
-        'html'             => renderDemographicsTab($sexDistribution, $totalLogs),
+        'html'             => renderDemographicsTab($sexDistribution, $totalLogCount),
         'sexDistribution'  => $sexDistribution,
         'flatDemographics' => $flatDemographics,
         'flatLogs'         => $flatLogs,
-    ], $kpi));
+    ], $kpiData));
+
     exit;
 }
 
