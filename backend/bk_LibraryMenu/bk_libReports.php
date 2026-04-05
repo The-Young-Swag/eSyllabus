@@ -6,9 +6,8 @@
  * Depends on execsqlSRS() provided by dbconnection.php.
  */
 
-// ---------------------------------------------------------------------------
 //  Query helpers
-// ---------------------------------------------------------------------------
+
 
 function buildWhereClause(array $post): array
 {
@@ -16,19 +15,19 @@ function buildWhereClause(array $post): array
     $queryParams = [];
 
     if (!empty($post['startDate'])) {
-        $conditions[]              = 'CAST(l.checkin_time AS DATE) >= :startDate';
+        $conditions[] = 'CAST(l.checkin_time AS DATE) >= :startDate';
         $queryParams[':startDate'] = $post['startDate'];
     }
     if (!empty($post['endDate'])) {
-        $conditions[]            = 'CAST(l.checkin_time AS DATE) <= :endDate';
+        $conditions[] = 'CAST(l.checkin_time AS DATE) <= :endDate';
         $queryParams[':endDate'] = $post['endDate'];
     }
     if (!empty($post['classification']) && $post['classification'] !== 'All') {
-        $conditions[]                   = 'l.classification = :classification';
+        $conditions[] = 'l.classification = :classification';
         $queryParams[':classification'] = $post['classification'];
     }
     if (!empty($post['library']) && $post['library'] !== 'All') {
-        $conditions[]             = 'l.library = :library';
+        $conditions[] = 'l.library = :library';
         $queryParams[':library']  = $post['library'];
     }
 
@@ -57,9 +56,7 @@ function fetchVisitLogs(string $whereClause, array $queryParams): array
     ", 'Select', $queryParams);
 }
 
-// ---------------------------------------------------------------------------
 //  Primitive helpers
-// ---------------------------------------------------------------------------
 
 /** Minutes elapsed between two timestamp strings; 0.0 if either is absent or unparseable. */
 function minutesBetween(?string $start, ?string $end): float
@@ -72,12 +69,6 @@ function minutesBetween(?string $start, ?string $end): float
         : 0.0;
 }
 
-/** True when the log record belongs to a student. */
-function isStudent(array $log): bool
-{
-    return strcasecmp($log['classification'] ?? '', 'student') === 0;
-}
-
 /** Renders a muted classification badge. */
 function getTypeBadge(string $text): string
 {
@@ -86,9 +77,9 @@ function getTypeBadge(string $text): string
          . '</span>';
 }
 
-// ---------------------------------------------------------------------------
+
 //  Domain aggregators
-// ---------------------------------------------------------------------------
+
 
 /**
  * Aggregates visit logs into one record per unique visitor (keyed by id_number).
@@ -99,7 +90,7 @@ function getTypeBadge(string $text): string
  *   checkins: int, duration: float, last_checkin: string
  * }>
  */
-function aggregateUsers(array $logs): array
+function summarizeUsers(array $logs): array
 {
     $users = [];
 
@@ -138,18 +129,18 @@ function aggregateUsers(array $logs): array
  *
  * @return array<string, array{visitors: int, duration: float, last_checkin: string}>
  */
-function aggregateColleges(array $logs): array
+function summarizeColleges(array $logs): array
 {
     $collegeStats     = [];
     $uniqueVisitorIds = [];
 
     foreach ($logs as $logEntry) {
-        if (!isStudent($logEntry)) continue;
+        if (strcasecmp($logEntry['classification'] ?? '', 'student') !== 0) continue;
 
         $college = $logEntry['college'] ?: 'Unknown';
 
         if (!isset($collegeStats[$college])) {
-            $collegeStats[$college]     = ['duration' => 0.0, 'last_checkin' => $logEntry['checkin_time']];
+            $collegeStats[$college] = ['duration' => 0.0, 'last_checkin' => $logEntry['checkin_time']];
             $uniqueVisitorIds[$college] = [];
         }
 
@@ -175,20 +166,20 @@ function aggregateColleges(array $logs): array
  *
  * @return array<string, array{college: string, course: string, visitors: int, duration: float, last_checkin: string}>
  */
-function aggregateCourses(array $logs): array
+function summarizeCourses(array $logs): array
 {
-    $courseStats      = [];
+    $courseStats = [];
     $uniqueVisitorIds = [];
 
     foreach ($logs as $logEntry) {
-        if (!isStudent($logEntry)) continue;
+        if (strcasecmp($logEntry['classification'] ?? '', 'student') !== 0) continue;
 
         $college = $logEntry['college'] ?: 'Unknown';
         $course  = $logEntry['course']  ?: 'Unknown';
         $courseKey = "{$college}|{$course}";
 
         if (!isset($courseStats[$courseKey])) {
-            $courseStats[$courseKey]      = ['college' => $college, 'course' => $course, 'duration' => 0.0, 'last_checkin' => $logEntry['checkin_time']];
+            $courseStats[$courseKey] = ['college' => $college, 'course' => $course, 'duration' => 0.0, 'last_checkin' => $logEntry['checkin_time']];
             $uniqueVisitorIds[$courseKey] = [];
         }
 
@@ -208,10 +199,7 @@ function aggregateCourses(array $logs): array
     return $result;
 }
 
-// ---------------------------------------------------------------------------
 //  Pagination
-// ---------------------------------------------------------------------------
-
 /**
  * Slices $items to the requested page and returns pagination metadata.
  *

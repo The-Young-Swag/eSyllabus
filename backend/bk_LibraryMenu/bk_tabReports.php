@@ -6,8 +6,8 @@
  * bk_libReports.php, and emits a single JSON response.
  */
 
- include '../../db/dbconnection.php';
-include 'bk_libReports.php';
+require '../../db/dbconnection.php';
+require 'bk_libReports.php';
 header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -238,7 +238,7 @@ function getKpiData(array $visitLogs, ?string $endDate): array
 
     $totalVisits = count($visitLogs);
 
-    $studentStats = aggregateUsers(array_filter($visitLogs, 'isStudent'));
+    $studentStats = summarizeUsers(array_filter($visitLogs, fn($logEntry) => strcasecmp($logEntry['classification'] ?? '', 'student') === 0));
     uasort($studentStats, fn($userA, $userB) => $userB['checkins'] <=> $userA['checkins']);
 
     $topStudents = [];
@@ -251,7 +251,7 @@ function getKpiData(array $visitLogs, ?string $endDate): array
         ];
     }
 
-    $collegeStats = aggregateColleges($visitLogs);
+    $collegeStats = summarizeColleges($visitLogs);
     uasort($collegeStats, fn($collegeA, $collegeB) => $collegeB['visitors'] <=> $collegeA['visitors']);
 
     $topColleges = [];
@@ -259,7 +259,7 @@ function getKpiData(array $visitLogs, ?string $endDate): array
         $topColleges[] = ['name' => $collegeName, 'count' => $collegeData['visitors']];
     }
 
-    $courseStats = aggregateCourses($visitLogs);
+    $courseStats = summarizeCourses($visitLogs);
     uasort($courseStats, fn($courseA, $courseB) => $courseB['visitors'] <=> $courseA['visitors']);
 
     $topCourses = [];
@@ -750,7 +750,7 @@ function tabUsers(): void
     }
 
     // Aggregate all users, then split by classification for per-type top-3 tables.
-    $userStats = aggregateUsers($visitLogs);
+    $userStats = summarizeUsers($visitLogs);
     $usersByClassification = [];
 
     foreach ($userStats as $userData) {
@@ -806,7 +806,7 @@ function tabUsers(): void
     );
 
     // Top 3 student courses by check-ins (for the course chart).
-    $courseStats = aggregateCourses($visitLogs);
+    $courseStats = summarizeCourses($visitLogs);
     uasort($courseStats, fn($courseA, $courseB) => $courseB['visitors'] <=> $courseA['visitors']);
 
     $courseChartData = array_map(
@@ -854,7 +854,7 @@ function tabColleges(): void
     $visitLogs = fetchVisitLogs($whereClause, $queryParams);
     $kpiData = getKpiData($visitLogs, $_POST['endDate'] ?? null);
 
-    $collegeStats = aggregateColleges($visitLogs);
+    $collegeStats = summarizeColleges($visitLogs);
 
     // Two independent sorted views of the same data.
     $collegesByVisitors = $collegeStats;
@@ -911,7 +911,7 @@ function tabCourses(): void
     $visitLogs = fetchVisitLogs($whereClause, $queryParams);
     $kpiData = getKpiData($visitLogs, $_POST['endDate'] ?? null);
 
-    $courseStats = aggregateCourses($visitLogs);
+    $courseStats = summarizeCourses($visitLogs);
 
     $coursesByVisitors = $courseStats;
     uasort($coursesByVisitors, fn($courseA, $courseB) => $courseB['visitors'] <=> $courseA['visitors']);
@@ -1051,5 +1051,5 @@ switch (trim($_POST['request'] ?? '')) {
         tabDemographics(); 
     break;
 
-    default: echo json_encode(['status' => 'error', 'message' => "Unknown request: '" . trim($_POST['request'] ?? '') . "'."]);
-}
+    default: echo json_encode(['status' => 'error', 'message' => "Unknown request: '{$request}'."]);
+    }

@@ -6,8 +6,9 @@
  * slices to the requested page, and returns modal HTML + pagination metadata.
  */
 
-include '../../db/dbconnection.php';
-include 'bk_libReports.php';
+require '../../db/dbconnection.php';
+require 'bk_libReports.php';
+
 header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -16,9 +17,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 const ROWS_PER_PAGE = 10;
 
-// ---------------------------------------------------------------------------
 //  Modal table renderer
-// ---------------------------------------------------------------------------
+
 function renderLogsTable(array $rows): string
 {
     $headers = ['ID Number', 'Name', 'College', 'Course', 'Type', 'Section', 'Sex', 'Check-in', 'Check-out', 'Agency / Organization', 'Duration (min)'];
@@ -36,16 +36,16 @@ function renderLogsTable(array $rows): string
 
     foreach ($rows as $index => $row) {
         $html .= '<tr class="' . ($index % 2 === 0 ? 'table-success' : '') . '">';
-        $html .= '<td class="ps-3 fw-semibold">'  . htmlspecialchars($row['id_number'] ?? '', ENT_QUOTES, 'UTF-8') . '</td>';
-        $html .= '<td class="text-muted small">'  . htmlspecialchars($row['name'] ?: '—', ENT_QUOTES, 'UTF-8') . '</td>';
-        $html .= '<td class="text-muted small">'  . htmlspecialchars($row['college'] ?: '—', ENT_QUOTES, 'UTF-8') . '</td>';
-        $html .= '<td class="text-muted small">'  . htmlspecialchars($row['course'] ?: '—', ENT_QUOTES, 'UTF-8') . '</td>';
-        $html .= '<td>'                            . getTypeBadge($row['classification'] ?: '—') . '</td>';
-        $html .= '<td class="text-muted small">'  . htmlspecialchars($row['library'] ?: '—', ENT_QUOTES, 'UTF-8') . '</td>';
-        $html .= '<td class="text-muted small">'  . htmlspecialchars($row['sex'] ?: '—', ENT_QUOTES, 'UTF-8') . '</td>';
-        $html .= '<td class="text-muted small">'  . ($row['checkin_time']  ? date('M j, Y g:i A', strtotime($row['checkin_time']))  : '—') . '</td>';
-        $html .= '<td class="text-muted small">'  . ($row['checkout_time'] ? date('M j, Y g:i A', strtotime($row['checkout_time'])) : '—') . '</td>';
-        $html .= '<td class="text-muted small">'  . htmlspecialchars($row['agency_organization'] ?: '—', ENT_QUOTES, 'UTF-8') . '</td>';
+        $html .= '<td class="ps-3 fw-semibold">' . htmlspecialchars($row['id_number'] ?? '', ENT_QUOTES, 'UTF-8') . '</td>';
+        $html .= '<td class="text-muted small">' . htmlspecialchars($row['name'] ?: '—', ENT_QUOTES, 'UTF-8') . '</td>';
+        $html .= '<td class="text-muted small">' . htmlspecialchars($row['college'] ?: '—', ENT_QUOTES, 'UTF-8') . '</td>';
+        $html .= '<td class="text-muted small">' . htmlspecialchars($row['course'] ?: '—', ENT_QUOTES, 'UTF-8') . '</td>';
+        $html .= '<td>' . getTypeBadge($row['classification'] ?: '—') . '</td>';
+        $html .= '<td class="text-muted small">' . htmlspecialchars($row['library'] ?: '—', ENT_QUOTES, 'UTF-8') . '</td>';
+        $html .= '<td class="text-muted small">' . htmlspecialchars($row['sex'] ?: '—', ENT_QUOTES, 'UTF-8') . '</td>';
+        $html .= '<td class="text-muted small">' . ($row['checkin_time']  ? date('M j, Y g:i A', strtotime($row['checkin_time']))  : '—') . '</td>';
+        $html .= '<td class="text-muted small">' . ($row['checkout_time'] ? date('M j, Y g:i A', strtotime($row['checkout_time'])) : '—') . '</td>';
+        $html .= '<td class="text-muted small">' . htmlspecialchars($row['agency_organization'] ?: '—', ENT_QUOTES, 'UTF-8') . '</td>';
         $html .= '<td class="text-end pe-3">' . (int) round($row['duration']) . '</td>';
         $html .= '</tr>';
     }
@@ -178,11 +178,7 @@ function renderDemographicsTable(array $rows): string
     return $html;
 }
 
-
-
-// ---------------------------------------------------------------------------
 //  Pagination renderer
-// ---------------------------------------------------------------------------
 
 function renderModalPagination(int $totalPages, int $currentPage, int $total, int $perPage): string
 {
@@ -213,9 +209,7 @@ function renderModalPagination(int $totalPages, int $currentPage, int $total, in
          . '<nav class="mt-1"><ul class="pagination pagination-sm mb-0 flex-wrap justify-content-center">' . $pageItems . '</ul></nav>';
 }
 
-// ---------------------------------------------------------------------------
 //  Handlers (respond() inlined)
-// ---------------------------------------------------------------------------
 
 function ViewAllLogs(): void
 {
@@ -259,7 +253,7 @@ function ViewAllLogs(): void
 function ViewAllUsers(): void
 {
     [$whereClause, $queryParams] = buildWhereClause($_POST);
-    $userStats = aggregateUsers(fetchVisitLogs($whereClause, $queryParams));
+    $userStats = summarizeUsers(fetchVisitLogs($whereClause, $queryParams));
     uasort($userStats, fn($userA, $userB) => $userB['checkins'] <=> $userA['checkins']);
 
     $tableRows = array_values($userStats);
@@ -280,7 +274,7 @@ function ViewAllUsers(): void
 function ViewAllColleges(): void
 {
     [$whereClause, $queryParams] = buildWhereClause($_POST);
-    $collegeStats = aggregateColleges(fetchVisitLogs($whereClause, $queryParams));
+    $collegeStats = summarizeColleges(fetchVisitLogs($whereClause, $queryParams));
     uasort($collegeStats, fn($collegeA, $collegeB) => $collegeB['visitors'] <=> $collegeA['visitors']);
 
     $tableRows = array_map(fn($collegeName, $collegeData) => [
@@ -307,7 +301,7 @@ function ViewAllColleges(): void
 function ViewAllCourses(): void
 {
     [$whereClause, $queryParams] = buildWhereClause($_POST);
-    $courseStats = aggregateCourses(fetchVisitLogs($whereClause, $queryParams));
+    $courseStats = summarizeCourses(fetchVisitLogs($whereClause, $queryParams));
     uasort($courseStats, fn($courseA, $courseB) => $courseB['visitors'] <=> $courseA['visitors']);
 
     $tableRows = array_values($courseStats);
@@ -359,9 +353,7 @@ function ViewAllDemographics(): void
     exit;
 }
 
-// ---------------------------------------------------------------------------
 //  Dispatch
-// ---------------------------------------------------------------------------
 
 $request = trim($_POST['request'] ?? '');
 
