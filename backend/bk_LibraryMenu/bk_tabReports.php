@@ -5,11 +5,9 @@
  * Each handler fetches only the logs it needs, delegates aggregation to
  * bk_libReports.php, and emits a single JSON response.
  */
-// After
-ob_start();
-include '../../db/dbconnection.php';
+
+ include '../../db/dbconnection.php';
 include 'bk_libReports.php';
-ob_clean();
 header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -299,7 +297,8 @@ function getKpiData(array $visitLogs, ?string $endDate): array
 function renderLogsTab(array $flatLogs): string
 {
     $encodedLogRows = htmlspecialchars(json_encode(renderLogRows($flatLogs)), ENT_QUOTES);
-     ?>
+    ob_start();
+    ?>
     <div class="card border-0 shadow-sm">
         <div class="card-header bg-white border-bottom py-2 px-3">
             <span class="fw-semibold small">All Visit Logs</span>
@@ -378,8 +377,8 @@ function renderUsersTab(
 
     $encodedCheckinRows  = htmlspecialchars(json_encode(renderCheckinRows($checkinTableRows)),  ENT_QUOTES);
     $encodedDurationRows = htmlspecialchars(json_encode(renderDurationRows($durationTableRows)), ENT_QUOTES);
-
-     ?>
+    ob_start();
+    ?>
     <div class="row g-4">
         <div class="col-xl-8">
             <div class="row g-3">
@@ -501,8 +500,9 @@ function renderCollegesTab(array $topByCheckins, array $topByDuration): string
     $panels = [
         ['title' => 'Top Colleges — Check-ins', 'subtitle' => 'Unique visitors per college',     'canvas' => 'chartCollegeCheckin',  'data' => $topByCheckins, 'valueKey' => 'count',   'label' => 'Visitors',       'valueClass' => 'text-primary', 'isCheckins' => true],
         ['title' => 'Top Colleges — Duration',   'subtitle' => 'Total session time per college', 'canvas' => 'chartCollegeDuration', 'data' => $topByDuration, 'valueKey' => 'minutes', 'label' => 'Duration (min)', 'valueClass' => 'text-success', 'isCheckins' => false],
-    ];
-     ?>
+];
+    ob_start();
+    ?>
     <div class="row g-4">
         <?php foreach ($panels as $panel): ?>
         <div class="col-md-6">
@@ -570,8 +570,8 @@ function renderCoursesTab(array $topByCheckins, array $topByDuration, array $cou
         ['title' => 'Check-ins', 'canvas' => 'chartCoursesCheckin',  'subtitle' => 'Unique visitors per course',    'valueKey' => 'count',   'columnLabel' => 'Visitors',       'rows' => $checkinTableRows, 'showViewAll' => false],
         ['title' => 'Duration',  'canvas' => 'chartCoursesDuration', 'subtitle' => 'Total session time per course', 'valueKey' => 'minutes', 'columnLabel' => 'Duration (min)', 'rows' => $durationTableRows, 'showViewAll' => true],
     ];
-
-     ?>
+    ob_start();
+    ?>
     <div class="row g-4">
         <?php foreach ($panels as $panel): ?>
         <div class="col-md-6">
@@ -631,8 +631,8 @@ function renderDemographicsTab(array $sexDistribution, int $totalVisitors): stri
         $sexEntry['percentage'] = $totalVisitors ? round($sexEntry['count'] / $totalVisitors * 100, 1) : 0;
     }
     unset($sexEntry);
-
-     ?>
+    ob_start();
+    ?>
     <div class="row g-4">
         <div class="col-lg-5">
             <div class="card border-0 shadow-sm h-100">
@@ -704,10 +704,12 @@ function tabLogs(): void
     $visitLogs = fetchVisitLogs($whereClause, $queryParams);
     $kpiData   = getKpiData($visitLogs, $_POST['endDate'] ?? null);
 
-    $flatLogs = array_map(function ($logEntry) {
-        $checkoutTime = $logEntry['checkout_time'] ?? null;
+    $flatLogs = [];
 
-        return [
+    foreach ($visitLogs as $logEntry) {
+        $checkoutTime = $logEntry['checkout_time'] ?? null;
+    
+        $flatLogs[] = [
             'id_number' => $logEntry['id_number'] ?? '',
             'name' => $logEntry['name'] ?? '',
             'college' => $logEntry['college'] ?? '',
@@ -719,10 +721,10 @@ function tabLogs(): void
             'checkout_time' => $checkoutTime,
             'agency_organization' => $logEntry['agency_organization'] ?? '',
             'duration_minutes' => minutesBetween($logEntry['checkin_time'] ?? null, $checkoutTime),
-            'checkin_formatted'   => date('M j, Y g:i A', strtotime($logEntry['checkin_time'])),
+            'checkin_formatted' => date('M j, Y g:i A', strtotime($logEntry['checkin_time'])),
             'checkout_formatted'  => $checkoutTime ? date('M j, Y g:i A', strtotime($checkoutTime)) : '—',
         ];
-    }, $visitLogs);
+    }
 
     echo json_encode(array_merge([
         'status' => 'success',
@@ -887,7 +889,7 @@ function tabColleges(): void
             'name' => $collegeName,
             'visitors' => $collegeData['visitors'],
             'duration' => round($collegeData['duration']),
-            'last_checkin' => date('M j, Y g:i A', strtotime($collegeData['last_checkin'])),
+            'last_checkin' => !empty($collegeData['last_checkin']) ? date('M j, Y g:i A', strtotime($collegeData['last_checkin'])) : '—',
         ];
     }
 
@@ -952,7 +954,7 @@ function tabCourses(): void
             'course' => $courseData['course'],
             'visitors' => $courseData['visitors'],
             'duration' => round($courseData['duration']),
-            'last_checkin' => date('M j, Y g:i A', strtotime($courseData['last_checkin'])),
+            'last_checkin' => !empty($courseData['last_checkin']) ? date('M j, Y g:i A', strtotime($courseData['last_checkin'])) : '—',
         ];
     }
 
@@ -993,10 +995,12 @@ function tabDemographics(): void
         array_values($sexDistribution)
     );
 
-    $flatLogs = array_map(function ($logEntry) {
-        $checkoutTime = $logEntry['checkout_time'] ?? null;
+    $flatLogs = [];
 
-        return [
+    foreach ($visitLogs as $logEntry) {
+        $checkoutTime = $logEntry['checkout_time'] ?? null;
+    
+        $flatLogs[] = [
             'id_number' => $logEntry['id_number'] ?? '',
             'name' => $logEntry['name'] ?? '',
             'college' => $logEntry['college'] ?? '',
@@ -1009,7 +1013,7 @@ function tabDemographics(): void
             'agency_organization' => $logEntry['agency_organization'] ?? '',
             'duration' => minutesBetween($logEntry['checkin_time'] ?? null, $checkoutTime),
         ];
-    }, $visitLogs);
+    }
 
     echo json_encode(array_merge([
         'status' => 'success',
@@ -1028,24 +1032,24 @@ function tabDemographics(): void
 
 switch (trim($_POST['request'] ?? '')) {
     case 'getTabLogs': 
-        TabLogs(); 
+        tabLogs(); 
     break;
 
     case 'getTabUsers': 
-        TabUsers(); 
+        tabUsers(); 
     break;
 
     case 'getTabColleges': 
-        TabColleges(); 
+        tabColleges(); 
     break;
 
     case 'getTabCourses': 
-        TabCourses(); 
+        tabCourses(); 
     break;
 
     case 'getTabDemographics': 
-        TabDemographics(); 
+        tabDemographics(); 
     break;
-    
+
     default: echo json_encode(['status' => 'error', 'message' => "Unknown request: '" . trim($_POST['request'] ?? '') . "'."]);
 }

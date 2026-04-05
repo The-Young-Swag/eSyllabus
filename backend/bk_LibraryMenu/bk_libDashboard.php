@@ -77,8 +77,8 @@ function loadKPI(): void
 
 function loadDailyLogs(): void
 {
-    $page      = max(1, (int)($_POST['page'] ?? 1));
-    $limit     = 5;
+    $page = max(1, (int)($_POST['page'] ?? 1));
+    $limit = 5;
     $sectionID = isset($_POST['sectionID']) && $_POST['sectionID'] !== ''
                  ? (int)$_POST['sectionID'] : null;
 
@@ -91,10 +91,10 @@ function loadDailyLogs(): void
         WHERE  1=1 $drClause $sectionClause
     ", "Search", []);
 
-    $totalRows  = (int)$countResult[0]['total'];
+    $totalRows = (int)$countResult[0]['total'];
     $totalPages = max(1, (int)ceil($totalRows / $limit));
-    $page       = min($page, $totalPages);
-    $offset     = ($page - 1) * $limit;
+    $page = min($page, $totalPages);
+    $offset = ($page - 1) * $limit;
 
     $logs = execsqlSRS("
         SELECT
@@ -142,11 +142,11 @@ function loadDailyLogs(): void
     }
 
     echo json_encode([
-        'rows'        => ob_get_clean(),
-        'totalRows'   => $totalRows,
-        'totalPages'  => $totalPages,
+        'rows' => ob_get_clean(),
+        'totalRows' => $totalRows,
+        'totalPages' => $totalPages,
         'currentPage' => $page,
-        'limit'       => $limit,
+        'limit' => $limit,
     ]);
 }
 
@@ -169,9 +169,9 @@ function loadMonthlyTrend(): void
     $rows = execsqlSRS("
         SELECT
             FORMAT(checkin_time,'MMM yyyy') AS month,
-            YEAR(checkin_time)              AS yr,
-            MONTH(checkin_time)             AS mo,
-            COUNT(*)                        AS total
+            YEAR(checkin_time) AS yr,
+            MONTH(checkin_time) AS mo,
+            COUNT(*) AS total
         FROM Library_logs
         WHERE 1=1 $dateClause $sectionClause
         GROUP BY FORMAT(checkin_time,'MMM yyyy'), YEAR(checkin_time), MONTH(checkin_time)
@@ -186,17 +186,17 @@ function loadMonthlyTrend(): void
 
 function loadCollegeCourseActivity(): void
 {
-    $sectionID     = isset($_POST['sectionID']) && $_POST['sectionID'] !== ''
+    $sectionID = isset($_POST['sectionID']) && $_POST['sectionID'] !== ''
                      ? (int)$_POST['sectionID'] : null;
     $sectionClause = $sectionID ? "AND l.library = $sectionID" : "";
-    $drClause      = dateRangeClause('l.checkin_time');
+    $drClause = dateRangeClause('l.checkin_time');
 
     $rows = execsqlSRS("
         SELECT
             l.college,
             l.course,
             s.SectionName AS section_name,
-            COUNT(*)      AS total
+            COUNT(*) AS total
         FROM Library_logs l
         LEFT JOIN LibrarySection s ON l.library = s.SectionID
         WHERE l.college IS NOT NULL AND l.college <> ''
@@ -211,8 +211,8 @@ function loadCollegeCourseActivity(): void
     $grouped = [];
     foreach ($rows as $row) {
         $college = $row['college'];
-        $course  = $row['course'];
-        $total   = (int)$row['total'];
+        $course = $row['course'];
+        $total = (int)$row['total'];
 
         if (!isset($grouped[$college])) {
             $grouped[$college] = ['college' => $college, 'total' => 0, 'courses' => []];
@@ -224,7 +224,7 @@ function loadCollegeCourseActivity(): void
         $grouped[$college]['courses'][$course]['total']      += $total;
         $grouped[$college]['courses'][$course]['sections'][]  = [
             'section_name' => $row['section_name'] ?? '—',
-            'total'        => $total,
+            'total' => $total,
         ];
         $grouped[$college]['total'] += $total;
     }
@@ -299,13 +299,27 @@ function forceCheckout(): void
 $request = $_POST['request'] ?? '';
 
 switch ($request) {
-    case 'sections':              librarySections();           break;
-    case 'kpiData':               loadKPI();                   break;
-    case 'dailyLogs':             loadDailyLogs();             break;
-    case 'monthlyTrend':          loadMonthlyTrend();          break;
-    case 'collegeCourseActivity': loadCollegeCourseActivity(); break;
-    case 'countPendingCheckout':  countPendingCheckout();      break;
-    case 'forceCheckout':         forceCheckout();             break;
+    case 'sections':
+        librarySections();
+        break;
+    case 'kpiData':
+        loadKPI();
+        break;
+    case 'dailyLogs':
+        loadDailyLogs();
+        break;
+    case 'monthlyTrend':
+        loadMonthlyTrend();
+        break;
+    case 'collegeCourseActivity':
+         loadCollegeCourseActivity();
+          break;
+    case 'countPendingCheckout':
+        countPendingCheckout();
+        break;
+    case 'forceCheckout':
+        forceCheckout();
+        break;
     default:
         http_response_code(400);
         echo json_encode(['error' => 'Invalid request.']);

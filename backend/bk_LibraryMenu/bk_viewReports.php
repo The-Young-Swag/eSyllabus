@@ -5,11 +5,9 @@
  * Each handler fetches logs, delegates aggregation to bk_libReports.php,
  * slices to the requested page, and returns modal HTML + pagination metadata.
  */
-// After
-ob_start();
+
 include '../../db/dbconnection.php';
 include 'bk_libReports.php';
-ob_clean();
 header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -21,92 +19,166 @@ const ROWS_PER_PAGE = 10;
 // ---------------------------------------------------------------------------
 //  Modal table renderer
 // ---------------------------------------------------------------------------
-
-function renderModalTable(string $tab, array $rows): string
+function renderLogsTable(array $rows): string
 {
-    $configs = [
-        'logs' => [
-            'headers' => ['ID Number', 'Name', 'College', 'Course', 'Type', 'Section', 'Sex', 'Check-in', 'Check-out', 'Agency / Organization', 'Duration (min)'],
-            'rowFn'   => fn($row) =>
-                td('ps-3 fw-semibold', $row['id_number'] ?? '') .
-                td('text-muted small', $row['name']               ?: '—') .
-                td('text-muted small', $row['college']            ?: '—') .
-                td('text-muted small', $row['course']             ?: '—') .
-                '<td>' . getTypeBadge($row['classification'] ?: '—') . '</td>' .
-                td('text-muted small', $row['library']            ?: '—') .
-                td('text-muted small', $row['sex']                ?: '—') .
-                td('text-muted small', $row['checkin_time']  ? date('M j, Y g:i A', strtotime($row['checkin_time']))  : '—') .
-                td('text-muted small', $row['checkout_time'] ? date('M j, Y g:i A', strtotime($row['checkout_time'])) : '—') .
-                td('text-muted small', $row['agency_organization'] ?: '—') .
-                '<td class="text-end pe-3">' . (int) round($row['duration']) . '</td>',
-        ],
-        'users' => [
-            'headers' => ['ID Number', 'Name', 'College', 'Course', 'Type', 'Library Section', 'Check-ins', 'Duration (min)', 'Last Check-in'],
-            'rowFn'   => fn($row) =>
-                td('ps-3 fw-semibold', $row['display_label'] ?? '') .
-                td('text-muted small', $row['name']    ?? '') .
-                td('text-muted small', $row['college'] ?: '—') .
-                td('text-muted small', $row['course']  ?: '—') .
-                '<td>' . getTypeBadge($row['classification']) . '</td>' .
-                td('text-muted small', $row['library'] ?? '—') .
-                '<td class="text-end fw-semibold text-primary">' . (int) $row['checkins'] . '</td>' .
-                '<td class="text-end">' . (int) round($row['duration']) . '</td>' .
-                td('text-muted small pe-3', date('M j, Y g:i A', strtotime($row['last_checkin']))),
-        ],
-        'colleges' => [
-            'headers' => ['College', 'Unique Visitors', 'Duration (min)', 'Last Check-in'],
-            'rowFn'   => fn($row) =>
-                td('ps-3 fw-semibold', $row['name']) .
-                '<td class="text-end">' . (int) $row['visitors'] . '</td>' .
-                '<td class="text-end">' . (int) round($row['duration']) . '</td>' .
-                td('text-muted small pe-3', date('M j, Y g:i A', strtotime($row['last_checkin']))),
-        ],
-        'courses' => [
-            'headers' => ['College', 'Course', 'Unique Visitors', 'Duration (min)', 'Last Check-in'],
-            'rowFn'   => fn($row) =>
-                td('ps-3 text-muted small', $row['college']) .
-                td('fw-semibold', $row['course']) .
-                '<td class="text-end">' . (int) $row['visitors'] . '</td>' .
-                '<td class="text-end">' . (int) round($row['duration']) . '</td>' .
-                td('text-muted small pe-3', date('M j, Y g:i A', strtotime($row['last_checkin']))),
-        ],
-        'demographics' => [
-            'headers' => ['ID Number', 'Sex', 'Check-in', 'Check-out', 'Duration (min)'],
-            'rowFn'   => fn($row) =>
-                td('ps-3 fw-semibold', $row['display_label'] ?? '') .
-                td('', $row['sex'] ?? '') .
-                td('text-muted small', date('M j, Y g:i A', strtotime($row['checkin_time']))) .
-                td('text-muted small', $row['checkout_time'] ? date('M j, Y g:i A', strtotime($row['checkout_time'])) : '—') .
-                '<td class="text-end pe-3">' . (int) round($row['duration']) . '</td>',
-        ],
-    ];
+    $headers = ['ID Number', 'Name', 'College', 'Course', 'Type', 'Section', 'Sex', 'Check-in', 'Check-out', 'Agency / Organization', 'Duration (min)'];
 
-    if (!isset($configs[$tab])) return '';
-    $tabConfig = $configs[$tab];
+    $html  = '<div class="table-responsive">';
+    $html .= '<table class="table table-sm table-striped table-hover align-middle mb-0">';
+    $html .= '<thead class="table-dark"><tr>';
 
-    $headerCells = implode('', array_map(
-        fn($header) => '<th class="small fw-semibold">' . htmlspecialchars($header, ENT_QUOTES, 'UTF-8') . '</th>',
-        $tabConfig['headers']
-    ));
-
-    $bodyRows = '';
-    foreach ($rows as $rowIndex => $row) {
-        $bodyRows .= '<tr class="' . ($rowIndex % 2 === 0 ? 'table-success' : '') . '">' . $tabConfig['rowFn']($row) . '</tr>';
+    foreach ($headers as $header) {
+        $html .= '<th class="small fw-semibold">' . htmlspecialchars($header, ENT_QUOTES, 'UTF-8') . '</th>';
     }
 
-    return '<div class="table-responsive">'
-         . '<table class="table table-sm table-striped table-hover align-middle mb-0">'
-         . '<thead class="table-dark"><tr>' . $headerCells . '</tr></thead>'
-         . '<tbody class="small">' . $bodyRows . '</tbody>'
-         . '</table></div>';
+    $html .= '</tr></thead>';
+    $html .= '<tbody class="small">';
+
+    foreach ($rows as $index => $row) {
+        $html .= '<tr class="' . ($index % 2 === 0 ? 'table-success' : '') . '">';
+        $html .= '<td class="ps-3 fw-semibold">'  . htmlspecialchars($row['id_number'] ?? '', ENT_QUOTES, 'UTF-8') . '</td>';
+        $html .= '<td class="text-muted small">'  . htmlspecialchars($row['name'] ?: '—', ENT_QUOTES, 'UTF-8') . '</td>';
+        $html .= '<td class="text-muted small">'  . htmlspecialchars($row['college'] ?: '—', ENT_QUOTES, 'UTF-8') . '</td>';
+        $html .= '<td class="text-muted small">'  . htmlspecialchars($row['course'] ?: '—', ENT_QUOTES, 'UTF-8') . '</td>';
+        $html .= '<td>'                            . getTypeBadge($row['classification'] ?: '—') . '</td>';
+        $html .= '<td class="text-muted small">'  . htmlspecialchars($row['library'] ?: '—', ENT_QUOTES, 'UTF-8') . '</td>';
+        $html .= '<td class="text-muted small">'  . htmlspecialchars($row['sex'] ?: '—', ENT_QUOTES, 'UTF-8') . '</td>';
+        $html .= '<td class="text-muted small">'  . ($row['checkin_time']  ? date('M j, Y g:i A', strtotime($row['checkin_time']))  : '—') . '</td>';
+        $html .= '<td class="text-muted small">'  . ($row['checkout_time'] ? date('M j, Y g:i A', strtotime($row['checkout_time'])) : '—') . '</td>';
+        $html .= '<td class="text-muted small">'  . htmlspecialchars($row['agency_organization'] ?: '—', ENT_QUOTES, 'UTF-8') . '</td>';
+        $html .= '<td class="text-end pe-3">' . (int) round($row['duration']) . '</td>';
+        $html .= '</tr>';
+    }
+
+    $html .= '</tbody></table></div>';
+
+    return $html;
 }
 
-/** Renders a safe, escaped <td> cell. */
-function td(string $classes, string $value): string
+function renderUsersTable(array $rows): string
 {
-    $class = $classes ? ' class="' . $classes . '"' : '';
-    return '<td' . $class . '>' . htmlspecialchars($value, ENT_QUOTES, 'UTF-8') . '</td>';
+    $headers = ['ID Number', 'Name', 'College', 'Course', 'Type', 'Library Section', 'Check-ins', 'Duration (min)', 'Last Check-in'];
+
+    $html  = '<div class="table-responsive">';
+    $html .= '<table class="table table-sm table-striped table-hover align-middle mb-0">';
+    $html .= '<thead class="table-dark"><tr>';
+
+    foreach ($headers as $header) {
+        $html .= '<th class="small fw-semibold">' . htmlspecialchars($header, ENT_QUOTES, 'UTF-8') . '</th>';
+    }
+
+    $html .= '</tr></thead>';
+    $html .= '<tbody class="small">';
+
+    foreach ($rows as $index => $row) {
+        $html .= '<tr class="' . ($index % 2 === 0 ? 'table-success' : '') . '">';
+        $html .= '<td class="ps-3 fw-semibold">' . htmlspecialchars($row['display_label'] ?? '', ENT_QUOTES, 'UTF-8') . '</td>';
+        $html .= '<td class="text-muted small">' . htmlspecialchars($row['name'] ?? '', ENT_QUOTES, 'UTF-8') . '</td>';
+        $html .= '<td class="text-muted small">' . htmlspecialchars($row['college'] ?: '—', ENT_QUOTES, 'UTF-8') . '</td>';
+        $html .= '<td class="text-muted small">' . htmlspecialchars($row['course'] ?: '—', ENT_QUOTES, 'UTF-8') . '</td>';
+        $html .= '<td>' . getTypeBadge($row['classification']) . '</td>';
+        $html .= '<td class="text-muted small">' . htmlspecialchars($row['library'] ?? '—', ENT_QUOTES, 'UTF-8') . '</td>';
+        $html .= '<td class="text-end fw-semibold text-primary">' . (int) $row['checkins'] . '</td>';
+        $html .= '<td class="text-end">' . (int) round($row['duration']) . '</td>';
+        $html .= '<td class="text-muted small pe-3">'     . date('M j, Y g:i A', strtotime($row['last_checkin'])) . '</td>';
+        $html .= '</tr>';
+    }
+
+    $html .= '</tbody></table></div>';
+
+    return $html;
 }
+
+function renderCollegesTable(array $rows): string
+{
+    $headers = ['College', 'Unique Visitors', 'Duration (min)', 'Last Check-in'];
+
+    $html  = '<div class="table-responsive">';
+    $html .= '<table class="table table-sm table-striped table-hover align-middle mb-0">';
+    $html .= '<thead class="table-dark"><tr>';
+
+    foreach ($headers as $header) {
+        $html .= '<th class="small fw-semibold">' . htmlspecialchars($header, ENT_QUOTES, 'UTF-8') . '</th>';
+    }
+
+    $html .= '</tr></thead>';
+    $html .= '<tbody class="small">';
+
+    foreach ($rows as $index => $row) {
+        $html .= '<tr class="' . ($index % 2 === 0 ? 'table-success' : '') . '">';
+        $html .= '<td class="ps-3 fw-semibold">' . htmlspecialchars($row['name'], ENT_QUOTES, 'UTF-8') . '</td>';
+        $html .= '<td class="text-end">' . (int) $row['visitors'] . '</td>';
+        $html .= '<td class="text-end">' . (int) round($row['duration']) . '</td>';
+        $html .= '<td class="text-muted small pe-3">' . date('M j, Y g:i A', strtotime($row['last_checkin'])) . '</td>';
+        $html .= '</tr>';
+    }
+
+    $html .= '</tbody></table></div>';
+
+    return $html;
+}
+
+function renderCoursesTable(array $rows): string
+{
+    $headers = ['College', 'Course', 'Unique Visitors', 'Duration (min)', 'Last Check-in'];
+
+    $html  = '<div class="table-responsive">';
+    $html .= '<table class="table table-sm table-striped table-hover align-middle mb-0">';
+    $html .= '<thead class="table-dark"><tr>';
+
+    foreach ($headers as $header) {
+        $html .= '<th class="small fw-semibold">' . htmlspecialchars($header, ENT_QUOTES, 'UTF-8') . '</th>';
+    }
+
+    $html .= '</tr></thead>';
+    $html .= '<tbody class="small">';
+
+    foreach ($rows as $index => $row) {
+        $html .= '<tr class="' . ($index % 2 === 0 ? 'table-success' : '') . '">';
+        $html .= '<td class="ps-3 text-muted small">' . htmlspecialchars($row['college'], ENT_QUOTES, 'UTF-8') . '</td>';
+        $html .= '<td class="fw-semibold">' . htmlspecialchars($row['course'], ENT_QUOTES, 'UTF-8') . '</td>';
+        $html .= '<td class="text-end">' . (int) $row['visitors'] . '</td>';
+        $html .= '<td class="text-end">' . (int) round($row['duration']) . '</td>';
+        $html .= '<td class="text-muted small pe-3">' . date('M j, Y g:i A', strtotime($row['last_checkin'])) . '</td>';
+        $html .= '</tr>';
+    }
+
+    $html .= '</tbody></table></div>';
+
+    return $html;
+}
+
+function renderDemographicsTable(array $rows): string
+{
+    $headers = ['ID Number', 'Sex', 'Check-in', 'Check-out', 'Duration (min)'];
+
+    $html  = '<div class="table-responsive">';
+    $html .= '<table class="table table-sm table-striped table-hover align-middle mb-0">';
+    $html .= '<thead class="table-dark"><tr>';
+
+    foreach ($headers as $header) {
+        $html .= '<th class="small fw-semibold">' . htmlspecialchars($header, ENT_QUOTES, 'UTF-8') . '</th>';
+    }
+
+    $html .= '</tr></thead>';
+    $html .= '<tbody class="small">';
+
+    foreach ($rows as $index => $row) {
+        $html .= '<tr class="' . ($index % 2 === 0 ? 'table-success' : '') . '">';
+        $html .= '<td class="ps-3 fw-semibold">' . htmlspecialchars($row['display_label'] ?? '', ENT_QUOTES, 'UTF-8') . '</td>';
+        $html .= '<td>' . htmlspecialchars($row['sex'] ?? '', ENT_QUOTES, 'UTF-8') . '</td>';
+        $html .= '<td class="text-muted small">' . date('M j, Y g:i A', strtotime($row['checkin_time'])) . '</td>';
+        $html .= '<td class="text-muted small">' . ($row['checkout_time'] ? date('M j, Y g:i A', strtotime($row['checkout_time'])) : '—') . '</td>';
+        $html .= '<td class="text-end pe-3">' . (int) round($row['duration']) . '</td>';
+        $html .= '</tr>';
+    }
+
+    $html .= '</tbody></table></div>';
+
+    return $html;
+}
+
+
 
 // ---------------------------------------------------------------------------
 //  Pagination renderer
@@ -116,11 +188,11 @@ function renderModalPagination(int $totalPages, int $currentPage, int $total, in
 {
     if ($totalPages <= 1) return '';
 
-    $isFirst      = $currentPage === 1;
-    $isLast       = $currentPage === $totalPages;
-    $windowSize   = 5;
+    $isFirst = $currentPage === 1;
+    $isLast = $currentPage === $totalPages;
+    $windowSize = 5;
     $windowStart  = max(1, min($currentPage - intdiv($windowSize, 2), $totalPages - $windowSize + 1));
-    $windowEnd    = min($totalPages, $windowStart + $windowSize - 1);
+    $windowEnd = min($totalPages, $windowStart + $windowSize - 1);
 
     $buildPageItem = fn(string $label, int $page, bool $disabled, bool $active) =>
         '<li class="page-item ' . ($disabled ? 'disabled' : '') . ' ' . ($active ? 'active' : '') . '">'
@@ -150,33 +222,36 @@ function ViewAllLogs(): void
     [$whereClause, $queryParams] = buildWhereClause($_POST);
     $visitLogs = fetchVisitLogs($whereClause, $queryParams);
 
-    $rows = array_map(function ($logEntry) {
-        $checkoutTime = $logEntry['checkout_time'] ?? null;
-        return [
-            'id_number'           => $logEntry['id_number'] ?? '',
-            'name'                => $logEntry['name'] ?? '',
-            'college'             => $logEntry['college'] ?? '',
-            'course'              => $logEntry['course'] ?? '',
-            'classification'      => $logEntry['classification'] ?? '',
-            'library'             => $logEntry['library_section_name'] ?? '',
-            'sex'                 => $logEntry['sex'] ?? '',
-            'checkin_time'        => $logEntry['checkin_time'] ?? '',
-            'checkout_time'       => $checkoutTime,
-            'agency_organization' => $logEntry['agency_organization'] ?? '',
-            'duration'            => minutesBetween($logEntry['checkin_time'] ?? null, $checkoutTime),
-        ];
-    }, $visitLogs);
+    $tableRows = [];
 
-    $requestedPage = (int) ($_POST['page'] ?? 1);
-    $paginatedResult = paginate($rows, $requestedPage, ROWS_PER_PAGE);
+    foreach ($visitLogs as $logEntry) {
+        $checkoutTime = $logEntry['checkout_time'] ?? null;
+
+        $tableRows[] = [
+            'id_number' => $logEntry['id_number'] ?? '',
+            'name' => $logEntry['name'] ?? '',
+            'college' => $logEntry['college'] ?? '',
+            'course' => $logEntry['course'] ?? '',
+            'classification' => $logEntry['classification'] ?? '',
+            'library' => $logEntry['library_section_name'] ?? '',
+            'sex' => $logEntry['sex'] ?? '',
+            'checkin_time' => $logEntry['checkin_time'] ?? '',
+            'checkout_time' => $checkoutTime,
+            'agency_organization'=> $logEntry['agency_organization'] ?? '',
+            'duration' => minutesBetween($logEntry['checkin_time'] ?? null, $checkoutTime),
+        ];
+    }
+
+    $page   = (int) ($_POST['page'] ?? 1);
+    $result = paginate($tableRows, $page, ROWS_PER_PAGE);
 
     echo json_encode([
-        'status'     => 'success',
-        'tableHtml'  => renderModalTable('logs', $paginatedResult['items']),
-        'pagination' => renderModalPagination($paginatedResult['totalPages'], $paginatedResult['page'], $paginatedResult['total'], ROWS_PER_PAGE),
-        'total'      => $paginatedResult['total'],
-        'totalPages' => $paginatedResult['totalPages'],
-        'page'       => $paginatedResult['page'],
+        'status' => 'success',
+        'tableHtml'  => renderLogsTable($result['items']),
+        'pagination' => renderModalPagination($result['totalPages'], $result['page'], $result['total'], ROWS_PER_PAGE),
+        'total' => $result['total'],
+        'totalPages' => $result['totalPages'],
+        'page' => $result['page'],
     ]);
     exit;
 }
@@ -187,18 +262,17 @@ function ViewAllUsers(): void
     $userStats = aggregateUsers(fetchVisitLogs($whereClause, $queryParams));
     uasort($userStats, fn($userA, $userB) => $userB['checkins'] <=> $userA['checkins']);
 
-
-    $rows = array_values($userStats);
-    $requestedPage = (int) ($_POST['page'] ?? 1);
-    $paginatedResult = paginate($rows, $requestedPage, ROWS_PER_PAGE);
+    $tableRows = array_values($userStats);
+    $page = (int) ($_POST['page'] ?? 1);
+    $result = paginate($tableRows, $page, ROWS_PER_PAGE);
 
     echo json_encode([
-        'status'     => 'success',
-        'tableHtml'  => renderModalTable('users', $paginatedResult['items']),
-        'pagination' => renderModalPagination($paginatedResult['totalPages'], $paginatedResult['page'], $paginatedResult['total'], ROWS_PER_PAGE),
-        'total'      => $paginatedResult['total'],
-        'totalPages' => $paginatedResult['totalPages'],
-        'page'       => $paginatedResult['page'],
+        'status' => 'success',
+        'tableHtml'  => renderUsersTable($result['items']),
+        'pagination' => renderModalPagination($result['totalPages'], $result['page'], $result['total'], ROWS_PER_PAGE),
+        'total' => $result['total'],
+        'totalPages' => $result['totalPages'],
+        'page' => $result['page'],
     ]);
     exit;
 }
@@ -209,23 +283,23 @@ function ViewAllColleges(): void
     $collegeStats = aggregateColleges(fetchVisitLogs($whereClause, $queryParams));
     uasort($collegeStats, fn($collegeA, $collegeB) => $collegeB['visitors'] <=> $collegeA['visitors']);
 
-    $rows = array_map(fn($collegeName, $collegeData) => [
-        'name'         => $collegeName,
-        'visitors'     => $collegeData['visitors'],
-        'duration'     => $collegeData['duration'],
+    $tableRows = array_map(fn($collegeName, $collegeData) => [
+        'name' => $collegeName,
+        'visitors' => $collegeData['visitors'],
+        'duration' => $collegeData['duration'],
         'last_checkin' => $collegeData['last_checkin'],
     ], array_keys($collegeStats), array_values($collegeStats));
 
-    $requestedPage = (int) ($_POST['page'] ?? 1);
-    $paginatedResult = paginate($rows, $requestedPage, ROWS_PER_PAGE);
+    $page   = (int) ($_POST['page'] ?? 1);
+    $result = paginate($tableRows, $page, ROWS_PER_PAGE);
 
     echo json_encode([
-        'status'     => 'success',
-        'tableHtml'  => renderModalTable('colleges', $paginatedResult['items']),
-        'pagination' => renderModalPagination($paginatedResult['totalPages'], $paginatedResult['page'], $paginatedResult['total'], ROWS_PER_PAGE),
-        'total'      => $paginatedResult['total'],
-        'totalPages' => $paginatedResult['totalPages'],
-        'page'       => $paginatedResult['page'],
+        'status' => 'success',
+        'tableHtml'  => renderCollegesTable($result['items']),
+        'pagination' => renderModalPagination($result['totalPages'], $result['page'], $result['total'], ROWS_PER_PAGE),
+        'total' => $result['total'],
+        'totalPages' => $result['totalPages'],
+        'page' => $result['page'],
     ]);
     exit;
 }
@@ -236,17 +310,17 @@ function ViewAllCourses(): void
     $courseStats = aggregateCourses(fetchVisitLogs($whereClause, $queryParams));
     uasort($courseStats, fn($courseA, $courseB) => $courseB['visitors'] <=> $courseA['visitors']);
 
-    $rows = array_values($courseStats);
-    $requestedPage = (int) ($_POST['page'] ?? 1);
-    $paginatedResult = paginate($rows, $requestedPage, ROWS_PER_PAGE);
+    $tableRows = array_values($courseStats);
+    $page      = (int) ($_POST['page'] ?? 1);
+    $result    = paginate($tableRows, $page, ROWS_PER_PAGE);
 
     echo json_encode([
         'status'     => 'success',
-        'tableHtml'  => renderModalTable('courses', $paginatedResult['items']),
-        'pagination' => renderModalPagination($paginatedResult['totalPages'], $paginatedResult['page'], $paginatedResult['total'], ROWS_PER_PAGE),
-        'total'      => $paginatedResult['total'],
-        'totalPages' => $paginatedResult['totalPages'],
-        'page'       => $paginatedResult['page'],
+        'tableHtml'  => renderCoursesTable($result['items']),
+        'pagination' => renderModalPagination($result['totalPages'], $result['page'], $result['total'], ROWS_PER_PAGE),
+        'total'      => $result['total'],
+        'totalPages' => $result['totalPages'],
+        'page'       => $result['page'],
     ]);
     exit;
 }
@@ -256,28 +330,31 @@ function ViewAllDemographics(): void
     [$whereClause, $queryParams] = buildWhereClause($_POST);
     $visitLogs = fetchVisitLogs($whereClause, $queryParams);
 
-    $rows = array_map(function ($logEntry) {
-        $idNumber     = $logEntry['id_number'] ?? '';
+    $tableRows = [];
+
+    foreach ($visitLogs as $logEntry) {
+        $idNumber = $logEntry['id_number'] ?? '';
         $checkoutTime = $logEntry['checkout_time'] ?? null;
-        return [
+
+        $tableRows[] = [
             'display_label' => ($idNumber === '' || $idNumber === '0') ? ($logEntry['name'] ?? 'Guest') : $idNumber,
-            'sex'           => $logEntry['sex'] ?? '',
+            'sex' => $logEntry['sex'] ?? '',
             'checkin_time'  => $logEntry['checkin_time'] ?? '',
             'checkout_time' => $checkoutTime,
-            'duration'      => minutesBetween($logEntry['checkin_time'] ?? null, $checkoutTime),
+            'duration' => minutesBetween($logEntry['checkin_time'] ?? null, $checkoutTime),
         ];
-    }, $visitLogs);
+    }
 
-    $requestedPage = (int) ($_POST['page'] ?? 1);
-    $paginatedResult = paginate($rows, $requestedPage, ROWS_PER_PAGE);
+    $page   = (int) ($_POST['page'] ?? 1);
+    $result = paginate($tableRows, $page, ROWS_PER_PAGE);
 
     echo json_encode([
-        'status'     => 'success',
-        'tableHtml'  => renderModalTable('demographics', $paginatedResult['items']),
-        'pagination' => renderModalPagination($paginatedResult['totalPages'], $paginatedResult['page'], $paginatedResult['total'], ROWS_PER_PAGE),
-        'total'      => $paginatedResult['total'],
-        'totalPages' => $paginatedResult['totalPages'],
-        'page'       => $paginatedResult['page'],
+        'status' => 'success',
+        'tableHtml'  => renderDemographicsTable($result['items']),
+        'pagination' => renderModalPagination($result['totalPages'], $result['page'], $result['total'], ROWS_PER_PAGE),
+        'total' => $result['total'],
+        'totalPages' => $result['totalPages'],
+        'page' => $result['page'],
     ]);
     exit;
 }
@@ -286,11 +363,24 @@ function ViewAllDemographics(): void
 //  Dispatch
 // ---------------------------------------------------------------------------
 
-switch (trim($_POST['request'] ?? '')) {
-    case 'viewAllLogs':         ViewAllLogs();         break;
-    case 'viewAllUsers':        ViewAllUsers();        break;
-    case 'viewAllColleges':     ViewAllColleges();     break;
-    case 'viewAllCourses':      ViewAllCourses();      break;
-    case 'viewAllDemographics': ViewAllDemographics(); break;
-    default: echo json_encode(['status' => 'error', 'message' => "Unknown request: '" . trim($_POST['request'] ?? '') . "'."]);
+$request = trim($_POST['request'] ?? '');
+
+switch ($request) {
+    case 'viewAllLogs':
+        ViewAllLogs();
+        break;
+    case 'viewAllUsers':
+        ViewAllUsers();
+        break;
+    case 'viewAllColleges':
+        ViewAllColleges();
+        break;
+    case 'viewAllCourses':
+        ViewAllCourses();
+        break;
+    case 'viewAllDemographics': 
+        ViewAllDemographics(); 
+        break;
+    default:
+        echo json_encode(['status' => 'error', 'message' => "Unknown request: '{$request}'."]);
 }

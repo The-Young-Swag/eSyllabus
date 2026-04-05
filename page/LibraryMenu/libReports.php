@@ -626,7 +626,6 @@ function loadViewAll(tabName, page) {
 }
 
 // JSON PARSER — handles stray PHP output before the JSON (notices, whitespace, BOM)
-const response = (typeof raw === "object") ? raw : JSON.parse(raw);
 
 
 // EXPORT SCHEMA — defines headers and row structure for each tab's export
@@ -1056,12 +1055,12 @@ $(document).off(".analytics")
         loadTab($(this).data("tab"));
     })
     // After
-.on("click.analytics", "#refreshBtn", function () {
+    .on("click.analytics", "#refreshBtn", function () {
     if (hasDateRange()) {
+        Object.keys(chartInstances).forEach(id => destroyChart(id));
         cachedResponses = {};
-        renderedTabs = {};
+        renderedTabs    = {};
         $(".tab-panel").addClass("d-none").empty();
-        $("#tabPanel-empty").removeClass("d-none");
         loadTab(activeTab);
     }
 })
@@ -1128,14 +1127,15 @@ $(document).off(".analytics")
 
     // After
 $("#startDate, #endDate, #classificationFilter, #libraryFilter")
-    .on("change.analytics", function () {
-        if (hasDateRange()) {
-            cachedResponses = {};
-            renderedTabs    = {};
-            $(".tab-panel").addClass("d-none").empty();
-            loadTab(activeTab);
-        }
-    });
+.on("change.analytics", function () {
+    if (hasDateRange()) {
+        Object.keys(chartInstances).forEach(id => destroyChart(id));
+        cachedResponses = {};
+        renderedTabs    = {};
+        $(".tab-panel").addClass("d-none").empty();
+        loadTab(activeTab);
+    }
+});
 
 // BOOT
 setDefaultDates();
