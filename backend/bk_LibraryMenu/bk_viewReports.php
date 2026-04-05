@@ -5,8 +5,11 @@
  * Each handler fetches logs, delegates aggregation to bk_libReports.php,
  * slices to the requested page, and returns modal HTML + pagination metadata.
  */
+// After
+ob_start();
 include '../../db/dbconnection.php';
 include 'bk_libReports.php';
+ob_clean();
 header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -124,9 +127,11 @@ function renderModalPagination(int $totalPages, int $currentPage, int $total, in
         . '<a class="page-link" href="#" data-page="' . $page . '">' . $label . '</a></li>';
 
     $pageItems = $buildPageItem('«', 1, $isFirst, false) . $buildPageItem('‹', $currentPage - 1, $isFirst, false);
+
     for ($pageNumber = $windowStart; $pageNumber <= $windowEnd; $pageNumber++) {
         $pageItems .= $buildPageItem((string) $pageNumber, $pageNumber, false, $pageNumber === $currentPage);
     }
+    
     $pageItems .= $buildPageItem('›', $currentPage + 1, $isLast, false) . $buildPageItem('»', $totalPages, $isLast, false);
 
     $firstRecord = ($currentPage - 1) * $perPage + 1;
@@ -136,24 +141,8 @@ function renderModalPagination(int $totalPages, int $currentPage, int $total, in
          . '<nav class="mt-1"><ul class="pagination pagination-sm mb-0 flex-wrap justify-content-center">' . $pageItems . '</ul></nav>';
 }
 
-/** Sends a paginated JSON response; shared by all ViewAll* handlers. */
-function respond(string $tab, array $allRows, int $requestedPage): void
-{
-    $paginatedResult = paginate($allRows, $requestedPage, ROWS_PER_PAGE);
-
-    echo json_encode([
-        'status'     => 'success',
-        'tableHtml'  => renderModalTable($tab, $paginatedResult['items']),
-        'pagination' => renderModalPagination($paginatedResult['totalPages'], $paginatedResult['page'], $paginatedResult['total'], ROWS_PER_PAGE),
-        'total'      => $paginatedResult['total'],
-        'totalPages' => $paginatedResult['totalPages'],
-        'page'       => $paginatedResult['page'],
-    ]);
-    exit;
-}
-
 // ---------------------------------------------------------------------------
-//  Handlers
+//  Handlers (respond() inlined)
 // ---------------------------------------------------------------------------
 
 function ViewAllLogs(): void
@@ -178,22 +167,47 @@ function ViewAllLogs(): void
         ];
     }, $visitLogs);
 
-    respond('logs', $rows, (int) ($_POST['page'] ?? 1));
+    $requestedPage = (int) ($_POST['page'] ?? 1);
+    $paginatedResult = paginate($rows, $requestedPage, ROWS_PER_PAGE);
+
+    echo json_encode([
+        'status'     => 'success',
+        'tableHtml'  => renderModalTable('logs', $paginatedResult['items']),
+        'pagination' => renderModalPagination($paginatedResult['totalPages'], $paginatedResult['page'], $paginatedResult['total'], ROWS_PER_PAGE),
+        'total'      => $paginatedResult['total'],
+        'totalPages' => $paginatedResult['totalPages'],
+        'page'       => $paginatedResult['page'],
+    ]);
+    exit;
 }
 
 function ViewAllUsers(): void
 {
     [$whereClause, $queryParams] = buildWhereClause($_POST);
     $userStats = aggregateUsers(fetchVisitLogs($whereClause, $queryParams));
-    uasort($userStats, fn($a, $b) => $b['checkins'] <=> $a['checkins']);
-    respond('users', array_values($userStats), (int) ($_POST['page'] ?? 1));
+    uasort($userStats, fn($userA, $userB) => $userB['checkins'] <=> $userA['checkins']);
+
+
+    $rows = array_values($userStats);
+    $requestedPage = (int) ($_POST['page'] ?? 1);
+    $paginatedResult = paginate($rows, $requestedPage, ROWS_PER_PAGE);
+
+    echo json_encode([
+        'status'     => 'success',
+        'tableHtml'  => renderModalTable('users', $paginatedResult['items']),
+        'pagination' => renderModalPagination($paginatedResult['totalPages'], $paginatedResult['page'], $paginatedResult['total'], ROWS_PER_PAGE),
+        'total'      => $paginatedResult['total'],
+        'totalPages' => $paginatedResult['totalPages'],
+        'page'       => $paginatedResult['page'],
+    ]);
+    exit;
 }
 
 function ViewAllColleges(): void
 {
     [$whereClause, $queryParams] = buildWhereClause($_POST);
     $collegeStats = aggregateColleges(fetchVisitLogs($whereClause, $queryParams));
-    uasort($collegeStats, fn($a, $b) => $b['visitors'] <=> $a['visitors']);
+    uasort($collegeStats, fn($collegeA, $collegeB) => $collegeB['visitors'] <=> $collegeA['visitors']);
 
     $rows = array_map(fn($collegeName, $collegeData) => [
         'name'         => $collegeName,
@@ -202,15 +216,39 @@ function ViewAllColleges(): void
         'last_checkin' => $collegeData['last_checkin'],
     ], array_keys($collegeStats), array_values($collegeStats));
 
-    respond('colleges', $rows, (int) ($_POST['page'] ?? 1));
+    $requestedPage = (int) ($_POST['page'] ?? 1);
+    $paginatedResult = paginate($rows, $requestedPage, ROWS_PER_PAGE);
+
+    echo json_encode([
+        'status'     => 'success',
+        'tableHtml'  => renderModalTable('colleges', $paginatedResult['items']),
+        'pagination' => renderModalPagination($paginatedResult['totalPages'], $paginatedResult['page'], $paginatedResult['total'], ROWS_PER_PAGE),
+        'total'      => $paginatedResult['total'],
+        'totalPages' => $paginatedResult['totalPages'],
+        'page'       => $paginatedResult['page'],
+    ]);
+    exit;
 }
 
 function ViewAllCourses(): void
 {
     [$whereClause, $queryParams] = buildWhereClause($_POST);
     $courseStats = aggregateCourses(fetchVisitLogs($whereClause, $queryParams));
-    uasort($courseStats, fn($a, $b) => $b['visitors'] <=> $a['visitors']);
-    respond('courses', array_values($courseStats), (int) ($_POST['page'] ?? 1));
+    uasort($courseStats, fn($courseA, $courseB) => $courseB['visitors'] <=> $courseA['visitors']);
+
+    $rows = array_values($courseStats);
+    $requestedPage = (int) ($_POST['page'] ?? 1);
+    $paginatedResult = paginate($rows, $requestedPage, ROWS_PER_PAGE);
+
+    echo json_encode([
+        'status'     => 'success',
+        'tableHtml'  => renderModalTable('courses', $paginatedResult['items']),
+        'pagination' => renderModalPagination($paginatedResult['totalPages'], $paginatedResult['page'], $paginatedResult['total'], ROWS_PER_PAGE),
+        'total'      => $paginatedResult['total'],
+        'totalPages' => $paginatedResult['totalPages'],
+        'page'       => $paginatedResult['page'],
+    ]);
+    exit;
 }
 
 function ViewAllDemographics(): void
@@ -230,7 +268,18 @@ function ViewAllDemographics(): void
         ];
     }, $visitLogs);
 
-    respond('demographics', $rows, (int) ($_POST['page'] ?? 1));
+    $requestedPage = (int) ($_POST['page'] ?? 1);
+    $paginatedResult = paginate($rows, $requestedPage, ROWS_PER_PAGE);
+
+    echo json_encode([
+        'status'     => 'success',
+        'tableHtml'  => renderModalTable('demographics', $paginatedResult['items']),
+        'pagination' => renderModalPagination($paginatedResult['totalPages'], $paginatedResult['page'], $paginatedResult['total'], ROWS_PER_PAGE),
+        'total'      => $paginatedResult['total'],
+        'totalPages' => $paginatedResult['totalPages'],
+        'page'       => $paginatedResult['page'],
+    ]);
+    exit;
 }
 
 // ---------------------------------------------------------------------------

@@ -184,13 +184,18 @@ $librarySections = execsqlSRS(
 
     <!-- TAB CONTENT -->
     <div class="card border-0 shadow-sm" style="border-top-left-radius:0;">
-        <div class="card-body p-4" id="tabContent">
-            <div class="text-center py-5 text-muted">
-                <i class="bi bi-bar-chart-line fs-1 d-block mb-3 opacity-25"></i>
-                <p class="mb-0">Select a date range to view analytics.</p>
-            </div>
+    <div class="card-body p-4">
+        <div id="tabPanel-logs" class="tab-panel d-none"></div>
+        <div id="tabPanel-users" class="tab-panel d-none"></div>
+        <div id="tabPanel-colleges" class="tab-panel d-none"></div>
+        <div id="tabPanel-courses" class="tab-panel d-none"></div>
+        <div id="tabPanel-demographics" class="tab-panel d-none"></div>
+        <div id="tabPanel-empty" class="tab-panel text-center py-5 text-muted">
+            <i class="bi bi-bar-chart-line fs-1 d-block mb-3 opacity-25"></i>
+            <p class="mb-0">Select a date range to view analytics.</p>
         </div>
     </div>
+</div>
 
     <!-- FOOTER -->
     <div class="d-flex justify-content-between align-items-center mt-3">
@@ -274,6 +279,7 @@ let viewAllTab      = "logs";
 let viewAllPage     = 1;
 let cachedResponses = {};
 let chartInstances  = {};
+let renderedTabs    = {};
 
 // SPINNER
 function showSpinner() { $("#loadingSpinner").stop(true).css("display", "flex").hide().fadeIn(150); }
@@ -536,6 +542,7 @@ function updateKpi(response) {
 }
 
 // LOAD TAB
+// After
 function loadTab(tabName) {
     activeTab = tabName;
 
@@ -543,30 +550,38 @@ function loadTab(tabName) {
         button.classList.toggle("active", button.dataset.tab === tabName)
     );
 
+    $(".tab-panel").addClass("d-none");
+    $(`#tabPanel-${tabName}`).removeClass("d-none");
+
+    if (renderedTabs[tabName]) {
+        updateKpi(cachedResponses[tabName]);
+        return;
+    }
+
     if (pendingRequest) pendingRequest.abort();
     showSpinner();
 
     pendingRequest = $.post(BACKEND_TAB, { request: TAB_REQUESTS[tabName], ...getFilters() })
         .done(function (raw) {
             hideSpinner();
-            const response = parseJsonResponse(raw);
-
+            const response = typeof raw === "object" ? raw : JSON.parse(raw);
             if (!response || response.status !== "success") {
-                $("#tabContent").html(`<div class="alert alert-danger m-3">${response?.message || "Error loading tab."}<br><pre class="mt-2 small text-muted">${typeof raw === "string" ? raw.substring(0, 300) : ""}</pre></div>`);
+                $(`#tabPanel-${tabName}`).html(`<div class="alert alert-danger m-3">${response?.message || "Error loading tab."}<br><pre class="mt-2 small text-muted">${typeof raw === "string" ? raw.substring(0, 300) : ""}</pre></div>`);
                 return;
             }
 
-            $("#tabContent").html(response.html);
+            $(`#tabPanel-${tabName}`).html(response.html);
             initActiveTab(tabName, response);
             updateKpi(response);
             cachedResponses[tabName] = response;
+            renderedTabs[tabName]    = true;
             preloadExportLibraries();
             $("#exportBtn").prop("disabled", false);
         })
         .fail(function (_xhr, status) {
             hideSpinner();
             if (status !== "abort")
-                $("#tabContent").html('<div class="alert alert-danger m-3">Failed to load analytics. Please try again.</div>');
+                $(`#tabPanel-${tabName}`).html('<div class="alert alert-danger m-3">Failed to load analytics. Please try again.</div>');
         });
 }
 
@@ -577,8 +592,7 @@ function loadViewAll(tabName, page) {
     $.post(BACKEND_VIEW, { request: VIEW_REQUESTS[tabName], page, ...getFilters() })
         .always(function (raw) {
             hideSpinner();
-            const response = parseJsonResponse(raw);
-
+            const response = typeof raw === "object" ? raw : JSON.parse(raw);
             if (!response || response.status !== "success") {
                 const serverOutput = typeof raw === "string" ? raw.substring(0, 500) : JSON.stringify(raw);
                 $("#viewAllModalTitle").text("Error");
@@ -603,16 +617,8 @@ function loadViewAll(tabName, page) {
 }
 
 // JSON PARSER — handles stray PHP output before the JSON (notices, whitespace, BOM)
-function parseJsonResponse(raw) {
-    if (raw && typeof raw === "object") return raw;
-    if (typeof raw !== "string") return null;
-    try {
-        const jsonStart = raw.indexOf("{");
-        return jsonStart !== -1 ? JSON.parse(raw.slice(jsonStart)) : null;
-    } catch {
-        return null;
-    }
-}
+const response = (typeof raw === "object") ? raw : JSON.parse(raw);
+
 
 // EXPORT SCHEMA — defines headers and row structure for each tab's export
 const EXPORT_SCHEMA = {
@@ -622,12 +628,12 @@ const EXPORT_SCHEMA = {
         columnAlignments: [null, null, null, null, null, null, null, null, null, null, "center"],
         rowMapper: (response) => (response.flatLogs || []).map(log => [
             log.id_number,
-            log.name              || "—",
-            log.college           || "—",
-            log.course            || "—",
-            log.classification    || "—",
-            log.library           || "—",
-            log.sex               || "—",
+            log.name || "—",
+            log.college || "—",
+            log.course || "—",
+            log.classification || "—",
+            log.library || "—",
+            log.sex || "—",
             log.checkin_formatted,
             log.checkout_formatted,
             log.agency_organization || "—",
@@ -680,8 +686,7 @@ async function fetchMissingTabsForExport(selectedTabs) {
     await Promise.all(unloadedTabs.map(tabName =>
         $.post(BACKEND_TAB, { request: TAB_REQUESTS[tabName], ...getFilters() })
             .then(raw => {
-                const response = parseJsonResponse(raw);
-                if (response?.status === "success") cachedResponses[tabName] = response;
+                const response = typeof raw === "object" ? raw : JSON.parse(raw);                if (response?.status === "success") cachedResponses[tabName] = response;
             })
             .catch(() => {}) // swallow failures; partial export is acceptable
     ));
@@ -1040,9 +1045,16 @@ $(document).off(".analytics")
         event.preventDefault();
         loadTab($(this).data("tab"));
     })
-    .on("click.analytics", "#refreshBtn", function () {
-        if (hasDateRange()) { cachedResponses = {}; loadTab(activeTab); }
-    })
+    // After
+.on("click.analytics", "#refreshBtn", function () {
+    if (hasDateRange()) {
+        cachedResponses = {};
+        renderedTabs    = {};
+        $(".tab-panel").addClass("d-none").empty();
+        $("#tabPanel-empty").removeClass("d-none");
+        loadTab(activeTab);
+    }
+})
     .on("click.analytics", ".view-all-btn", function () {
         viewAllTab  = $(this).data("tab");
         viewAllPage = 1;
@@ -1104,9 +1116,15 @@ $(document).off(".analytics")
         }
     });
 
+    // After
 $("#startDate, #endDate, #classificationFilter, #libraryFilter")
     .on("change.analytics", function () {
-        if (hasDateRange()) { cachedResponses = {}; loadTab(activeTab); }
+        if (hasDateRange()) {
+            cachedResponses = {};
+            renderedTabs    = {};
+            $(".tab-panel").addClass("d-none").empty();
+            loadTab(activeTab);
+        }
     });
 
 // BOOT
