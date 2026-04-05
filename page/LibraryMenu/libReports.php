@@ -525,11 +525,20 @@ function initDemographicsTab(response) {
 
 function initActiveTab(tabName, response) {
     switch (tabName) {
-        case "logs":         initLogsTab();                break;
-        case "users":        initUsersTab(response);       break;
-        case "colleges":     initCollegesTab(response);    break;
-        case "courses":      initCoursesTab(response);     break;
-        case "demographics": initDemographicsTab(response); break;
+        case "logs": 
+            initLogsTab(); 
+        break;
+        case "users": 
+            initUsersTab(response); 
+        break;
+        case "colleges": 
+            initCollegesTab(response); 
+        break;
+        case "courses": 
+            initCoursesTab(response); 
+        break;
+        case "demographics": initDemographicsTab(response); 
+        break;
     }
 }
 
@@ -574,7 +583,7 @@ function loadTab(tabName) {
             initActiveTab(tabName, response);
             updateKpi(response);
             cachedResponses[tabName] = response;
-            renderedTabs[tabName]    = true;
+            renderedTabs[tabName] = true;
             preloadExportLibraries();
             $("#exportBtn").prop("disabled", false);
         })
@@ -623,8 +632,8 @@ const response = (typeof raw === "object") ? raw : JSON.parse(raw);
 // EXPORT SCHEMA — defines headers and row structure for each tab's export
 const EXPORT_SCHEMA = {
     logs: {
-        label:            "Visit Logs",
-        headers:          ["ID Number", "Name", "College", "Course", "Type", "Section", "Sex", "Check-in", "Check-out", "Agency / Organization", "Duration (min)"],
+        label: "Visit Logs",
+        headers: ["ID Number", "Name", "College", "Course", "Type", "Section", "Sex", "Check-in", "Check-out", "Agency / Organization", "Duration (min)"],
         columnAlignments: [null, null, null, null, null, null, null, null, null, null, "center"],
         rowMapper: (response) => (response.flatLogs || []).map(log => [
             log.id_number,
@@ -645,9 +654,9 @@ const EXPORT_SCHEMA = {
         headers: ["ID Number", "Name", "College", "Course", "Type", "Library Section", "Check-ins", "Duration (min)", "Last Check-in"],
         rowMapper: (response) => (response.flatUsers || []).map(user => [
             user.display_label,
-            user.name    || "—",
+            user.name || "—",
             user.college || "—",
-            user.course  || "—",
+            user.course || "—",
             user.type,
             user.library || "—",
             user.checkins,
@@ -663,14 +672,14 @@ const EXPORT_SCHEMA = {
         ]),
     },
     courses: {
-        label:   "Courses",
+        label: "Courses",
         headers: ["College", "Course", "Unique Visitors", "Duration (min)", "Last Check-in"],
         rowMapper: (response) => (response.flatCourses || []).map(course => [
             course.college, course.course, course.visitors, course.duration, course.last_checkin,
         ]),
     },
     demographics: {
-        label:   "Demographics",
+        label: "Demographics",
         headers: ["Sex", "Visitors", "% of Total"],
         rowMapper: (response) => (response.flatDemographics || []).map(entry => [
             entry.sex, entry.count, entry.percentage + "%",
@@ -686,7 +695,8 @@ async function fetchMissingTabsForExport(selectedTabs) {
     await Promise.all(unloadedTabs.map(tabName =>
         $.post(BACKEND_TAB, { request: TAB_REQUESTS[tabName], ...getFilters() })
             .then(raw => {
-                const response = typeof raw === "object" ? raw : JSON.parse(raw);                if (response?.status === "success") cachedResponses[tabName] = response;
+                const response = typeof raw === "object" ? raw : JSON.parse(raw);
+                if (response?.status === "success") cachedResponses[tabName] = response;
             })
             .catch(() => {}) // swallow failures; partial export is acceptable
     ));
@@ -694,10 +704,10 @@ async function fetchMissingTabsForExport(selectedTabs) {
 
 // OFFSCREEN CHART — renders a Chart.js chart on a hidden canvas for PDF export
 function buildOffscreenChart(type, labels, values, colors, unitLabel, title) {
-    const isBar   = type === "bar";
-    const canvasW = isBar ? OFFSCREEN.barW  : OFFSCREEN.donutW;
-    const canvasH = isBar ? OFFSCREEN.barH  : OFFSCREEN.donutH;
-    const total   = isBar ? 0 : values.reduce((sum, value) => sum + value, 0);
+    const isBar = type === "bar";
+    const canvasW = isBar ? OFFSCREEN.barW : OFFSCREEN.donutW;
+    const canvasH = isBar ? OFFSCREEN.barH : OFFSCREEN.donutH;
+    const total = isBar ? 0 : values.reduce((sum, value) => sum + value, 0);
     const canvas  = Object.assign(document.createElement("canvas"), { width: canvasW, height: canvasH });
 
     const config = isBar ? {
@@ -711,7 +721,7 @@ function buildOffscreenChart(type, labels, values, colors, unitLabel, title) {
             plugins: { legend: { display: false } },
             scales: {
                 x: { beginAtZero: true, grid: { color: "rgba(0,0,0,0.07)" }, ticks: { font: { size: 13 }, color: "#6b7280" } },
-                y: { grid: { display: false },                               ticks: { font: { size: 14 }, color: "#1f2937", padding: 6 } },
+                y: { grid: { display: false }, ticks: { font: { size: 14 }, color: "#1f2937", padding: 6 } },
             },
             layout: { padding: { left: 4, right: 20, top: 6, bottom: 6 } },
         },
@@ -765,8 +775,8 @@ function buildChartsForTab(tabName, response) {
         case "users": {
             const { chartTopCheckins, chartTopDuration } = response;
             return [
-                buildOffscreenChart("bar",   chartTopCheckins.map(e => e.label), chartTopCheckins.map(e => e.value),              COLORS.rankCheckins.slice(0, chartTopCheckins.length), "Check-ins", "Top Visitors by Check-ins"),
-                buildOffscreenChart("bar",   chartTopDuration.map(e => e.label), chartTopDuration.map(e => Math.round(e.value)),   COLORS.rankDuration.slice(0, chartTopDuration.length), "Minutes",   "Top Visitors by Duration"),
+                buildOffscreenChart("bar", chartTopCheckins.map(e => e.label), chartTopCheckins.map(e => e.value), COLORS.rankCheckins.slice(0, chartTopCheckins.length), "Check-ins", "Top Visitors by Check-ins"),
+                buildOffscreenChart("bar", chartTopDuration.map(e => e.label), chartTopDuration.map(e => Math.round(e.value)), COLORS.rankDuration.slice(0, chartTopDuration.length), "Minutes",   "Top Visitors by Duration"),
                 buildOffscreenChart("donut", Object.keys(response.classificationDistribution), Object.values(response.classificationDistribution), COLORS.visitorType, "Visitors", "Visitor Type Breakdown"),
             ];
         }
@@ -775,7 +785,7 @@ function buildChartsForTab(tabName, response) {
             const checkinKeys  = Object.keys(response.top3CollegesCheckin);
             const durationKeys = Object.keys(response.top3CollegesDuration);
             return [
-                buildOffscreenChart("donut", checkinKeys,  checkinKeys.map(name => response.top3CollegesCheckin[name].count),                checkinKeys.map(name => response.top3CollegesCheckin[name].color),  "Visitors", "Top Colleges by Check-ins"),
+                buildOffscreenChart("donut", checkinKeys, checkinKeys.map(name => response.top3CollegesCheckin[name].count), checkinKeys.map(name => response.top3CollegesCheckin[name].color),  "Visitors", "Top Colleges by Check-ins"),
                 buildOffscreenChart("donut", durationKeys, durationKeys.map(name => Math.round(response.top3CollegesDuration[name].minutes)), durationKeys.map(name => response.top3CollegesDuration[name].color), "Minutes",  "Top Colleges by Duration"),
             ];
         }
@@ -809,9 +819,9 @@ function loadScript(url) {
     if (loadedScripts[url]) return loadedScripts[url];
     loadedScripts[url] = new Promise(function (resolve, reject) {
         if (document.querySelector(`script[src="${url}"]`)) { setTimeout(resolve, 0); return; }
-        const script   = document.createElement("script");
-        script.src     = url;
-        script.onload  = resolve;
+        const script = document.createElement("script");
+        script.src = url;
+        script.onload = resolve;
         script.onerror = () => reject(new Error("Failed to load: " + url));
         document.head.appendChild(script);
     });
@@ -839,7 +849,7 @@ async function saveBlob(blob, filename, mimeType, extension) {
             if (error.name === "AbortError") return;
         }
     }
-    const url    = URL.createObjectURL(blob);
+    const url = URL.createObjectURL(blob);
     const anchor = Object.assign(document.createElement("a"), { href: url, download: filename });
     document.body.appendChild(anchor);
     anchor.click();
@@ -854,17 +864,17 @@ function buildExportFilename(tabs, extension) {
 
 // PDF EXPORT
 async function runExportPDF(selectedTabs, responses) {
-    const { jsPDF }    = window.jspdf;
-    const pdf          = new jsPDF("l", "mm", "a4");
-    const margin       = 16;
-    const pageWidth    = pdf.internal.pageSize.getWidth();
-    const pageHeight   = pdf.internal.pageSize.getHeight();
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF("l", "mm", "a4");
+    const margin = 16;
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
     const contentWidth = pageWidth - margin * 2;
-    const maxDonutW    = 85;
-    const chartGap     = 6;
-    let   isFirstTab   = true;
-    let   pageNumber   = 1;
-    let   cursorY      = 0;
+    const maxDonutW = 85;
+    const chartGap = 6;
+    let isFirstTab = true;
+    let pageNumber = 1;
+    let cursorY = 0;
 
     const drawDivider = (posY) => { pdf.setDrawColor(226, 232, 240).setLineWidth(0.25); pdf.line(margin, posY, pageWidth - margin, posY); };
     const drawHeading = (text, posY) => { pdf.setFont("helvetica", "bold").setFontSize(8.5).setTextColor(17, 24, 39); pdf.text(text, margin, posY); };
@@ -928,9 +938,9 @@ async function runExportPDF(selectedTabs, responses) {
 
             if (donutCharts.length) {
                 const rawDonutW = (contentWidth - (donutCharts.length - 1) * chartGap) / donutCharts.length;
-                const donutW    = Math.min(maxDonutW, rawDonutW);
-                const donutH    = donutW * (OFFSCREEN.donutH / OFFSCREEN.donutW);
-                const startX    = margin + (contentWidth - (donutCharts.length * donutW + (donutCharts.length - 1) * chartGap)) / 2;
+                const donutW = Math.min(maxDonutW, rawDonutW);
+                const donutH = donutW * (OFFSCREEN.donutH / OFFSCREEN.donutW);
+                const startX = margin + (contentWidth - (donutCharts.length * donutW + (donutCharts.length - 1) * chartGap)) / 2;
                 donutCharts.forEach(function (chart, index) {
                     const posX = startX + index * (donutW + chartGap);
                     drawCaption(chart.label, posX, cursorY + 4, donutW, true);
@@ -951,13 +961,13 @@ async function runExportPDF(selectedTabs, responses) {
 
         pdf.autoTable({
             head: [schema.headers], body: tableRows, startY: cursorY,
-            styles:             { fontSize: 8, cellPadding: 3, lineColor: [226, 232, 240], lineWidth: 0.2 },
-            headStyles:         { fillColor: [17, 24, 39], textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8, cellPadding: 3.5 },
+            styles: { fontSize: 8, cellPadding: 3, lineColor: [226, 232, 240], lineWidth: 0.2 },
+            headStyles: { fillColor: [17, 24, 39], textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8, cellPadding: 3.5 },
             alternateRowStyles: { fillColor: [248, 250, 252] },
-            columnStyles:       { 0: { fontStyle: "bold" } },
-            margin:             { left: margin, right: margin },
-            tableLineColor:     [226, 232, 240], tableLineWidth: 0.2,
-            didDrawPage:        pageInfo => drawFooter(pageInfo.pageNumber),
+            columnStyles: { 0: { fontStyle: "bold" } },
+            margin: { left: margin, right: margin },
+            tableLineColor: [226, 232, 240], tableLineWidth: 0.2,
+            didDrawPage: pageInfo => drawFooter(pageInfo.pageNumber),
         });
 
         cursorY = pdf.lastAutoTable.finalY + 8;
@@ -982,23 +992,23 @@ async function runExportExcel(selectedTabs, responses) {
         if (!schema) continue;
         const dataRows = schema.rowMapper(tabResponse);
         const colCount = schema.headers.length;
-        const sheet    = workbook.addWorksheet(schema.label.substring(0, 31));
-        sheet.views    = [{ state: "frozen", ySplit: 5 }];
+        const sheet = workbook.addWorksheet(schema.label.substring(0, 31));
+        sheet.views = [{ state: "frozen", ySplit: 5 }];
 
         const addMetaRow = (text, rowHeight, fontOptions, fillKey) => {
             sheet.addRow([text]);
             const worksheetRow = sheet.lastRow;
             worksheetRow.height = rowHeight;
-            worksheetRow.getCell(1).font      = fontOptions;
-            worksheetRow.getCell(1).fill      = EXCEL.fill[fillKey];
+            worksheetRow.getCell(1).font = fontOptions;
+            worksheetRow.getCell(1).fill = EXCEL.fill[fillKey];
             worksheetRow.getCell(1).alignment = EXCEL.align.center;
             sheet.mergeCells(worksheetRow.number, 1, worksheetRow.number, colCount);
             for (let colIndex = 2; colIndex <= colCount; colIndex++) worksheetRow.getCell(colIndex).fill = EXCEL.fill[fillKey];
         };
 
         addMetaRow(`Library Analytics Report — ${schema.label}`, 30, { bold: true, color: { argb: "FFFFFFFF" }, size: 14 }, "title");
-        addMetaRow(`Period: ${dateRange}`,                        18, { color: { argb: "FF6b7280" }, size: 10 },             "meta");
-        addMetaRow(`Generated: ${new Date().toLocaleString()}   ·   ${dataRows.length} records`, 16, { italic: true, color: { argb: "FF9ca3af" }, size: 9 }, "meta");
+        addMetaRow(`Period: ${dateRange}`, 18, { color: { argb: "FF6b7280" }, size: 10 }, "meta");
+        addMetaRow(`Generated: ${new Date().toLocaleString()} · ${dataRows.length} records`, 16, { italic: true, color: { argb: "FF9ca3af" }, size: 9 }, "meta");
         sheet.addRow([]); sheet.lastRow.height = 6;
 
         sheet.addRow(schema.headers);
@@ -1012,16 +1022,16 @@ async function runExportExcel(selectedTabs, responses) {
         const firstDataRowIndex = 6;
         for (let rowIndex = firstDataRowIndex; rowIndex < firstDataRowIndex + dataRows.length; rowIndex++) {
             const worksheetRow = sheet.getRow(rowIndex);
-            const isZebra      = (rowIndex - firstDataRowIndex) % 2 !== 0;
+            const isZebra = (rowIndex - firstDataRowIndex) % 2 !== 0;
             worksheetRow.height = 18;
             worksheetRow.eachCell({ includeEmpty: true }, function (cell, colNumber) {
                 const alignOverride = schema.columnAlignments?.[colNumber - 1];
-                cell.fill      = isZebra ? EXCEL.fill.zebra : EXCEL.fill.white;
-                cell.border    = EXCEL.border.data;
-                cell.font      = { size: 10 };
+                cell.fill = isZebra ? EXCEL.fill.zebra : EXCEL.fill.white;
+                cell.border = EXCEL.border.data;
+                cell.font = { size: 10 };
                 cell.alignment = alignOverride === "center" ? EXCEL.align.center
-                               : alignOverride === "right"  ? EXCEL.align.right
-                               : alignOverride === "left"   ? EXCEL.align.left
+                               : alignOverride === "right" ? EXCEL.align.right
+                               : alignOverride === "left" ? EXCEL.align.left
                                : typeof cell.value === "number" ? EXCEL.align.right : EXCEL.align.left;
             });
         }
@@ -1049,7 +1059,7 @@ $(document).off(".analytics")
 .on("click.analytics", "#refreshBtn", function () {
     if (hasDateRange()) {
         cachedResponses = {};
-        renderedTabs    = {};
+        renderedTabs = {};
         $(".tab-panel").addClass("d-none").empty();
         $("#tabPanel-empty").removeClass("d-none");
         loadTab(activeTab);
