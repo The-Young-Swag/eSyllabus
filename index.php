@@ -6,16 +6,16 @@ include "db/dbconnection.php";
 include "syncAPIToDatabase.php";   // adjust path to wherever you placed the file
 
 // ── Fetch from upstream APIs ──────────────────────────────────────────────────
-$student  = curl_init();
+$student = curl_init();
 $employee = curl_init();
 
 curl_setopt_array($student, [
-    CURLOPT_URL            => 'http://tau.edu.ph:8087/ProxyTAUService/studentLibrary',
+    CURLOPT_URL => 'http://tau.edu.ph:8087/ProxyTAUService/studentLibrary',
     CURLOPT_RETURNTRANSFER => true,
     CURLOPT_CUSTOMREQUEST  => 'POST',
-    CURLOPT_POSTFIELDS     => json_encode([
+    CURLOPT_POSTFIELDS => json_encode([
         "UserAccount" => "LibrarySys",
-        "Password"    => "libraryAPI",
+        "Password" => "libraryAPI",
         "deviceUUID"  => "LibSys",
     ]),
     CURLOPT_HTTPHEADER => [
@@ -25,13 +25,13 @@ curl_setopt_array($student, [
 ]);
 
 curl_setopt_array($employee, [
-    CURLOPT_URL            => 'http://tau.edu.ph:8087/ProxyTAUService/employeeLibrary',
+    CURLOPT_URL => 'http://tau.edu.ph:8087/ProxyTAUService/employeeLibrary',
     CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_CUSTOMREQUEST  => 'POST',
-    CURLOPT_POSTFIELDS     => json_encode([
+    CURLOPT_CUSTOMREQUEST => 'POST',
+    CURLOPT_POSTFIELDS => json_encode([
         "UserAccount" => "LibrarySys",
-        "Password"    => "libraryAPI",
-        "deviceUUID"  => "LibSys",
+        "Password" => "libraryAPI",
+        "deviceUUID" => "LibSys",
     ]),
     CURLOPT_HTTPHEADER => [
         'Content-Type: application/json',
@@ -39,10 +39,10 @@ curl_setopt_array($employee, [
     ],
 ]);
 
-$studentResponse  = curl_exec($student);
+$studentResponse = curl_exec($student);
 $employeeResponse = curl_exec($employee);
 
-$studentOk  = $studentResponse  !== false;
+$studentOk = $studentResponse  !== false;
 $employeeOk = $employeeResponse !== false;
 
 if (!$studentOk)  error_log("Student API cURL Error: "  . curl_error($student));
@@ -52,18 +52,16 @@ curl_close($student);
 curl_close($employee);
 
 // ── Cache in session (keep whatever was there if the call failed) ─────────────
-if ($studentOk)  $_SESSION["studentAPI"]  = $studentResponse;
+if ($studentOk) $_SESSION["studentAPI"] = $studentResponse;
 if ($employeeOk) $_SESSION["employeeAPI"] = $employeeResponse;
 
 // ── Sync fresh API data to DB for offline fallback ────────────────────────────
 // Only runs when at least one API actually returned something.
-// Uses the freshly-fetched strings, not the session, so stale session data
-// from a previous load can never overwrite newer DB rows.
 if ($studentOk || $employeeOk) {
     syncAPIToDatabase(
-        $studentOk  ? $studentResponse  : "[]",
+        $studentOk ? $studentResponse  : "[]",
         $employeeOk ? $employeeResponse : "[]",
-        dbconES()   // your existing PDO factory
+        dbconES()   
     );
 }
 

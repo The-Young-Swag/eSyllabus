@@ -37,14 +37,12 @@ function librarySections(): void
 
 
 // ── KPI ───────────────────────────────────────────────────────────────────────
-// Today range  → count only records where checkout_time IS NULL (currently inside).
-// Any other range → count all check-ins regardless of checkout status.
 
 function loadKPI(): void
 {
-    $start   = validateDate($_POST['startDate'] ?? null);
-    $end     = validateDate($_POST['endDate']   ?? null);
-    $today   = date('Y-m-d');
+    $start = validateDate($_POST['startDate'] ?? null);
+    $end = validateDate($_POST['endDate']   ?? null);
+    $today = date('Y-m-d');
     $isToday = (!$start && !$end) || ($start === $today && $end === $today);
 
     $drClause     = dateRangeClause('l.checkin_time');
@@ -83,7 +81,7 @@ function loadDailyLogs(): void
                  ? (int)$_POST['sectionID'] : null;
 
     $sectionClause = $sectionID ? "AND l.library = $sectionID" : "";
-    $drClause      = dateRangeClause('l.checkin_time');
+    $drClause = dateRangeClause('l.checkin_time');
 
     $countResult = execsqlSRS("
         SELECT COUNT(*) AS total
@@ -275,16 +273,16 @@ function forceCheckout(): void
 
     $countResult = execsqlSRS("
         SELECT COUNT(*) AS total
-        FROM   Library_logs
-        WHERE  checkout_time IS NULL
-          AND  checkin_time  < '$todayBoundary'
+        FROM Library_logs
+        WHERE checkout_time IS NULL
+          AND checkin_time  < '$todayBoundary'
     ", "Search", []);
     $affected = (int)($countResult[0]['total'] ?? 0);
 
     if ($affected > 0) {
         execsqlSRS("
             UPDATE Library_logs
-            SET    checkout_time = DATEADD(HOUR, 19, CAST(CAST(checkin_time AS DATE) AS DATETIME))
+            SET checkout_time = DATEADD(HOUR, 19, CAST(CAST(checkin_time AS DATE) AS DATETIME))
             WHERE  checkout_time IS NULL
               AND  checkin_time  < '$todayBoundary'
         ", "Update", []);

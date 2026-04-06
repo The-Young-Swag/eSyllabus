@@ -1,8 +1,4 @@
 <?php
-// Library Logs Backend
-// Handles: user validation, attendance logging, KPI reporting
-// Database: Library_logs (id, id_number, name, college, course, library,
-//           checkin_time, checkout_time, sex, classification)
 session_start();
 
 include "../../db/dbconnection.php";
@@ -14,8 +10,6 @@ if ($_SERVER["REQUEST_METHOD"] !== "POST") {
 }
 
 //null for offline
-//means if the session key doesn't exist, it silently returns null instead of emitting a notice. 
-//json_decode(null, true) returns null, which resolveUserById() already handles correctly by falling through to the DB fallback.
 $student  = $_SESSION["studentAPI"]  ?? null;
 $employee = $_SESSION["employeeAPI"] ?? null;
 $now = date("Y-m-d H:i:s");
@@ -81,10 +75,6 @@ function resolveUserFromDatabase(string $id, string $group): array
     ], $studentRows);
 }
  
-// ─────────────────────────────────────────────────────────────────────────────
-// REPLACE your existing resolveUserById() with this version
-// Only two lines changed — marked with  ← ADDED
-// ─────────────────────────────────────────────────────────────────────────────
  
 function resolveUserById(string $id): array
 {
@@ -200,8 +190,6 @@ function mapEmployee(array $employee): array
 
 //  ATTENDANCE LOGIC 
 
-// Skips silently if already checked in here; auto-closes any other open session
-// (switch scenario); then inserts a new log entry.
 function performCheckin(PDO $pdo, string $idNumber, int $libraryID, string $now, array $user)
 {
     $start = date("Y-m-d 00:00:00");
@@ -265,12 +253,12 @@ function performCheckout(PDO $pdo, string $idNumber, int $libraryID, string $now
 
     $stmt = $pdo->prepare("
         UPDATE Library_logs
-        SET    checkout_time = :now
-        WHERE  id_number = :idNumber
-          AND  library = :sectionID
-          AND  checkout_time IS NULL
-          AND  checkin_time >= :start
-          AND  checkin_time < :end
+        SET checkout_time = :now
+        WHERE id_number = :idNumber
+          AND library = :sectionID
+          AND checkout_time IS NULL
+          AND checkin_time >= :start
+          AND checkin_time < :end
     ");
     $stmt->execute([
         ":now" => $now,
@@ -300,8 +288,6 @@ function performGuestCheckin(PDO $pdo, int $libraryID, string $now, array $user)
 
 //  KPI 
 
-// Uses checkin_time >= start AND < end instead of CAST()/CONVERT()
-// so SQL Server can use an index on checkin_time if one exists.
 function kpiData(PDO $pdo, int $libraryID): array
 {
     $start = date("Y-m-d 00:00:00");
@@ -323,14 +309,14 @@ function kpiData(PDO $pdo, int $libraryID): array
     $topBy = function (string $col) use ($pdo, $params): array {
         $stmt = $pdo->prepare("
             SELECT TOP 3 {$col}, COUNT(*) AS total
-            FROM   Library_logs
-            WHERE  library = :sectionID
-              AND  checkin_time >= :start
-              AND  checkin_time < :end
-              AND  {$col} IS NOT NULL
-              AND  {$col} <> ''
-            GROUP  BY {$col}
-            ORDER  BY total DESC, {$col} ASC
+            FROM Library_logs
+            WHERE library = :sectionID
+              AND checkin_time >= :start
+              AND checkin_time < :end
+              AND {$col} IS NOT NULL
+              AND {$col} <> ''
+            GROUP BY {$col}
+            ORDER BY total DESC, {$col} ASC
         ");
         $stmt->execute($params);
         return array_column($stmt->fetchAll(PDO::FETCH_ASSOC), $col);
@@ -354,10 +340,10 @@ function GetLibraries()
     try {
         $data = execsqlSRS("
             SELECT ls.SectionID, ls.SectionName
-            FROM   LibraryAccess  la
-            JOIN   LibrarySection ls ON ls.SectionID = la.SectionID
-            WHERE  la.UserID  = ?
-              AND  ls.IsActive = 1
+            FROM LibraryAccess  la
+            JOIN LibrarySection ls ON ls.SectionID = la.SectionID
+            WHERE la.UserID  = ?
+              AND ls.IsActive = 1
         ", "Query", [$userID]);
         echo json_encode(["success" => true, "data" => $data]);
     } catch (Exception $e) {
@@ -393,7 +379,7 @@ function ValidateUser()
 }
 
 // Finds the user's latest active session today (checkout_time IS NULL).
-// Found → currently checked in somewhere. Not found → not checked in today.
+// If found then currently checked in somewhere. Not found then not checked in today.
 function CheckStatusToday()
 {
     $idNumber = trim($_POST["idNumber"] ?? "");
@@ -432,8 +418,7 @@ function CheckStatusToday()
     ]); exit;
 }
 
-// Called after JS resolves the user and action. JS owns state/routing —
-// PHP owns rendering. Resolves color/icon/btnText/message from ACTION_CONFIG.
+
 function AttendanceModal()
 {
     $user = json_decode(trim($_POST["user"] ?? "{}"), true);
@@ -554,7 +539,7 @@ function GuestCheckOutModal()
     if (!$libraryID) { echo json_encode(["error" => "Missing section ID."]); exit; }
 
     $start = date("Y-m-d 00:00:00");
-    $end   = date("Y-m-d 00:00:00", strtotime("+1 day"));
+    $end = date("Y-m-d 00:00:00", strtotime("+1 day"));
 
     try {
         $stmt = dbconES()->prepare("
@@ -634,11 +619,11 @@ function GuestCheckOut()
     try {
         $stmt = dbconES()->prepare("
             UPDATE Library_logs
-            SET    checkout_time = :now
-            WHERE  id = :logID
-              AND  library = :sectionID
-              AND  classification = 'GUEST'
-              AND  checkout_time  IS NULL
+            SET checkout_time = :now
+            WHERE id = :logID
+              AND library = :sectionID
+              AND classification = 'GUEST'
+              AND checkout_time  IS NULL
         ");
         $stmt->execute([":now" => $now, ":logID" => $logID, ":sectionID" => $libraryID]);
     } catch (Exception $e) {
@@ -722,12 +707,6 @@ function ShowKPI()
 }
 
 //  HTML BUILDERS 
-// All modal HTML is built here on the server.
-// JS receives the HTML string and injects it — no HTML built in JS.
-
-// Builds the attendance confirmation modal body and footer.
-// JS sends action key + sectionName — PHP resolves color/icon/btnText/message
-// from ACTION_CONFIG. JS owns state and routing — PHP owns rendering.
 function buildAttendanceModal(
     array $user, string $color, string $icon,
     string $btnText, string $message, string $libraryName
@@ -743,10 +722,10 @@ function buildAttendanceModal(
 
          $rows = "";
          if (!$isGuest) {
-             $rows .= $buildRow("ID",   htmlspecialchars((string) ($user["id_number"]     ?? ""),    ENT_QUOTES, "UTF-8"));
+             $rows .= $buildRow("ID",   htmlspecialchars((string) ($user["id_number"] ?? ""),    ENT_QUOTES, "UTF-8"));
          }
-         $rows .= $buildRow("Name", htmlspecialchars((string) ($user["name"]           ?? ""),    ENT_QUOTES, "UTF-8"));
-         $rows .= $buildRow("Sex",  htmlspecialchars((string) ($user["sex"]            ?? "N/A"), ENT_QUOTES, "UTF-8"));
+         $rows .= $buildRow("Name", htmlspecialchars((string) ($user["name"] ?? ""), ENT_QUOTES, "UTF-8"));
+         $rows .= $buildRow("Sex",  htmlspecialchars((string) ($user["sex"] ?? "N/A"), ENT_QUOTES, "UTF-8"));
          $rows .= $buildRow("Type", htmlspecialchars((string) ($user["classification"] ?? ""),    ENT_QUOTES, "UTF-8"));
          if (!$isEmployee && !$isGuest) {
              $rows .= $buildRow("College", htmlspecialchars((string) ($user["college"] ?? "N/A"), ENT_QUOTES, "UTF-8"));
@@ -846,7 +825,6 @@ function buildGuestRow(array $guest): string
 }
 
 //  DISPATCH 
-
 $request = trim($_POST["request"] ?? "");
 
 switch ($request) {
