@@ -20,9 +20,23 @@ $USER_SOURCE = [
 ];
 
 const ACTION_CONFIG = [
-    "checkin" => ["color" => "success", "icon" => "fa-sign-in-alt", "btnText" => "Check In", "message" => "Not checked in yet"],
-    "checkout" => ["color" => "danger", "icon" => "fa-sign-out-alt", "btnText" => "Check Out", "message" => "Currently in this library"],
-    "switch" => ["color" => "warning", "icon" => "fa-random", "btnText" => "Switch & Check In", "message" => null],
+    "checkin" => [
+        "color" => "success", 
+        "icon" => "fa-sign-in-alt", 
+        "btnText" => "Check In", 
+        "message" => "Not checked in yet"
+        ],
+    "checkout" => [
+        "color" => "danger", 
+        "icon" => "fa-sign-out-alt", 
+        "btnText" => "Check Out", 
+        "message" => "Currently in this library"
+    ],
+    "switch" => [
+        "color" => "warning", 
+        "icon" => "fa-random", 
+        "btnText" => "Switch & Check In", 
+        "message" => null],
 ];
 
 //VALIDATION SECTION
