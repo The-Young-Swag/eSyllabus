@@ -66,7 +66,7 @@
                             class="btn btn-sm text-white fw-semibold px-3 mr-3"
                             style="background:#d97706;"
                             title="Check out users who never checked out on previous days">
-                        <i class="fas fa-clock-rotate-left me-1"></i>Force Checkout
+                        <i class="fas fa-clock-rotate-left me-1"></i>&nbsp;&nbsp;Force Checkout
                     </button>
 
                     <span id="dateBadge"
@@ -528,14 +528,37 @@ $(document).ready(function () {
                         type: 'POST', url: BACKEND,
                         data: { request: 'forceCheckout' },
                         dataType: 'json',
+                        // AFTER — reuse the modal, no toast needed:
                         success(res) {
-                            $modal.modal('hide');
                             reloadAll();
-                            showToast(`Force checkout complete — ${res.affected} record(s) updated.`, 'success');
+                            $body.html(`
+                                <div class="text-center py-3">
+                                    <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-success-subtle mb-3"
+                                        style="width:48px;height:48px;">
+                                        <i class="fas fa-circle-check text-success" style="font-size:1.3rem;"></i>
+                                    </div>
+                                    <p class="fw-semibold text-dark mb-1">Force Checkout Complete</p>
+                                    <p class="text-muted mb-0" style="font-size:.82rem;">
+                                        <strong>${res.affected}</strong> record${res.affected !== 1 ? 's' : ''} updated to 7:00 PM check-out.
+                                    </p>
+                                </div>`);
+                            $foot.html(`
+                                <button type="button" class="btn btn-sm btn-primary px-4"
+                                        data-dismiss="modal" data-bs-dismiss="modal">Done</button>`);
                         },
                         error() {
-                            $modal.modal('hide');
-                            showToast('An error occurred. Please try again.', 'danger');
+                            $body.html(`
+                                <div class="text-center py-3">
+                                    <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-danger-subtle mb-3"
+                                        style="width:48px;height:48px;">
+                                        <i class="fas fa-triangle-exclamation text-danger" style="font-size:1.3rem;"></i>
+                                    </div>
+                                    <p class="fw-semibold text-dark mb-1">Something went wrong</p>
+                                    <p class="text-muted mb-0" style="font-size:.82rem;">Please try again.</p>
+                                </div>`);
+                            $foot.html(`
+                                <button type="button" class="btn btn-sm btn-outline-secondary"
+                                        data-dismiss="modal" data-bs-dismiss="modal">Close</button>`);
                         },
                     });
                 });

@@ -18,7 +18,6 @@ function _mapStudent(array $apiRecord): array
     ];
 }
 
-
 function _mapEmployee(array $apiRecord): array
 {
     return [
