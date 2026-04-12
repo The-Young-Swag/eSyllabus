@@ -135,7 +135,11 @@ function assignAccess(): void {
 // ============================================================
 
 switch ($_POST["request"]) {
-    case "getAccess":    showAccess();    break;
-    case "assignAccess": assignAccess();  break;
+    case "getAccess":    
+        showAccess();    
+        break;
+    case "assignAccess": 
+        assignAccess();  
+        break;
     default: sendResponse(["error" => "Unknown request: '" . trim($_POST["request"] ?? "") . "'."]);
 }
