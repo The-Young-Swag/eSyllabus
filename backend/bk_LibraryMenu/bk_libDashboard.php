@@ -8,8 +8,6 @@ function validateDate(?string $d): ?string
     return ($d && preg_match('/^\d{4}-\d{2}-\d{2}$/', $d)) ? $d : null;
 }
 
-// Builds a WHERE fragment that filters $col to the posted date range.
-// Falls back to today when no valid dates are posted.
 function dateRangeClause(string $col): string
 {
     $start = validateDate($_POST['startDate'] ?? null);
@@ -21,8 +19,7 @@ function dateRangeClause(string $col): string
 }
 
 
-// ── SECTIONS ──────────────────────────────────────────────────────────────────
-
+//  SECTIONS 
 function librarySections(): void
 {
     $rows = execsqlSRS("
@@ -36,8 +33,7 @@ function librarySections(): void
 }
 
 
-// ── KPI ───────────────────────────────────────────────────────────────────────
-
+//  KPI 
 function loadKPI(): void
 {
     $start = validateDate($_POST['startDate'] ?? null);
@@ -71,8 +67,7 @@ function loadKPI(): void
 }
 
 
-// ── DAILY LOGS ────────────────────────────────────────────────────────────────
-
+//  DAILY LOGS 
 function loadDailyLogs(): void
 {
     $page = max(1, (int)($_POST['page'] ?? 1));
@@ -149,8 +144,7 @@ function loadDailyLogs(): void
 }
 
 
-// ── MONTHLY TREND ─────────────────────────────────────────────────────────────
-
+//  MONTHLY TREND 
 function loadMonthlyTrend(): void
 {
     $sectionID     = isset($_POST['sectionID']) && $_POST['sectionID'] !== ''
@@ -180,14 +174,15 @@ function loadMonthlyTrend(): void
 }
 
 
-// ── COLLEGE & COURSE ACTIVITY ─────────────────────────────────────────────────
-
+//  COLLEGE & COURSE ACTIVITY 
 function loadCollegeCourseActivity(): void
 {
     $sectionID = isset($_POST['sectionID']) && $_POST['sectionID'] !== ''
-                     ? (int)$_POST['sectionID'] : null;
+        ? (int)$_POST['sectionID']
+        : null;
+
     $sectionClause = $sectionID ? "AND l.library = $sectionID" : "";
-    $drClause = dateRangeClause('l.checkin_time');
+    $dateRangeClause = dateRangeClause('l.checkin_time');
 
     $rows = execsqlSRS("
         SELECT
@@ -199,50 +194,65 @@ function loadCollegeCourseActivity(): void
         LEFT JOIN LibrarySection s ON l.library = s.SectionID
         WHERE l.college IS NOT NULL AND l.college <> ''
           AND l.course  IS NOT NULL AND l.course  <> ''
-          $drClause
+          $dateRangeClause
           $sectionClause
         GROUP BY l.college, l.course, s.SectionName
         ORDER BY l.college, l.course, total DESC
     ", "Search", []);
 
-    // Build nested structure: college → courses[]
-    $grouped = [];
+    $groupedData = [];
+
     foreach ($rows as $row) {
-        $college = $row['college'];
-        $course = $row['course'];
-        $total = (int)$row['total'];
+        $collegeName = $row['college'];
+        $courseName  = $row['course'];
+        $totalVisits = (int)$row['total'];
 
-        if (!isset($grouped[$college])) {
-            $grouped[$college] = ['college' => $college, 'total' => 0, 'courses' => []];
-        }
-        if (!isset($grouped[$college]['courses'][$course])) {
-            $grouped[$college]['courses'][$course] = ['course' => $course, 'total' => 0, 'sections' => []];
+        if (!isset($groupedData[$collegeName])) {
+            $groupedData[$collegeName] = [
+                'college' => $collegeName,
+                'total'   => 0,
+                'courses' => []
+            ];
         }
 
-        $grouped[$college]['courses'][$course]['total']      += $total;
-        $grouped[$college]['courses'][$course]['sections'][]  = [
+        if (!isset($groupedData[$collegeName]['courses'][$courseName])) {
+            $groupedData[$collegeName]['courses'][$courseName] = [
+                'course'   => $courseName,
+                'total'    => 0,
+                'sections' => []
+            ];
+        }
+
+        $groupedData[$collegeName]['courses'][$courseName]['total'] += $totalVisits;
+
+        $groupedData[$collegeName]['courses'][$courseName]['sections'][] = [
             'section_name' => $row['section_name'] ?? '—',
-            'total' => $total,
+            'total'        => $totalVisits,
         ];
-        $grouped[$college]['total'] += $total;
+
+        $groupedData[$collegeName]['total'] += $totalVisits;
     }
 
-    // Sort colleges and their courses by visit count descending.
-    $result = array_values($grouped);
-    foreach ($result as &$col) {
-        $col['courses'] = array_values($col['courses']);
-        usort($col['courses'], fn($a, $b) => $b['total'] - $a['total']);
+    $result = array_values($groupedData);
+
+    foreach ($result as &$college) {
+        $college['courses'] = array_values($college['courses']);
+
+        usort($college['courses'], function ($courseA, $courseB) {
+            return $courseB['total'] - $courseA['total'];
+        });
     }
-    usort($result, fn($a, $b) => $b['total'] - $a['total']);
+    unset($college); // prevent reference issues
+
+    usort($result, function ($collegeA, $collegeB) {
+        return $collegeB['total'] - $collegeA['total'];
+    });
 
     echo json_encode($result);
 }
 
 
-// ── COUNT PENDING CHECKOUT ────────────────────────────────────────────────────
-// Counts records with no checkout_time that checked in on a day BEFORE today.
-// The pre-cast boundary keeps the predicate sargable (index-friendly).
-
+//  COUNT PENDING CHECKOUT 
 function countPendingCheckout(): void
 {
     $todayBoundary = date('Y-m-d') . ' 00:00:00';
@@ -258,15 +268,7 @@ function countPendingCheckout(): void
 }
 
 
-// ── FORCE CHECKOUT ────────────────────────────────────────────────────────────
-// Sets checkout_time = 7:00 PM of each record's own check-in date.
-// Today's records are never touched.
-// The count is taken before the UPDATE so the affected number is accurate.
-//
-// Recommended index (run once):
-//   CREATE INDEX IX_Library_logs_checkout_checkin
-//   ON Library_logs (checkout_time, checkin_time) INCLUDE (id);
-
+//  FORCE CHECKOUT 
 function forceCheckout(): void
 {
     $todayBoundary = date('Y-m-d') . ' 00:00:00';
@@ -292,8 +294,7 @@ function forceCheckout(): void
 }
 
 
-// ── DISPATCH ──────────────────────────────────────────────────────────────────
-
+//  DISPATCH 
 $request = $_POST['request'] ?? '';
 
 switch ($request) {
