@@ -246,7 +246,7 @@ style="background:linear-gradient(135deg,#ffffff,#ecfdf5);
 <script>
 $(function () {
 
-const BACKEND = "backend/bk_LibraryMenu/bk_libLogs-Test.php";
+const BACKEND = "backend/bk_LibraryMenu/bk_libLogs.php";
 
 let libraryID = null;
 let libraryName = "";
