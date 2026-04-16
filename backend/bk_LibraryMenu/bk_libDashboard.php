@@ -147,7 +147,7 @@ function loadDailyLogs(): void
 //  MONTHLY TREND 
 function loadMonthlyTrend(): void
 {
-    $sectionID     = isset($_POST['sectionID']) && $_POST['sectionID'] !== ''
+    $sectionID = isset($_POST['sectionID']) && $_POST['sectionID'] !== ''
                      ? (int)$_POST['sectionID'] : null;
     $sectionClause = $sectionID ? "AND library = $sectionID" : "";
 
@@ -178,8 +178,7 @@ function loadMonthlyTrend(): void
 function loadCollegeCourseActivity(): void
 {
     $sectionID = isset($_POST['sectionID']) && $_POST['sectionID'] !== ''
-        ? (int)$_POST['sectionID']
-        : null;
+        ? (int)$_POST['sectionID'] : null;
 
     $sectionClause = $sectionID ? "AND l.library = $sectionID" : "";
     $dateRangeClause = dateRangeClause('l.checkin_time');
