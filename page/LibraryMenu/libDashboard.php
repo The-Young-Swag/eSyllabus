@@ -17,6 +17,9 @@
                          background:#10b981;flex-shrink:0;
                          animation:ldot 2.2s ease-in-out infinite;"></span>
             <span class="fw-bold text-dark" style="font-size:1rem;letter-spacing:-.2px;">Live</span>
+            <button class="btn btn-outline-secondary btn-sm" id="refreshBtn">
+                <i class="fas fa-sync-alt me-1"></i>Refresh
+            </button>
         </div>
     </div>
 
@@ -173,6 +176,9 @@ $(document).ready(function () {
         bodyColor: '#94a3b8', borderColor: 'rgba(148,163,184,0.15)',
         borderWidth: 1, padding: 10, cornerRadius: 6,
     };
+
+    function showSpinner() { $("#loadingSpinner").stop(true).css("display", "flex").hide().fadeIn(150); }
+    function hideSpinner() { $("#loadingSpinner").fadeOut(200); }
 
     let trendChartInst    = null;
     let activityChartInst = null;
@@ -578,11 +584,13 @@ $(document).ready(function () {
     // ── RELOAD ALL ────────────────────────────────────────────────────────────
 
     function reloadAll() {
-        loadKPI();
-        loadLogs(1);
-        loadTrend();
-        loadCollegeCourseActivity();
-    }
+    return $.when(
+        loadKPI(),
+        loadLogs(1),
+        loadTrend(),
+        loadCollegeCourseActivity()
+    );
+}
 
 
     // ── EVENTS ────────────────────────────────────────────────────────────────
@@ -592,6 +600,23 @@ $(document).ready(function () {
         loadTrend();
         loadCollegeCourseActivity();
     });
+
+$('#refreshBtn').on('click', function () {
+    const $btn  = $(this);
+    const $icon = $btn.find('i');
+
+    if ($btn.prop('disabled')) return;
+
+    $btn.prop('disabled', true);
+    $icon.addClass('fa-spin');
+    showSpinner();                        // ← show overlay
+
+    reloadAll().always(function () {
+        hideSpinner();                    // ← hide overlay
+        $btn.prop('disabled', false);
+        $icon.removeClass('fa-spin');
+    });
+});
 
     $('#trendStartDate, #trendEndDate').on('change', function () {
         const startDate = $('#trendStartDate').val();

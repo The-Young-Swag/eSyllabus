@@ -55,13 +55,13 @@ function resolveUserFromDatabase(string $id, string $group): array
         $employeeRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         return array_map(fn($employee) => [
-            "id_number"           => $employee["id_number"],
-            "name"                => $employee["name"],
-            "sex"                 => $employee["sex"] ?? null,
-            "college"             => "",
-            "course"              => "",
-            "classification"      => "EMPLOYEE",
-            "secretKey"           => null,
+            "id_number" => $employee["id_number"],
+            "name" => $employee["name"],
+            "sex" => $employee["sex"] ?? null,
+            "college" => "",
+            "course" => "",
+            "classification" => "EMPLOYEE",
+            "secretKey" => null,
             "agency_organization" => "",
         ], $employeeRows);
     }
@@ -78,13 +78,13 @@ function resolveUserFromDatabase(string $id, string $group): array
     $studentRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     return array_map(fn($student) => [
-        "id_number"           => $student["id_number"],
-        "name"                => $student["name"],
-        "sex"                 => $student["sex"] ?? null,
-        "college"             => $student["college"] ?? "",
-        "course"              => $student["course"] ?? "",
-        "classification"      => $student["enrollment_status"] ?? "STUDENT",
-        "secretKey"           => $student["birthDate"] ?? null,
+        "id_number" => $student["id_number"],
+        "name" => $student["name"],
+        "sex" => $student["sex"] ?? null,
+        "college" => $student["college"] ?? "",
+        "course" => $student["course"] ?? "",
+        "classification" => $student["enrollment_status"] ?? "STUDENT",
+        "secretKey" => $student["birthDate"] ?? null,
         "agency_organization" => "",
     ], $studentRows);
 }

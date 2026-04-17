@@ -2,10 +2,10 @@
 session_start();
 include "db/dbconnection.php";
 
-// ── Pull sync helper ──────────────────────────────────────────────────────────
+//  Pull sync helper
 include "syncAPIToDatabase.php";   // adjust path to wherever you placed the file
 
-// ── Fetch from upstream APIs ──────────────────────────────────────────────────
+//  Fetch from upstream APIs─
 $student = curl_init();
 $employee = curl_init();
 
@@ -51,11 +51,11 @@ if (!$employeeOk) error_log("Employee API cURL Error: " . curl_error($employee))
 curl_close($student);
 curl_close($employee);
 
-// ── Cache in session (keep whatever was there if the call failed) ─────────────
+//  Cache in session (keep whatever was there if the call failed) 
 if ($studentOk) $_SESSION["studentAPI"] = $studentResponse;
 if ($employeeOk) $_SESSION["employeeAPI"] = $employeeResponse;
 
-// ── Sync fresh API data to DB for offline fallback ────────────────────────────
+//  Sync fresh API data to DB for offline fallback
 // Only runs when at least one API actually returned something.
 if ($studentOk || $employeeOk) {
     syncAPIToDatabase(
