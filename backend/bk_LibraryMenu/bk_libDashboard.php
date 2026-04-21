@@ -51,7 +51,7 @@ function loadKPI(): void
             s.SectionName,
             COUNT(l.id) AS total
         FROM LibrarySection s
-        LEFT JOIN Library_logs l
+        LEFT JOIN LibraryLogs l
             ON  l.library = s.SectionID
             $drClause
             $activeClause
@@ -80,7 +80,7 @@ function loadDailyLogs(): void
 
     $countResult = execsqlSRS("
         SELECT COUNT(*) AS total
-        FROM   Library_logs l
+        FROM   LibraryLogs l
         WHERE  1=1 $drClause $sectionClause
     ", "Search", []);
 
@@ -98,7 +98,7 @@ function loadDailyLogs(): void
             s.SectionName,
             l.checkin_time,
             l.checkout_time
-        FROM Library_logs l
+        FROM LibraryLogs l
         LEFT JOIN LibrarySection s ON l.library = s.SectionID
         WHERE 1=1 $drClause $sectionClause
         ORDER BY l.checkin_time DESC
@@ -164,7 +164,7 @@ function loadMonthlyTrend(): void
             YEAR(checkin_time) AS yr,
             MONTH(checkin_time) AS mo,
             COUNT(*) AS total
-        FROM Library_logs
+        FROM LibraryLogs
         WHERE 1=1 $dateClause $sectionClause
         GROUP BY FORMAT(checkin_time,'MMM yyyy'), YEAR(checkin_time), MONTH(checkin_time)
         ORDER BY yr, mo
@@ -189,7 +189,7 @@ function loadCollegeCourseActivity(): void
             l.course,
             s.SectionName AS section_name,
             COUNT(*) AS total
-        FROM Library_logs l
+        FROM LibraryLogs l
         LEFT JOIN LibrarySection s ON l.library = s.SectionID
         WHERE l.college IS NOT NULL AND l.college <> ''
           AND l.course  IS NOT NULL AND l.course  <> ''
@@ -258,7 +258,7 @@ function countPendingCheckout(): void
 
     $result = execsqlSRS("
         SELECT COUNT(*) AS total
-        FROM   Library_logs
+        FROM   LibraryLogs
         WHERE  checkout_time IS NULL
           AND  checkin_time  < '$todayBoundary'
     ", "Search", []);
@@ -274,7 +274,7 @@ function forceCheckout(): void
 
     $countResult = execsqlSRS("
         SELECT COUNT(*) AS total
-        FROM Library_logs
+        FROM LibraryLogs
         WHERE checkout_time IS NULL
           AND checkin_time  < '$todayBoundary'
     ", "Search", []);
@@ -282,7 +282,7 @@ function forceCheckout(): void
 
     if ($affected > 0) {
         execsqlSRS("
-            UPDATE Library_logs
+            UPDATE LibraryLogs
             SET checkout_time = DATEADD(HOUR, 19, CAST(CAST(checkin_time AS DATE) AS DATETIME))
             WHERE  checkout_time IS NULL
               AND  checkin_time  < '$todayBoundary'

@@ -29,19 +29,17 @@ function _mapEmployee(array $apiRecord): array
     ];
 }
 
-
 function normalizeRecords(array $responseData): array
 {
     if (isset($responseData[0])) return $responseData;
 
-    foreach (["data", "students", "employees", "records", "items"] as $wrapperKey) {
+    foreach (["data"] as $wrapperKey) {
         if (isset($responseData[$wrapperKey]) && is_array($responseData[$wrapperKey])) {
             return $responseData[$wrapperKey];
         }
     }
     return []; 
 }
-
 
 function saveStudentToDatabase(PDO $pdo, array $studentData): void
 {
@@ -146,7 +144,6 @@ function saveEmployeeToDatabase(PDO $pdo, array $employeeData): void
         $stmt->execute($updates);
 
     } else {
-
         $stmt = $pdo->prepare("
             INSERT INTO employeeData (empNumber, name, sex)
             VALUES (:empNumber, :name, :sex)
@@ -159,13 +156,12 @@ function saveEmployeeToDatabase(PDO $pdo, array $employeeData): void
     }
 }
 
-
 function syncAPIToDatabase(string $studentJson, string $employeeJson, PDO $pdo): void
 {
     $Students = json_decode($studentJson,  true);
     $Employees = json_decode($employeeJson, true);
 
-    $studentRecords = is_array($Students)  ? normalizeRecords($Students)  : [];
+    $studentRecords = is_array($Students) ? normalizeRecords($Students) : [];
     $employeeRecords = is_array($Employees) ? normalizeRecords($Employees) : [];
 
     if (empty($studentRecords) && empty($employeeRecords)) return;

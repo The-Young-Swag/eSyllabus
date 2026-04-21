@@ -219,7 +219,7 @@ function performCheckin(PDO $pdo, string $idNumber, int $libraryID, string $now,
 
     $stmt = $pdo->prepare("
         SELECT COUNT(*)
-        FROM   Library_logs
+        FROM   LibraryLogs
         WHERE  id_number = :idNumber
           AND  name = :name
           AND  library = :sectionID
@@ -231,7 +231,7 @@ function performCheckin(PDO $pdo, string $idNumber, int $libraryID, string $now,
     if ((int) $stmt->fetchColumn() > 0) return;
 
     $stmt = $pdo->prepare("
-        UPDATE Library_logs
+        UPDATE LibraryLogs
         SET    checkout_time = :now
         WHERE  id_number = :idNumber
           AND  name = :name
@@ -243,7 +243,7 @@ function performCheckin(PDO $pdo, string $idNumber, int $libraryID, string $now,
     $stmt->execute($params + [":now" => $now]);
 
     $stmt = $pdo->prepare("
-        INSERT INTO Library_logs
+        INSERT INTO LibraryLogs
             (id_number, name, classification, college, course, library, checkin_time, sex, agency_organization)
         VALUES (:idNumber, :name, :classification, :college, :course, :sectionID, :now, :sex, :agency)
     ");
@@ -266,7 +266,7 @@ function performCheckout(PDO $pdo, string $idNumber, int $libraryID, string $now
     $end = date("Y-m-d 00:00:00", strtotime("+1 day"));
 
     $stmt = $pdo->prepare("
-        UPDATE Library_logs
+        UPDATE LibraryLogs
         SET checkout_time = :now
         WHERE id_number = :idNumber
           AND library = :sectionID
@@ -287,7 +287,7 @@ function performCheckout(PDO $pdo, string $idNumber, int $libraryID, string $now
 function performGuestCheckin(PDO $pdo, int $libraryID, string $now, array $user)
 {
     $stmt = $pdo->prepare("
-        INSERT INTO Library_logs
+        INSERT INTO LibraryLogs
             (id_number, name, classification, college, course, library, checkin_time, sex, agency_organization)
         VALUES ('0', :name, 'GUEST', '', '', :sectionID, :now, :sex, :agency)
     ");
@@ -312,7 +312,7 @@ function kpiData(PDO $pdo, int $libraryID): array
         SELECT
             COUNT(*) AS totalToday,
             SUM(CASE WHEN checkout_time IS NULL THEN 1 ELSE 0 END) AS currentlyInside
-        FROM Library_logs
+        FROM LibraryLogs
         WHERE library = :sectionID
           AND checkin_time >= :start
           AND checkin_time  < :end
@@ -323,7 +323,7 @@ function kpiData(PDO $pdo, int $libraryID): array
     $topBy = function (string $col) use ($pdo, $params): array {
         $stmt = $pdo->prepare("
             SELECT TOP 3 {$col}, COUNT(*) AS total
-            FROM Library_logs
+            FROM LibraryLogs
             WHERE library = :sectionID
               AND checkin_time >= :start
               AND checkin_time < :end
@@ -407,7 +407,7 @@ function CheckStatusToday()
     try {
         $stmt = dbconES()->prepare("
             SELECT TOP 1 ll.library, ls.SectionName
-            FROM Library_logs ll
+            FROM LibraryLogs ll
             LEFT JOIN LibrarySection ls ON ls.SectionID = ll.library
             WHERE ll.id_number = :idNumber
               AND ll.name = :name
@@ -558,7 +558,7 @@ function GuestCheckOutModal()
     try {
         $stmt = dbconES()->prepare("
             SELECT id, name, sex, agency_organization, checkin_time
-            FROM   Library_logs
+            FROM   LibraryLogs
             WHERE  library = :sectionID
               AND  classification = 'GUEST'
               AND  checkout_time  IS NULL
@@ -632,7 +632,7 @@ function GuestCheckOut()
 
     try {
         $stmt = dbconES()->prepare("
-            UPDATE Library_logs
+            UPDATE LibraryLogs
             SET checkout_time = :now
             WHERE id = :logID
               AND library = :sectionID

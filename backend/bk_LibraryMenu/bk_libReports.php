@@ -49,7 +49,7 @@ function fetchVisitLogs(string $whereClause, array $queryParams): array
                l.sex,
                l.classification,
                l.agency_organization
-        FROM   Library_logs l
+        FROM   LibraryLogs l
         LEFT JOIN LibrarySection s ON l.library = s.SectionID
         WHERE  1=1 {$whereClause}
         ORDER  BY l.checkin_time DESC

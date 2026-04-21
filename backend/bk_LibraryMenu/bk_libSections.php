@@ -7,9 +7,7 @@ date_default_timezone_set("Asia/Manila");
 if ($_SERVER["REQUEST_METHOD"] !== "POST")
     sendResponse(["error" => "Invalid request method."]);
 
-// ============================================================
 // UTILITIES
-// ============================================================
 
 function sendResponse(array $payload): void { echo json_encode($payload); exit; }
 
@@ -17,9 +15,7 @@ function escHtml(mixed $value): string {
     return htmlspecialchars((string)($value ?? ""), ENT_QUOTES, "UTF-8");
 }
 
-// ============================================================
 // HANDLERS
-// ============================================================
 
 function showSection(): void {
 
@@ -185,9 +181,7 @@ function toggleStatus(): void {
     sendResponse(["success" => true]);
 }
 
-// ============================================================
 // DISPATCH
-// ============================================================
 
 switch ($_POST["request"]) {
     case "getSection":      showSection();     break;
