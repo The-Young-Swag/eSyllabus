@@ -93,7 +93,7 @@ style="background:linear-gradient(135deg,#ffffff,#ecfdf5);
             
 			<input type="password"
                    id="inputIDNumber"
-                   placeholder="Enter or scan identification number"
+                   placeholder="Enter Student Number or Employee Number :"
                    autocomplete="new-password"
                    spellcheck="false"
                    style="flex:1;border:none;outline:none;box-shadow:none;
