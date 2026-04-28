@@ -571,12 +571,9 @@ $(document).on('change', '#UpdatePrvRole', function(e) {
 
 
 
-// ============================================================
 // RIVZ - Core Utility Functions
-// ============================================================
 
-// --- Menu Loaders ---
-
+//  Menu Loaders 
 function loadMenus(type) {
     const tableId  = type === 'all' ? '#tableAllMenus' : '#tableDeletedMenus';
     const request  = type === 'all' ? 'getAllMenus'    : 'getDeletedMenus';
@@ -627,8 +624,7 @@ function loadAllRolesAndMenus() {
 }
 
 
-// --- AJAX Helpers ---
-
+//  AJAX Helpers 
 function postJSON(url, data, onSuccess, onFail) {
     return $.post(url, data)
         .done(res => {
@@ -637,7 +633,8 @@ function postJSON(url, data, onSuccess, onFail) {
                 const json    = typeof trimmed === "string" ? JSON.parse(trimmed) : trimmed;
 
                 if (json.success) onSuccess?.(json);
-                else              onFail?.(json) ?? alert(json.message || "Operation failed");
+                else
+                    onFail?.(json) ?? alert(json.message || "Operation failed");
             } catch (e) {
                 console.error("Invalid JSON response:", res);
                 alert("Server error. Please try again.");
@@ -649,22 +646,18 @@ function postJSON(url, data, onSuccess, onFail) {
         });
 }
 
-
-// --- Modal Helpers ---
-
-function _clearModals() {
+//  Modal Helpers 
+function clearModals() {
     $('.modal').modal('hide');
     $('.modal-backdrop').remove();
     $('body').removeClass('modal-open');
 }
 
-function _resolveModalId(modalRequest) {
+function resolveModalId(modalRequest) {
     return "#" + modalRequest.replace("modal", "") + "modal";
 }
 
-/**
- * openAddModal("page/modals.php", "menuAddmodal")
- */
+// openAddModal("page/modals.php", "menuAddmodal")
 function openAddModal(modalURL, modalRequest) {
     $.ajax({
         type: "POST",
@@ -673,10 +666,10 @@ function openAddModal(modalURL, modalRequest) {
         beforeSend: () => $("#loadingSpinner").fadeIn(200),
         success: function(html) {
             $("#loadingSpinner").fadeOut(200);
-            _clearModals();
+            clearModals();
             $("#modalContainer").html(html);
 
-            const $modal = $(_resolveModalId(modalRequest));
+            const $modal = $(resolveModalId(modalRequest));
             if ($modal.length) $modal.modal("show");
         },
         error: function(xhr, status, error) {
@@ -686,9 +679,8 @@ function openAddModal(modalURL, modalRequest) {
     });
 }
 
-/**
- * openEditModal("page/modals.php", "menueditmodal", "menID", 5)
- */
+
+// openEditModal("page/modals.php", "menueditmodal", "menID", 5)
 function openEditModal(modalURL, modalRequest, itemIDParam, itemID) {
     $.ajax({
         type: "POST",
@@ -697,10 +689,10 @@ function openEditModal(modalURL, modalRequest, itemIDParam, itemID) {
         beforeSend: () => $("#loadingSpinner").fadeIn(200),
         success: function(html) {
             $("#loadingSpinner").fadeOut(200);
-            _clearModals();
+            clearModals();
             $("#modalContainer").html(html);
 
-            const $modal = $(_resolveModalId(modalRequest));
+            const $modal = $(resolveModalId(modalRequest));
             if ($modal.length) $modal.modal("show");
         },
         error: function(xhr, status, error) {
@@ -711,8 +703,7 @@ function openEditModal(modalURL, modalRequest, itemIDParam, itemID) {
 }
 
 
-// --- Save / Row Update ---
-
+//  Save / Row Update 
 function saveData(saveURL, saveRequest, formData, updateRowCallback) {
     const $btn         = $(".modal:visible").find("button[type='submit'], .btn-primary");
     const originalText = $btn.html();
@@ -763,8 +754,7 @@ function updateMenuRow(data) {
 }
 
 
-// --- Sidebar ---
-
+//  Sidebar 
 function fetchSidebarMenu(roleID = null, notify = false) {
     roleID = roleID || UserInfo["RID"];
     if (!roleID) return;
@@ -809,7 +799,7 @@ function updateSidebarMenu(RID = null) {
             }, 30);
         },
         complete: () => $spinner.fadeOut(200),
-        error:    () => console.log("Sidebar update failed")
+        error: () => console.log("Sidebar update failed")
     });
 }
 
@@ -830,8 +820,7 @@ function setupMenuHighlighting() {
 }
 
 
-// --- Toast ---
-
+//  Toast 
 function showToast(message, type = "success") {
     const toastId = "toast-" + Date.now();
     const bgColor  = { success: "bg-success", warning: "bg-warning", error: "bg-danger" }[type] || "bg-info";
@@ -851,15 +840,14 @@ function showToast(message, type = "success") {
 }
 
 
-// --- Menu Events ---
-
+//  Menu Events 
 function setupMenuEvents() {
 
     // Tab switch
     $(document).off('shown.bs.tab.menu').on('shown.bs.tab.menu', 'a[data-toggle="tab"]', function(e) {
         const target = $(e.target).attr('href');
-        if      (target === '#deletedMenus') loadMenus('deleted');
-        else if (target === '#allMenus')     loadMenus('all');
+        if (target === '#deletedMenus') loadMenus('deleted');
+        else if (target === '#allMenus') loadMenus('all');
     });
 
     // Open Add modal
@@ -904,10 +892,10 @@ function setupMenuEvents() {
         );
     });
 
-    // Toggle status — cascade to children visually + backend
+    // Toggle status: cascade to children visually + backend
     $(document).off('change.menu', '.toggleMenuStatus').on('change.menu', '.toggleMenuStatus', function() {
-        const $switch   = $(this);
-        const menID     = $switch.data('id');
+        const $switch = $(this);
+        const menID = $switch.data('id');
         const isChecked = $switch.is(':checked');
         const newStatus = isChecked ? 0 : 1;
 
@@ -934,7 +922,7 @@ function setupMenuEvents() {
                     }
 
                     // Visual cascade: disable/enable child rows whose MotherMenID matches
-                    _cascadeChildStatus(menID, isChecked);
+                    cascadeChildStatus(menID, isChecked);
 
                     $switch.closest('tr').addClass('table-success');
                     setTimeout(() => $switch.closest('tr').removeClass('table-success'), 800);
@@ -963,15 +951,15 @@ function setupMenuEvents() {
         const originalText = $btn.html();
 
         const formData = {
-            request:     "addMenu",
-            menu:        $("#m_menu").val().trim(),
-            mother:      $("#m_mother").val() || 0,
-            desc:        $("#m_desc").val().trim(),
-            code:        $("#m_code").val().trim(),
-            link:        $("#m_link").val().trim(),
+            request: "addMenu",
+            menu: $("#m_menu").val().trim(),
+            mother: $("#m_mother").val() || 0,
+            desc: $("#m_desc").val().trim(),
+            code: $("#m_code").val().trim(),
+            link: $("#m_link").val().trim(),
             arrangement: $("#m_arrange").val() || 0,
-            status:      $("#m_status").val() || 0,
-            icon:        $("#m_icon").val().trim()
+            status: $("#m_status").val() || 0,
+            icon: $("#m_icon").val().trim()
         };
 
         if (!formData.menu || !formData.code) {
@@ -1021,19 +1009,18 @@ function setupMenuEvents() {
     });
 }
 
-
 // Save via btnSaveMenu (legacy path)
 $(document).on("click", "#btnSaveMenu", function() {
     const formData = {
-        menID:       $("#menID").val(),
-        menu:        $("#menu").val(),
-        desc:        $("#desc").val(),
-        code:        $("#code").val(),
-        link:        $("#link").val(),
-        mother:      $("#mother").val(),
+        menID: $("#menID").val(),
+        menu: $("#menu").val(),
+        desc: $("#desc").val(),
+        code: $("#code").val(),
+        link: $("#link").val(),
+        mother: $("#mother").val(),
         arrangement: $("#arrangement").val(),
-        status:      $("#status").is(":checked") ? 0 : 1,
-        icon:        $("#icon").val()
+        status: $("#status").is(":checked") ? 0 : 1,
+        icon: $("#icon").val()
     };
 
     saveData("backend/bk_menumanagement.php", "updateMenu", formData, function() {
@@ -1046,20 +1033,20 @@ $(document).on("click", "#btnSaveMenu", function() {
 $(document).off('click.menu', '#btnUpdateMenu').on('click.menu', '#btnUpdateMenu', function(e) {
     e.preventDefault();
 
-    const $btn         = $(this);
+    const $btn = $(this);
     const originalText = $btn.html();
 
     const formData = {
-        request:     "updateMenu",
-        menID:       $("#edit_menID").val(),
-        menu:        $("#edit_menu").val().trim(),
-        desc:        $("#edit_desc").val().trim(),
-        code:        $("#edit_code").val().trim(),
-        link:        $("#edit_link").val().trim(),
-        mother:      $("#edit_mother").val() || 0,
+        request: "updateMenu",
+        menID: $("#edit_menID").val(),
+        menu: $("#edit_menu").val().trim(),
+        desc: $("#edit_desc").val().trim(),
+        code: $("#edit_code").val().trim(),
+        link: $("#edit_link").val().trim(),
+        mother: $("#edit_mother").val() || 0,
         arrangement: $("#edit_arrangement").val() || 0,
-        status:      $("#edit_status").val() || 0,
-        icon:        $("#edit_icon").val().trim()
+        status: $("#edit_status").val() || 0,
+        icon: $("#edit_icon").val().trim()
     };
 
     if (!formData.menu || !formData.code) {
@@ -1100,15 +1087,15 @@ $(document).off('click.menu', '#btnUpdateMenu').on('click.menu', '#btnUpdateMenu
 });
 
 
-// --- Helpers ---
+//  Helpers 
 
 /**
  * Cascades enable/disable state to child rows when a mother menu is toggled.
  * Walks the rendered table and matches rows by MotherMenID (td:eq(2)).
  */
-function _cascadeChildStatus(motherMenID, isActive) {
+function cascadeChildStatus(motherMenID, isActive) {
     $("#tableAllMenus tr").each(function() {
-        const $row        = $(this);
+        const $row = $(this);
         const rowMotherId = $row.find("td:eq(2)").text().trim();
 
         if (rowMotherId != motherMenID) return;
@@ -1122,18 +1109,17 @@ function _cascadeChildStatus(motherMenID, isActive) {
 
         $.post("backend/bk_menumanagement.php", {
             request: "toggleMenuStatus",
-            menID:   childMenID,
+            menID: childMenID,
             status:  isActive ? 0 : 1
         });
 
         // Recurse for grandchildren
-        _cascadeChildStatus(childMenID, isActive);
+        cascadeChildStatus(childMenID, isActive);
     });
 }
 
 
-// --- Analytics / Library helpers ---
-
+//  Analytics / Library helpers 
 function showLoading(target) {
     $(target).html('<div class="text-center py-5">Loading...</div>');
 }
