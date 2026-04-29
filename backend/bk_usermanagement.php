@@ -12,6 +12,7 @@ case "addUser":
     $roleID = trim($_POST["roleID"] ?? "");
     $officeID = trim($_POST["officeID"] ?? "");
     $positionID = trim($_POST["positionID"] ?? "");
+    $changePass = $_POST["changePass"] ?? 0;
     
     if (empty($empID) || empty($name) || empty($roleID)) {
         echo "MISSING_REQUIRED_FIELDS";

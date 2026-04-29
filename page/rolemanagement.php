@@ -35,173 +35,150 @@
 <?php include 'modalContainer.php'; ?>
 
 <script>
-//  INITIAL LOAD 
 $(document).ready(function() {
     loadRoles();
 });
 
-//  LOAD ROLES 
 function loadRoles() {
-    loadTable("backend/bk_rolemanagement.php", "viewRoles", "#tblviewRoles");
+    $("#loadingSpinner").css("display", "flex").hide().fadeIn(200);
+    $.post("backend/bk_rolemanagement.php", { request: "viewRoles" }, function(response) {
+        $("#loadingSpinner").fadeOut(200).css("display", "none");
+        $("#tblviewRoles").html(response);
+    }).fail(function() {
+        $("#loadingSpinner").fadeOut(200).css("display", "none");
+    });
 }
 
-//  ADD ROLE MODAL 
 $(document).on('click', '#addRoleModal', function() {
     openAddModal("page/modals.php", "rolemodal");
 });
 
-//  ADD ROLE (FIXED - Simple & Clean) 
 $(document).on('click', '#r_submit', function(e) {
     e.preventDefault();
-    e.stopPropagation(); // Prevent multiple clicks
-    
-    // Disable button immediately to prevent multiple submissions
+    e.stopPropagation();
+
     const $btn = $(this);
-    if ($btn.prop('disabled')) return; // Already processing
-    
-    $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Adding...');
-    
+    if ($btn.prop('disabled')) return;
+
     const formData = {
         request: "addRole",
         r_role: $("#r_role").val().trim(),
         r_rolecode: $("#r_rolecode").val().trim(),
         r_status: $("#r_status").val() || 0
     };
-    
-    if (!validateRoleForm(formData)) {
-        $btn.prop('disabled', false).html('Add Role');
+
+    if (!formData.r_role || !formData.r_rolecode) {
+        alert("Role Name and Role Code are required!");
         return;
     }
-    
+
+    $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Adding...');
+    $("#loadingSpinner").css("display", "flex").hide().fadeIn(200);
+
     $.ajax({
         type: "POST",
         url: "backend/bk_rolemanagement.php",
         data: formData,
         dataType: "json",
         success: function(response) {
-            // Re-enable button
+            $("#loadingSpinner").fadeOut(200).css("display", "none");
             $btn.prop('disabled', false).html('Add Role');
-            
+
             if (response.status === "success") {
-                // Close modal FIRST
                 $("#rolemodal").modal("hide");
-                
-                // Clear form
                 $("#r_role, #r_rolecode").val("");
                 $("#r_status").val("0");
-                
-                // Add new row to table
-                if (response.rowHtml) {
-                    $("#tblviewRoles").append(response.rowHtml);
-                    highlightRow($("#tblviewRoles tr:last-child"));
-                }
-                
-                // Simple alert (won't duplicate)
-                setTimeout(() => {
-                    alert(" Role added successfully!");
-                }, 300);
-                
+                loadRoles();
             } else {
                 alert("Error: " + response.message);
             }
         },
         error: function(xhr, status, error) {
+            $("#loadingSpinner").fadeOut(200).css("display", "none");
             $btn.prop('disabled', false).html('Add Role');
             alert("Connection error: " + error);
         }
     });
 });
 
-//  EDIT ROLE 
 $(document).on('click', '.btnEditRole', function() {
     const roleID = $(this).data('id');
     openEditModal("page/modals.php", "roleeditmodal", "roleID", roleID);
 });
 
-//  UPDATE ROLE (Simplified) 
 $(document).on('click', '#btnUpdateRole', function() {
     const $button = $(this);
     if ($button.prop('disabled')) return;
-    
+
     const formData = {
         er_submit: $("#edit_roleID").val(),
         er_role: $("#edit_role").val().trim(),
         er_rolecode: $("#edit_rolecode").val().trim(),
         er_status: $("#edit_role_status").val()
     };
-    
-    if (!validateRoleForm(formData)) return;
-    
+
+    if (!formData.er_role || !formData.er_rolecode) {
+        alert("Role Name and Role Code are required!");
+        return;
+    }
+
     $button.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Saving...');
-    
+    $("#loadingSpinner").css("display", "flex").hide().fadeIn(200);
+
     $.ajax({
         type: "POST",
         url: "backend/bk_rolemanagement.php",
-        data: { 
-            request: "updateRole",
-            ...formData 
-        },
+        data: { request: "updateRole", ...formData },
         success: function(response) {
+            $("#loadingSpinner").fadeOut(200).css("display", "none");
             $button.prop('disabled', false).html('Save Changes');
-            
+
             if (response.trim() === "SUCCESS") {
-                // Update row
-                updateRoleRow(formData);
-                
-                // Close modal
                 $('.modal').modal('hide');
-                
-                // Simple alert
-                setTimeout(() => {
-                    alert("Role updated successfully!");
-                }, 300);
-                
+                loadRoles();
             } else {
                 alert("Error: " + response);
             }
         },
         error: function(xhr, status, error) {
+            $("#loadingSpinner").fadeOut(200).css("display", "none");
             $button.prop('disabled', false).html('Save Changes');
             alert("Error saving: " + error);
         }
     });
 });
 
-//  TOGGLE ROLE STATUS 
 $(document).on('change', '.toggleRoleStatus', function() {
     const $checkbox = $(this);
     if ($checkbox.prop('disabled')) return;
-    
-    const roleID = $checkbox.data('id');
-    const isActive = $checkbox.is(':checked');
-    const newStatus = isActive ? 0 : 1;
+
+    const roleID     = $checkbox.data('id');
+    const isActive   = $checkbox.is(':checked');
+    const newStatus  = isActive ? 0 : 1;
     const actionText = isActive ? 'activate' : 'deactivate';
-    
+
     if (confirm(`Are you sure you want to ${actionText} this role?`)) {
         $checkbox.prop('disabled', true);
-        
+        $("#loadingSpinner").css("display", "flex").hide().fadeIn(200);
+
         $.ajax({
             url: "backend/bk_rolemanagement.php",
             method: "POST",
             dataType: "json",
-            data: {
-                request: "toggleRoleStatus",
-                RID: roleID,
-                status: newStatus
-            },
+            data: { request: "toggleRoleStatus", RID: roleID, status: newStatus },
             success: function(response) {
+                $("#loadingSpinner").fadeOut(200).css("display", "none");
                 $checkbox.prop('disabled', false);
-                
+
                 if (response.status === "success") {
-                    // Just highlight the row, no status text to update
-                    const $row = $(`tr[data-role-id="${roleID}"]`);
-                    highlightRow($row);
+                    loadRoles();
                 } else {
                     $checkbox.prop('checked', !isActive);
                     alert("Update failed!");
                 }
             },
             error: function() {
+                $("#loadingSpinner").fadeOut(200).css("display", "none");
                 $checkbox.prop('disabled', false);
                 $checkbox.prop('checked', !isActive);
                 alert("Error updating status!");
@@ -211,20 +188,4 @@ $(document).on('change', '.toggleRoleStatus', function() {
         $checkbox.prop('checked', !isActive);
     }
 });
-
-
-
-
-
-// Update role status text
-/* function updateRoleStatus(roleID, statusText) {
-    const $row = $(`tr[data-role-id="${roleID}"]`);
-    
-    if ($row.length) {
-        $row.find("td:eq(3)").text(statusText);
-        highlightRow($row);
-    }
-} */
-
-
 </script>

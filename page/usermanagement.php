@@ -90,11 +90,8 @@
 <script>
 // SIMPLE USER MANAGEMENT - CLEAN VERSION
 $(document).ready(function() {
-    // Load initial data
     loadUsers('all');
-        loadUsers('deleted'); // Add this line to load deleted users on page load
-
-    // Setup event handlers
+    loadUsers('deleted');
     setupUserEvents();
 });
 
@@ -102,10 +99,15 @@ $(document).ready(function() {
 function loadUsers(type) {
     const tableId = type === 'all' ? '#tableAllUsers' : '#tableDeletedUsers';
     const request = type === 'all' ? 'getAllUsers' : 'getDeletedUsers';
-    
+
+    $("#loadingSpinner").css("display", "flex").hide().fadeIn(200);
+
     $.post("backend/bk_usermanagement.php", { request: request }, function(data) {
+        $("#loadingSpinner").fadeOut(200).css("display", "none");
         $(tableId).html(data);
         $('[data-toggle="tooltip"]').tooltip();
+    }).fail(function() {
+        $("#loadingSpinner").fadeOut(200).css("display", "none");
     });
 }
 
@@ -120,19 +122,19 @@ function setupUserEvents() {
             loadUsers('all');
         }
     });
-    
+
     // Add user button
     $('#btnAddUser').off('click.user').on('click.user', function() {
         openAddModal("page/modals.php", "usermodal");
     });
-    
+
     // Toggle password
     $(document).off('click.user', '.toggle-password').on('click.user', '.toggle-password', function() {
         const userId = $(this).data('userid');
         const input = $(`input.password-field[data-userid="${userId}"]`);
         const icon = $(`#eye_${userId}`);
         const actualPassword = input.data('password') || '';
-        
+
         if (input.attr('type') === 'password') {
             input.attr('type', 'text').val(actualPassword);
             icon.removeClass('fa-eye').addClass('fa-eye-slash');
@@ -141,176 +143,182 @@ function setupUserEvents() {
             icon.removeClass('fa-eye-slash').addClass('fa-eye');
         }
     });
-    
+
     // Edit user
     $(document).off('click.user', '.btn-edit-user').on('click.user', '.btn-edit-user', function() {
         const userId = $(this).data('userid');
         openEditModal("page/modals.php", "usereditmodal", "userID", userId);
     });
-    
+
     // Delete user
     $(document).off('click.user', '.btn-delete-user').on('click.user', '.btn-delete-user', function() {
         const userId = $(this).data('userid');
         if (confirm("Move this user to deleted list?")) {
+            $("#loadingSpinner").css("display", "flex").hide().fadeIn(200);
             $.post("backend/bk_usermanagement.php", {
                 request: "softDeleteUser",
                 userID: userId
             }, function(response) {
+                $("#loadingSpinner").fadeOut(200).css("display", "none");
                 if (response === "SUCCESS") {
                     loadUsers('all');
                     loadUsers('deleted');
                 }
+            }).fail(function() {
+                $("#loadingSpinner").fadeOut(200).css("display", "none");
             });
         }
     });
-    
+
     // Restore user
     $(document).off('click.user', '.btn-restore-user').on('click.user', '.btn-restore-user', function() {
         const userId = $(this).data('userid');
         if (confirm("Restore this user?")) {
+            $("#loadingSpinner").css("display", "flex").hide().fadeIn(200);
             $.post("backend/bk_usermanagement.php", {
                 request: "restoreUser",
                 userID: userId
             }, function(response) {
+                $("#loadingSpinner").fadeOut(200).css("display", "none");
                 if (response === "SUCCESS") {
                     loadUsers('all');
                     loadUsers('deleted');
                 }
+            }).fail(function() {
+                $("#loadingSpinner").fadeOut(200).css("display", "none");
             });
         }
     });
-    
+
     // Save user
-$(document).off('click.user', '#btnSaveUser').on('click.user', '#btnSaveUser', function(e) {
-    e.preventDefault();
-    const btn = $(this);
-    const originalText = btn.html();
-    
-    // Get form data and changePass
-    const formData = {
-        request: "addUser",
-        empID: $('#u_empID').val(),
-        email: $('#u_email').val(),
-        name: $('#u_name').val(),
-        roleID: $('#u_role').val(),
-        officeID: $('#u_unit').val(),
-        positionID: $('#u_position').val(),
-        changePass: $('#u_changepass').is(':checked') ? 1 : 0  // Add this line
-    };
-    
-    // Validation
-    if (!formData.empID || !formData.name || !formData.roleID) {
-        alert('Please fill in required fields');
-        return;
-    }
-    
-    // Disable button
-    btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
-    
-    // Send request
-    $.post("backend/bk_usermanagement.php", formData, function(response) {
-        btn.prop('disabled', false).html(originalText);
-        
-        if (response === "SUCCESS") {
-            $('#usermodal').modal('hide');
-            $('#addUserForm')[0]?.reset();
-            loadUsers('all');
-        } else if (response === "DUPLICATE") {
-            alert('User already exists');
+    $(document).off('click.user', '#btnSaveUser').on('click.user', '#btnSaveUser', function(e) {
+        e.preventDefault();
+        const btn = $(this);
+        const originalText = btn.html();
+
+        const formData = {
+            request: "addUser",
+            empID: $('#u_empID').val(),
+            email: $('#u_email').val(),
+            name: $('#u_name').val(),
+            roleID: $('#u_role').val(),
+            officeID: $('#u_unit').val(),
+            positionID: $('#u_position').val(),
+            changePass: $('#u_changepass').is(':checked') ? 1 : 0
+        };
+
+        if (!formData.empID || !formData.name || !formData.roleID) {
+            alert('Please fill in required fields');
+            return;
         }
+
+        btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
+        $("#loadingSpinner").css("display", "flex").hide().fadeIn(200);
+
+        $.post("backend/bk_usermanagement.php", formData, function(response) {
+            $("#loadingSpinner").fadeOut(200).css("display", "none");
+            btn.prop('disabled', false).html(originalText);
+
+            if (response === "SUCCESS") {
+                $('#usermodal').modal('hide');
+                $('#addUserForm')[0]?.reset();
+                loadUsers('all');
+            } else if (response === "DUPLICATE") {
+                alert('User already exists');
+            }
+        }).fail(function() {
+            $("#loadingSpinner").fadeOut(200).css("display", "none");
+            btn.prop('disabled', false).html(originalText);
+        });
     });
-});
-    
+
     // Update user
-$(document).off('click.user', '#btnUpdateUser').on('click.user', '#btnUpdateUser', function(e) {
-    e.preventDefault();
-    const btn = $(this);
-    const originalText = btn.html();
-    
-    // Get form data - include libAccess
-const formData = {
-    request: "updateUser",
-    userID: $('#edit_userID').val(),
-    empID: $('#edit_empID').val(),
-    email: $('#edit_email').val(),
-    name: $('#edit_name').val(),
-    roleID: $('#edit_role').val(),
-    officeID: $('#edit_office').val(),
-    positionID: $('#edit_position').val(),
-    isActive: $('#edit_status').val(),
-    allOfficeAccess: $('#edit_alloffice').val(),
-    newPassword: $('#edit_newPassword').val(),  // add this
-   
-};
-    
-    // Validation
-    if (!formData.empID || !formData.name || !formData.roleID) {
-        alert('Please fill in required fields');
-        return;
-    }
-    
-    // Disable button
-    btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
-    
-    // Send request
-    $.post("backend/bk_usermanagement.php", formData, function(response) {
-        btn.prop('disabled', false).html(originalText);
-        
-        if (response === "SUCCESS") {
-            $('#usereditmodal').modal('hide');
-            loadUsers('all');
-            loadUsers('deleted');
+    $(document).off('click.user', '#btnUpdateUser').on('click.user', '#btnUpdateUser', function(e) {
+        e.preventDefault();
+        const btn = $(this);
+        const originalText = btn.html();
+
+        const formData = {
+            request: "updateUser",
+            userID: $('#edit_userID').val(),
+            empID: $('#edit_empID').val(),
+            email: $('#edit_email').val(),
+            name: $('#edit_name').val(),
+            roleID: $('#edit_role').val(),
+            officeID: $('#edit_office').val(),
+            positionID: $('#edit_position').val(),
+            isActive: $('#edit_status').val(),
+            allOfficeAccess: $('#edit_alloffice').val(),
+            newPassword: $('#edit_newPassword').val()
+        };
+
+        if (!formData.empID || !formData.name || !formData.roleID) {
+            alert('Please fill in required fields');
+            return;
         }
+
+        btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
+        $("#loadingSpinner").css("display", "flex").hide().fadeIn(200);
+
+        $.post("backend/bk_usermanagement.php", formData, function(response) {
+            $("#loadingSpinner").fadeOut(200).css("display", "none");
+            btn.prop('disabled', false).html(originalText);
+
+            if (response === "SUCCESS") {
+                $('#usereditmodal').modal('hide');
+                loadUsers('all');
+                loadUsers('deleted');
+            }
+        }).fail(function() {
+            $("#loadingSpinner").fadeOut(200).css("display", "none");
+            btn.prop('disabled', false).html(originalText);
+        });
     });
-});
-    
+
     // Prevent form submission on Enter
     $(document).off('submit.user', '#addUserForm').on('submit.user', '#addUserForm', function(e) {
         e.preventDefault();
         return false;
     });
 }
-// Toggle user status
+
 // Toggle user status
 $(document).off('change.user', '.toggleUserStatus').on('change.user', '.toggleUserStatus', function() {
-    const userId = $(this).data('userid');
-    const isChecked = $(this).is(':checked');
-    const newStatus = isChecked ? 0 : 1; // 0 = Active, 1 = Inactive
-    
-    // Don't show confirm dialog for deleted users (they should be disabled anyway)
-    if ($(this).is(':disabled')) {
-        return;
-    }
-    
+    const $toggle = $(this);
+    const userId = $toggle.data('userid');
+    const isChecked = $toggle.is(':checked');
+    const newStatus = isChecked ? 0 : 1;
+
+    if ($toggle.is(':disabled')) return;
+
     if (confirm(`Are you sure you want to ${isChecked ? 'activate' : 'deactivate'} this user?`)) {
+        $("#loadingSpinner").css("display", "flex").hide().fadeIn(200);
+
         $.post("backend/bk_usermanagement.php", {
             request: "toggleUserStatus",
             userID: userId,
             status: newStatus
         }, function(response) {
-            // Parse JSON response
+            $("#loadingSpinner").fadeOut(200).css("display", "none");
             try {
                 const data = JSON.parse(response);
                 if (data.success) {
-                    // Show success message
                     showToast('User status updated successfully!', 'success');
                 } else {
-                    // Revert the switch if failed
-                    $(this).prop('checked', !isChecked);
+                    $toggle.prop('checked', !isChecked);
                     alert("Error: " + data.message);
                 }
             } catch (e) {
-                console.error("Error parsing response:", e);
-                $(this).prop('checked', !isChecked);
+                $toggle.prop('checked', !isChecked);
                 alert("Server error. Please try again.");
             }
         }).fail(function() {
-            $(this).prop('checked', !isChecked);
+            $("#loadingSpinner").fadeOut(200).css("display", "none");
+            $toggle.prop('checked', !isChecked);
             alert("Server error. Please try again.");
         });
     } else {
-        // Revert if user cancels
-        $(this).prop('checked', !isChecked);
+        $toggle.prop('checked', !isChecked);
     }
 });
 </script>

@@ -663,9 +663,9 @@ function openAddModal(modalURL, modalRequest) {
         type: "POST",
         url: modalURL,
         data: { request: modalRequest },
-        beforeSend: () => $("#loadingSpinner").fadeIn(200),
+        beforeSend: () => $("#loadingSpinner").css("display", "flex").hide().fadeIn(200),
         success: function(html) {
-            $("#loadingSpinner").fadeOut(200);
+            $("#loadingSpinner").fadeOut(200).css("display", "none");
             clearModals();
             $("#modalContainer").html(html);
 
@@ -673,7 +673,7 @@ function openAddModal(modalURL, modalRequest) {
             if ($modal.length) $modal.modal("show");
         },
         error: function(xhr, status, error) {
-            $("#loadingSpinner").fadeOut(200);
+            $("#loadingSpinner").fadeOut(200).css("display", "none");
             console.error("openAddModal error:", error);
         }
     });
@@ -686,17 +686,18 @@ function openEditModal(modalURL, modalRequest, itemIDParam, itemID) {
         type: "POST",
         url: modalURL,
         data: { request: modalRequest, [itemIDParam]: itemID },
-        beforeSend: () => $("#loadingSpinner").fadeIn(200),
+        beforeSend: () => $("#loadingSpinner").css("display", "flex").hide().fadeIn(200),
         success: function(html) {
-            $("#loadingSpinner").fadeOut(200);
+            $("#loadingSpinner").fadeOut(200).css("display", "none");
             clearModals();
             $("#modalContainer").html(html);
 
             const $modal = $(resolveModalId(modalRequest));
             if ($modal.length) $modal.modal("show");
         },
+        
         error: function(xhr, status, error) {
-            $("#loadingSpinner").fadeOut(200);
+            $("#loadingSpinner").fadeOut(200).css("display", "none"); 
             console.error("openEditModal error:", error);
         }
     });
