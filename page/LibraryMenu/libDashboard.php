@@ -177,14 +177,18 @@ $(document).ready(function () {
         borderWidth: 1, padding: 10, cornerRadius: 6,
     };
 
-    function showSpinner() { $("#loadingSpinner").stop(true).css("display", "flex").hide().fadeIn(150); }
-    function hideSpinner() { $("#loadingSpinner").fadeOut(200); }
+    function showSpinner(){
+        $("#loadingSpinner").stop(true).css("display", "flex").hide().fadeIn(150); 
+    }
+    function hideSpinner(){
+        $("#loadingSpinner").fadeOut(200); 
+    }
 
     let trendChartInst    = null;
     let activityChartInst = null;
 
 
-    // ── DATE BADGE ────────────────────────────────────────────────────────────
+    //  DATE BADGE 
 
     function updateDateBadge() {
         const startDate = $('#trendStartDate').val() || TODAY;
@@ -203,10 +207,9 @@ $(document).ready(function () {
     }
 
 
-    // ── SECTIONS + KPI ────────────────────────────────────────────────────────
+    //  SECTIONS + KPI 
     // Fetches sections once at boot: builds KPI card shells, populates the
     // section dropdown, then calls loadKPI() to fill in the counts.
-
     function loadSections() {
         $.ajax({
             type: 'POST', url: BACKEND, data: { request: 'sections' }, dataType: 'json',
@@ -248,7 +251,7 @@ $(document).ready(function () {
 
     function loadKPI() {
         const startDate = $('#trendStartDate').val() || TODAY;
-        const endDate   = $('#trendEndDate').val()   || TODAY;
+        const endDate = $('#trendEndDate').val() || TODAY;
 
         $.ajax({
             type: 'POST', url: BACKEND,
@@ -265,19 +268,18 @@ $(document).ready(function () {
     }
 
 
-    // ── DAILY LOGS ────────────────────────────────────────────────────────────
-
+    //  DAILY LOGS 
     function loadLogs(page) {
         page = page ?? 1;
 
         $.ajax({
             type: 'POST', url: BACKEND,
             data: {
-                request:   'dailyLogs',
+                request: 'dailyLogs',
                 page,
                 sectionID: $('#sectionFilter').val(),
                 startDate: $('#trendStartDate').val() || TODAY,
-                endDate:   $('#trendEndDate').val()   || TODAY,
+                endDate: $('#trendEndDate').val() || TODAY,
             },
             success(raw) {
                 const res = JSON.parse(raw);
@@ -292,11 +294,11 @@ $(document).ready(function () {
 
                 if (res.totalPages <= 1) return;
 
-                const cur      = res.currentPage;
-                const pages    = res.totalPages;
+                const cur = res.currentPage;
+                const pages = res.totalPages;
                 const winStart = Math.max(1, Math.min(cur - 2, pages - 4));
-                const winEnd   = Math.min(pages, winStart + 4);
-                const $ul      = $('<ul class="pagination pagination-sm mb-0 flex-wrap justify-content-center"></ul>');
+                const winEnd = Math.min(pages, winStart + 4);
+                const $ul = $('<ul class="pagination pagination-sm mb-0 flex-wrap justify-content-center"></ul>');
 
                 function addPage(label, p, disabled, active) {
                     const $a = $(`<a class="page-link" href="#">${label}</a>`);
@@ -304,11 +306,11 @@ $(document).ready(function () {
                     $ul.append($(`<li class="page-item${disabled ? ' disabled' : ''}${active ? ' active' : ''}"></li>`).append($a));
                 }
 
-                addPage('«', 1,       cur === 1,     false);
-                addPage('‹', cur - 1, cur === 1,     false);
+                addPage('«', 1, cur === 1, false);
+                addPage('‹', cur - 1, cur === 1, false);
                 for (let p = winStart; p <= winEnd; p++) addPage(p, p, false, p === cur);
                 addPage('›', cur + 1, cur === pages, false);
-                addPage('»', pages,   cur === pages, false);
+                addPage('»', pages, cur === pages, false);
 
                 $ul.on('click', '.page-link', function (e) {
                     e.preventDefault();
@@ -321,16 +323,15 @@ $(document).ready(function () {
     }
 
 
-    // ── USAGE TREND ───────────────────────────────────────────────────────────
-
+    //  USAGE TREND 
     function loadTrend() {
         $.ajax({
             type: 'POST', url: BACKEND,
             data: {
-                request:   'monthlyTrend',
+                request: 'monthlyTrend',
                 sectionID: $('#sectionFilter').val(),
                 startDate: $('#trendStartDate').val() || TODAY,
-                endDate:   $('#trendEndDate').val()   || TODAY,
+                endDate: $('#trendEndDate').val() || TODAY,
             },
             dataType: 'json',
             success(rows) {
@@ -355,10 +356,10 @@ $(document).ready(function () {
                     data: {
                         labels: rows.map(r => r.month),
                         datasets: [{
-                            label:           'Visits',
-                            data:            rows.map(r => parseInt(r.total)),
+                            label: 'Visits',
+                            data: rows.map(r => parseInt(r.total)),
                             backgroundColor: rows.map((_, i) => i === lastIdx ? 'rgba(16,185,129,0.88)' : 'rgba(16,185,129,0.35)'),
-                            borderColor:     rows.map((_, i) => i === lastIdx ? 'rgba(16,185,129,1)'    : 'rgba(16,185,129,0.6)'),
+                            borderColor: rows.map((_, i) => i === lastIdx ? 'rgba(16,185,129,1)' : 'rgba(16,185,129,0.6)'),
                             borderWidth: 1.5, borderRadius: 4, borderSkipped: false,
                         }],
                     },
@@ -386,8 +387,7 @@ $(document).ready(function () {
     }
 
 
-    // ── COLLEGE & COURSE ACTIVITY ─────────────────────────────────────────────
-
+    //  COLLEGE & COURSE ACTIVITY 
     function loadCollegeCourseActivity() {
         const sectionID = $('#sectionFilter').val();
         $('#chartSectionBadge').text(sectionID ? $('#sectionFilter option:selected').text() : 'All Sections');
@@ -396,10 +396,10 @@ $(document).ready(function () {
         $.ajax({
             type: 'POST', url: BACKEND,
             data: {
-                request:   'collegeCourseActivity',
+                request: 'collegeCourseActivity',
                 sectionID,
                 startDate: $('#trendStartDate').val() || TODAY,
-                endDate:   $('#trendEndDate').val()   || TODAY,
+                endDate: $('#trendEndDate').val() || TODAY,
             },
             dataType: 'json',
             success(colleges) {
@@ -416,7 +416,7 @@ $(document).ready(function () {
                 canvas.style.display = '';
                 $('#activityEmpty').hide();
 
-                const seen    = new Set();
+                const seen = new Set();
                 const courses = [];
                 colleges.forEach(col => col.courses.forEach(cr => {
                     if (!seen.has(cr.course)) { seen.add(cr.course); courses.push(cr.course); }
@@ -430,10 +430,10 @@ $(document).ready(function () {
                     data: {
                         labels: colleges.map(c => c.college || '—'),
                         datasets: courses.map(course => ({
-                            label:           course,
-                            data:            colleges.map(col => col.courses.find(cr => cr.course === course)?.total ?? 0),
+                            label: course,
+                            data: colleges.map(col => col.courses.find(cr => cr.course === course)?.total ?? 0),
                             backgroundColor: courseColor[course],
-                            borderColor:     courseColor[course].replace('0.85', '1'),
+                            borderColor: courseColor[course].replace('0.85', '1'),
                             borderWidth: 0, borderRadius: 3, borderSkipped: false,
                         })),
                     },
@@ -468,8 +468,7 @@ $(document).ready(function () {
         });
     }
 
-
-    // ── FORCE CHECKOUT ────────────────────────────────────────────────────────
+    //  FORCE CHECKOUT 
     // Step 1 — fetch pending count → show in #dynamicModal.
     // Step 2 — user confirms → run update → reload all widgets.
     // Confirm is disabled immediately on click to block double-submit.
@@ -580,9 +579,7 @@ $(document).ready(function () {
         });
     });
 
-
-    // ── RELOAD ALL ────────────────────────────────────────────────────────────
-
+    //  RELOAD ALL 
     function reloadAll() {
     return $.when(
         loadKPI(),
@@ -592,31 +589,29 @@ $(document).ready(function () {
     );
 }
 
-
-    // ── EVENTS ────────────────────────────────────────────────────────────────
-
+    //  EVENTS 
     $('#sectionFilter').on('change', function () {
         loadLogs(1);
         loadTrend();
         loadCollegeCourseActivity();
     });
 
-$('#refreshBtn').on('click', function () {
-    const $btn  = $(this);
-    const $icon = $btn.find('i');
+    $('#refreshBtn').on('click', function () {
+        const $btn  = $(this);
+        const $icon = $btn.find('i');
 
-    if ($btn.prop('disabled')) return;
+        if ($btn.prop('disabled')) return;
 
-    $btn.prop('disabled', true);
-    $icon.addClass('fa-spin');
-    showSpinner();                        // ← show overlay
+        $btn.prop('disabled', true);
+        $icon.addClass('fa-spin');
+        showSpinner(); // ← show overlay
 
-    reloadAll().always(function () {
-        hideSpinner();                    // ← hide overlay
-        $btn.prop('disabled', false);
-        $icon.removeClass('fa-spin');
+        reloadAll().always(function () {
+            hideSpinner(); // ← hide overlay
+            $btn.prop('disabled', false);
+            $icon.removeClass('fa-spin');
+        });
     });
-});
 
     $('#trendStartDate, #trendEndDate').on('change', function () {
         const startDate = $('#trendStartDate').val();
@@ -627,9 +622,7 @@ $('#refreshBtn').on('click', function () {
         }
     });
 
-
-    // ── TOAST ─────────────────────────────────────────────────────────────────
-
+    //  TOAST 
     function showToast(msg, type) {
         const $t = $(`
             <div class="toast align-items-center text-white border-0 show" role="alert"
@@ -646,8 +639,7 @@ $('#refreshBtn').on('click', function () {
     }
 
 
-    // ── BOOT ──────────────────────────────────────────────────────────────────
-
+    //  BOOT 
     updateDateBadge();
     loadSections(); // → calls loadKPI() internally after building KPI shells
     loadLogs();

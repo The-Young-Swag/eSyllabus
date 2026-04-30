@@ -1,7 +1,4 @@
 <?php
-/**
- * Library Analytics Dashboard — Frontend View
- */
 require '../../db/dbconnection.php';
 $librarySections = execsqlSRS(
     'SELECT SectionID, SectionName FROM LibrarySection WHERE IsActive = 1 ORDER BY SectionName',
@@ -213,8 +210,7 @@ $librarySections = execsqlSRS(
 <script>
 $(function () {
 
-// ─── CONFIG ──────────────────────────────────────────────────────────────────
-
+//  CONFIG 
 const BACKEND_TAB  = "backend/bk_LibraryMenu/bk_tabReports.php";
 const BACKEND_VIEW = "backend/bk_LibraryMenu/bk_viewReports.php";
 const DEFAULT_DAYS = 7;
@@ -378,8 +374,7 @@ const EXCEL = {
     },
 };
 
-// ─── STATE ────────────────────────────────────────────────────────────────────
-
+//  STATE 
 let activeTab = "logs";
 let pendingRequest  = null;
 let viewAllTab = "logs";
@@ -387,12 +382,17 @@ let viewAllPage = 1;
 let cachedResponses = {};
 let chartInstances  = {};
 
-// ─── SPINNER ──────────────────────────────────────────────────────────────────
+//  SPINNER 
 
-function showSpinner() { $("#loadingSpinner").stop(true).css("display", "flex").hide().fadeIn(150); }
-function hideSpinner() { $("#loadingSpinner").fadeOut(200); }
+function showSpinner()
+{ $("#loadingSpinner").stop(true).css("display", "flex").hide().fadeIn(150); 
 
-// ─── FILTERS ──────────────────────────────────────────────────────────────────
+}
+function hideSpinner(){ 
+    $("#loadingSpinner").fadeOut(200); 
+}
+
+//  FILTERS 
 
 function getFilters() {
     return {
@@ -406,7 +406,7 @@ function getFilters() {
 const hasDateRange = () => !!($("#startDate").val() && $("#endDate").val());
 const getDateLabel = () => `${$("#startDate").val() || "—"} to ${$("#endDate").val() || "—"}`;
 
-// ─── CHARTS ───────────────────────────────────────────────────────────────────
+//  CHARTS 
 
 function destroyChart(chartId) {
     if (!chartInstances[chartId]) return;
@@ -504,7 +504,7 @@ function drawDonutChart(chartId, labels, values, colors, centerLabel) {
     });
 }
 
-// ─── PAGINATION ───────────────────────────────────────────────────────────────
+//  PAGINATION 
 
 function buildPagerHtml(currentPage, totalPages, totalRowCount, pageSize) {
     const windowSize  = 5;
@@ -572,7 +572,7 @@ function paginateInlineTable(cardId, tbodyId, pagerId) {
     showPage(1);
 }
 
-// ─── TAB INIT ─────────────────────────────────────────────────────────────────
+//  TAB INIT 
 
 function initUsersTab(response) {
     drawBarChart("chartTopUserCheckins", response.chartTopCheckins, COLORS.rankCheckins, "Check-ins");
@@ -618,8 +618,7 @@ function initDemographicsTab(response) {
         COLORS.sex, "Visitors");
 }
 
-// ─── KPI ──────────────────────────────────────────────────────────────────────
-
+//  KPI 
 function updateKpi(response) {
     $("#kpiTopStudents").html(response.kpiStudentsHtml);
     $("#kpiTopColleges").html(response.kpiCollegesHtml);
@@ -627,8 +626,7 @@ function updateKpi(response) {
     $("#lastUpdatedLabel").html(response.kpiLastUpdatedHtml);
 }
 
-// ─── LOAD TAB ─────────────────────────────────────────────────────────────────
-
+//  LOAD TAB 
 function loadTab(tabName) {
     activeTab = tabName;
 
@@ -678,8 +676,7 @@ function loadTab(tabName) {
         });
 }
 
-// ─── VIEW ALL ─────────────────────────────────────────────────────────────────
-
+//  VIEW ALL 
 function loadViewAll(tabName, page) {
     showSpinner();
 
@@ -710,8 +707,7 @@ function loadViewAll(tabName, page) {
         });
 }
 
-// ─── EXPORT ───────────────────────────────────────────────────────────────────
-
+//  EXPORT 
 async function fetchMissingTabsForExport(selectedTabs) {
     const unloadedTabs = selectedTabs.filter(tabName => !cachedResponses[tabName]);
     if (!unloadedTabs.length) return;
@@ -1026,8 +1022,7 @@ async function runExportExcel(selectedTabs, responses) {
     );
 }
 
-// ─── EVENTS ───────────────────────────────────────────────────────────────────
-
+//  EVENTS 
 $(document).off(".analytics")
     .on("click.analytics", "#analyticsTabs .nav-link", function (event) {
         event.preventDefault();
@@ -1113,7 +1108,7 @@ $("#startDate, #endDate, #classificationFilter, #libraryFilter")
         }
     });
 
-// ─── BOOT ─────────────────────────────────────────────────────────────────────
+//  BOOT 
 
 if (!$("#startDate").val()) {
     const today = new Date();

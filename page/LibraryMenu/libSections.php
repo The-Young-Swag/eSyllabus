@@ -5,7 +5,7 @@
         <div class="card-header bg-success text-white rounded-top-4">
             <div class="d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">
-                    <i class="bi bi-bookmarks-fill me-2"></i>Library Sections
+                    <i class="bi bi-bookmarks-fill me-2"></i>Library Section Management
                 </h5>
                 <button class="btn btn-light btn-sm rounded-pill" id="btnAddSection">
                     <i class="bi bi-plus-lg me-1"></i>Add Section

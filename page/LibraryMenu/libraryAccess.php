@@ -42,8 +42,8 @@ function loadAccess() {
 }
 
 $(document).on("click", ".btn-save-access", function () {
-    const btn       = $(this);
-    const userID    = btn.data("userid");
+    const btn = $(this);
+    const userID = btn.data("userid");
     const sectionID = $(`.select-access[data-userid="${userID}"]`).val();
 
     btn.prop("disabled", true).html('<i class="fas fa-spinner fa-spin"></i>');
@@ -52,7 +52,7 @@ $(document).on("click", ".btn-save-access", function () {
     $.post(BACKEND, { request: "assignAccess", userID, sectionID }, null, "json")
         .done(res => {
             if (res.success) showToast("Library access updated!", "success");
-            else             showToast(res.error || "Failed to update access.", "danger");
+            else showToast(res.error || "Failed to update access.", "danger");
         })
         .fail(() => showToast("Request failed.", "danger"))
         .always(() => {

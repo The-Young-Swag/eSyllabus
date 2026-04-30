@@ -14,7 +14,7 @@
 
 <div class="px-1">
 
-  <!-- ═══ HEADER ═══════════════════════════════════════════════ -->
+  <!--  HEADER ═ -->
   <div class="card border-0 rounded-4 mb-3" style="box-shadow:0 1px 6px rgba(0,0,0,.07);">
     <div class="card-body py-3 px-4">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
@@ -33,7 +33,7 @@
     </div>
   </div>
 
-  <!-- ═══ LOG ATTENDANCE ════════════════════════════════════════ -->
+  <!--  LOG ATTENDANCE  -->
   <div class="card border-0 rounded-4 mb-3"
        style="box-shadow:0 2px 16px rgba(6,78,59,.1);border:1.5px solid #6ee7b7 !important;">
     <div class="card-body p-4"
@@ -85,7 +85,8 @@ style="background:linear-gradient(135deg,#ffffff,#ecfdf5);
       <form id="logForm" autocomplete="off">
         <label for="inputIDNumber"
                class="d-block fw-bold text-uppercase mb-2"
-               style="font-size:.67rem;letter-spacing:.09em;color:#3d8a6e;">Identification Number</label>
+               style="font-size:.67rem;letter-spacing:.09em;color:#3d8a6e;">Identification Number
+        </label>
         <div style="padding:2px;border-radius:11px;
                     background:linear-gradient(130deg,#10b981 0%,#3b82f6 55%,#06b6d4 100%);
                     box-shadow:0 3px 16px rgba(16,185,129,.15);">
@@ -120,7 +121,7 @@ style="background:linear-gradient(135deg,#ffffff,#ecfdf5);
         </button>
       </form>
 	  
-<!-- ═══ GUEST CHECK-IN / CHECK-OUT BUTTONS ═══ -->
+<!--  GUEST CHECK-IN / CHECK-OUT BUTTONS  -->
 <div class="text-center mt-3">
   <!-- 1. Changed to d-flex for w-100 support; justify-content-center handles the alignment -->
   <div class="d-flex justify-content-center align-items-center position-relative w-100">
@@ -167,7 +168,7 @@ style="background:linear-gradient(135deg,#ffffff,#ecfdf5);
     </div>
   </div>
 
-<!-- ═══ KPI CARDS ════════════════════════════════════════════ -->
+<!--  KPI CARDS ═ -->
 <div class="row g-3">
   <div class="col-12 col-sm-6 col-lg-3">
     <div class="card border-0 rounded-4 overflow-hidden"
@@ -456,7 +457,7 @@ function updateGuestUI() {
     $("#guestSearchInput").trigger("input");
 }
 
-// ── Event handlers ────────────────────────────────────────────────────────────
+// Event handlers 
 
 // ID form submit
 $(document).on("submit.libLogs", "#logForm", function (event) {
@@ -568,20 +569,27 @@ $(document).on("click.libLogs", "#guestCheckIn", function () {
 // Confirm guest check-in
 $(document).on("click.libLogs", "#confirmGuestCheckIn", function () {
     const guestFirst = $("#guestFirstName").val().trim();
-    const guestMI    = $("#guestMiddleInitial").val().trim().replace(/\.+$/, "");
-    const guestLast  = $("#guestLastName").val().trim();
-    const guestName  = guestMI
+    const guestMI = $("#guestMiddleInitial").val().trim().replace(/\.+$/, "");
+    const guestLast = $("#guestLastName").val().trim();
+    const guestName = guestMI
     ? `${guestFirst} ${guestMI}. ${guestLast}`
     : `${guestFirst} ${guestLast}`;
     const guestSex = $("#guestSex").val();
     const guestOrganization = $("#guestAgency").val().trim();
-    if (!guestFirst) { alert("First name is required."); return; }
-    if (!guestLast)  { alert("Last name is required.");  return; } 
-    if (!guestSex)
-        { alert("Please select a sex.");
+    if (!guestFirst){ 
+        alert("First name is required."); 
         return; 
-    } if (!guestOrganization)
-        { alert("Agency / Organization required."); 
+    }
+    if (!guestLast){ 
+        alert("Last name is required.");  
+        return; 
+    } 
+    if (!guestSex){ 
+        alert("Please select a sex.");
+        return; 
+    } 
+    if (!guestOrganization){ 
+        alert("Agency / Organization required."); 
         return;
     }
     saveAttendance({

@@ -47,8 +47,6 @@ case 'roleeditmodal':
 
 
 // MODAL GENERATOR FUNCTIONS
-
-
 function generateMenuModal() {
     ob_start();
     ?>
@@ -759,18 +757,18 @@ function generateOfficeAccessModal() {
                     </div>
                     <hr>
 
-<div class="form-group">
-    <label>New Password</label>
-    <input type="password" class="form-control" id="edit_newpassword"
-           placeholder="Leave blank to keep current password">
-    <small class="text-muted">Only fill this if you want to change the password.</small>
-</div>
+                <div class="form-group">
+                    <label>New Password</label>
+                    <input type="password" class="form-control" id="edit_newpassword"
+                        placeholder="Leave blank to keep current password">
+                    <small class="text-muted">Only fill this if you want to change the password.</small>
+                </div>
 
-<div class="form-group">
-    <label>Confirm New Password</label>
-    <input type="password" class="form-control" id="edit_confirmpassword"
-           placeholder="Confirm new password">
-</div>
+                <div class="form-group">
+                    <label>Confirm New Password</label>
+                    <input type="password" class="form-control" id="edit_confirmpassword"
+                        placeholder="Confirm new password">
+                </div>
 
                     
                     <!-- Access List -->
