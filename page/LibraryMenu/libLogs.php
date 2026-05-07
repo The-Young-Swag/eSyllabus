@@ -85,7 +85,7 @@ style="background:linear-gradient(135deg,#ffffff,#ecfdf5);
       <form id="logForm" autocomplete="off">
         <label for="inputIDNumber"
                class="d-block fw-bold text-uppercase mb-2"
-               style="font-size:.67rem;letter-spacing:.09em;color:#3d8a6e;">Identification Number
+               style="font-size:.67rem;letter-spacing:.09em;color:#3d8a6e;">Enter Student Number or Employee Number :
         </label>
         <div style="padding:2px;border-radius:11px;
                     background:linear-gradient(130deg,#10b981 0%,#3b82f6 55%,#06b6d4 100%);
@@ -94,7 +94,7 @@ style="background:linear-gradient(135deg,#ffffff,#ecfdf5);
             
 			<input type="password"
                    id="inputIDNumber"
-                   placeholder="Enter Student Number or Employee Number :"
+                   placeholder="Check In / Check Out Here:"
                    autocomplete="new-password"
                    spellcheck="false"
                    style="flex:1;border:none;outline:none;box-shadow:none;
@@ -417,8 +417,47 @@ function saveAttendance(user, resolvedAction) {
     if (!libraryID) return;
     if (user.classification !== "GUEST" && !user.id_number) return;
 
-    const actionLabel = resolvedAction === "checkin" ? "checked in" : "checked out";
-    showMessage("success", `<strong>${user.name}</strong> successfully ${actionLabel}.`, 2000);
+    const isCheckIn = resolvedAction === "checkin";
+
+    const actionLabel = isCheckIn
+        ? "checked in"
+        : "checked out";
+
+    const reminder = isCheckIn
+        ? `
+            <div style="
+                margin-top:10px;
+                padding:10px;
+                border-left:4px solid #f59e0b;
+                background:#fffbeb;
+                color:#92400e;
+                border-radius:6px;
+                font-size:16px;
+                font-weight:500;
+            ">
+                ⏰ Reminder: Please don't forget to check out.
+            </div>
+        `
+        : `
+            <div style="
+                margin-top:10px;
+                padding:10px;
+                border-left:4px solid #10b981;
+                background:#ecfdf5;
+                color:#065f46;
+                border-radius:6px;
+                font-size:16px;
+                font-weight:500;
+            ">
+                ✅ Thank you for checking out.
+            </div>
+        `;
+
+    showMessage(
+        "success",
+        `<strong>${user.name}</strong> successfully ${actionLabel}.${reminder}`,
+        3000
+    );
 
     $.ajax({
         type: "POST",
