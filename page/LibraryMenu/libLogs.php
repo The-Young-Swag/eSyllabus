@@ -104,7 +104,7 @@
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
           <label for="inputIDNumber" class="fw-bold text-uppercase mb-0"
                  style="font-size:.67rem;letter-spacing:.09em;color:#3d8a6e;">
-            Scan or Enter your ID Number
+                 Enter Student Number or Employee Number :
           </label>
           <div style="display:flex;gap:6px;">
             <span style="font-size:.58rem;font-weight:700;padding:2px 9px;border-radius:999px;
@@ -125,7 +125,7 @@
             <span>ID No.</span>
           </div>
           <input type="password" id="inputIDNumber"
-                 placeholder="Tap here and scan / type your ID…"
+                 placeholder="Check In / Check Out Here:"
                  autocomplete="new-password" spellcheck="false">
           <button type="button" id="toggleIdVisibility"
                   style="background:transparent;border:none;outline:none;
@@ -177,7 +177,7 @@
               <span style="position:absolute;right:-7px;top:50%;transform:translateY(-50%);
                            border-top:6px solid transparent;border-bottom:6px solid transparent;
                            border-left:7px solid #a7f3d0;"></span>
-              👋 Just visiting?
+              👋 Not a student / just visiting?
             </div>
           </div>
 
@@ -476,7 +476,7 @@ function saveAttendance(user, resolvedAction) {
     showMessage(
         "success",
         `<strong>${user.name}</strong> successfully ${actionLabel}.${reminder}`,
-        3000
+        3500
     );
 
     $.ajax({
