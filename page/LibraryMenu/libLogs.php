@@ -150,8 +150,8 @@
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
           <div style="flex:1;height:1px;background:linear-gradient(to right,transparent,#a7f3d0);"></div>
           <span style="font-size:.57rem;font-weight:700;letter-spacing:.13em;text-transform:uppercase;
-                       color:#6ee7b7;font-style:italic;white-space:nowrap;">
-            Not a student or employee? &nbsp;·&nbsp; Guest Access
+                       color:#3d8a6e;font-style:italic;white-space:nowrap;">
+            &nbsp;·&nbsp; Not a student or employee? &nbsp;·&nbsp;
           </span>
           <div style="flex:1;height:1px;background:linear-gradient(to left,transparent,#a7f3d0);"></div>
         </div>
