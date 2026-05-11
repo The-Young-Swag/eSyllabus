@@ -1,161 +1,154 @@
-<!-- =====
-     LIBRARY DASHBOARD — FRONTEND
-     • Date-range pickers in the Daily Logs header drive ALL data.
-     • Force Checkout uses the universal #dynamicModal.
-===== -->
 
-<div class="container-fluid px-4 py-4">
+<div class="container-fluid px-3 px-md-4 py-4" style="max-width:1400px; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;">
 
     <!-- HEADER -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h5 class="fw-bold mb-0 text-dark">Library Dashboard</h5>
-            <small class="text-muted">Overview of library activities and trends</small>
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
+        <div class="mb-2 mb-md-0">
+            <h5 class="fw-bold mb-0 text-dark" style="font-size:1.1rem; letter-spacing:-0.3px;">Library Dashboard</h5>
+            <small class="text-muted" style="font-size:0.78rem;">Overview of library activities and trends</small>
         </div>
-        <div class="d-flex align-items-center mb-1" style="gap:9px;">
-            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;
-                         background:#10b981;flex-shrink:0;
-                         animation:ldot 2.2s ease-in-out infinite;"></span>
-            <span class="fw-bold text-dark" style="font-size:1rem;letter-spacing:-.2px;">Live</span>
-            <button class="btn btn-outline-secondary btn-sm" id="refreshBtn">
+        <div class="d-flex align-items-center flex-wrap gap-2">
+            <span style="display:inline-block;width:8px;height:8px;border-radius:50%; background:#10b981; flex-shrink:0;"></span>
+            <span class="fw-bold text-dark d-none d-sm-inline" style="font-size:0.9rem; letter-spacing:-0.2px;">Live</span>
+            <button class="btn btn-outline-secondary btn-sm ml-2" id="refreshBtn" style="border-radius:8px; font-size:0.82rem; padding:5px 12px;">
                 <i class="fas fa-sync-alt me-1"></i>Refresh
             </button>
         </div>
     </div>
 
-    <!-- KPI CARDS — shells rendered by JS, counts filled by loadKPI() -->
-    <div id="kpiContainer" class="row g-3 mb-4"></div>
+    <!-- KPI CARDS (shells rendered by JS, counts filled by loadKPI()) -->
+    <div id="kpiContainer" class="row g-3 mb-4" style="margin-right: -7px; margin-left: -7px;"></div>
 
     <!-- DAILY LOGS TABLE -->
-    <div class="card border-0 shadow-sm mb-4">
-        <div class="card-header bg-white border-bottom py-3 px-4">
-            <div class="d-flex justify-content-between align-items-center flex-wrap">
-
-                <div>
-                    <h6 class="mb-0 font-weight-bold text-dark">Daily Logs</h6>
-                    <small class="text-muted">Check-in / check-out records</small>
+    <div class="card border-0 shadow-sm mb-4" style="border-radius:16px; overflow:hidden;">
+        <div class="card-header bg-white border-bottom py-3 px-3 px-md-4" style="border-radius:16px 16px 0 0;">
+            <div class="d-flex flex-wrap justify-content-between align-items-center">
+                <div class="mb-2 mb-md-0">
+                    <h6 class="mb-0 font-weight-bold text-dark" style="font-size:0.95rem;">Daily Logs</h6>
+                    <small class="text-muted" style="font-size:0.75rem;">Check-in / check-out records</small>
                 </div>
 
-                <div class="d-flex align-items-center flex-nowrap">
-                    <div class="d-flex align-items-center mr-3">
-                        <div class="input-group input-group-sm mr-2" style="width:150px;">
+                <div class="d-flex flex-wrap align-items-center">
+                    <!-- Date range -->
+                    <div class="d-flex align-items-center mr-2 mr-md-3 mb-2 mb-md-0">
+                        <div class="input-group input-group-sm mr-1" style="width:140px;">
                             <div class="input-group-prepend">
-                                <span class="input-group-text bg-light">
+                                <span class="input-group-text bg-light border-right-0" style="border-radius:8px 0 0 8px;">
                                     <i class="fas fa-calendar text-muted small"></i>
                                 </span>
                             </div>
-                            <input type="date" id="trendStartDate" class="form-control"
-                                   value="<?= date('Y-m-d') ?>">
+                            <input type="date" id="trendStartDate" class="form-control border-left-0" style="font-size:0.82rem;" value="<?= date('Y-m-d') ?>">
                         </div>
-                        <span class="text-muted mx-1">—</span>
-                        <div class="input-group input-group-sm ml-2" style="width:150px;">
+                        <span class="text-muted mx-2 small">—</span>
+                        <div class="input-group input-group-sm ml-1" style="width:140px;">
                             <div class="input-group-prepend">
-                                <span class="input-group-text bg-light">
+                                <span class="input-group-text bg-light border-right-0" style="border-radius:8px 0 0 8px;">
                                     <i class="fas fa-calendar-check text-muted small"></i>
                                 </span>
                             </div>
-                            <input type="date" id="trendEndDate" class="form-control"
-                                   value="<?= date('Y-m-d') ?>">
+                            <input type="date" id="trendEndDate" class="form-control border-left-0" style="font-size:0.82rem;" value="<?= date('Y-m-d') ?>">
                         </div>
                     </div>
 
-                    <div class="border-left mx-3" style="height:28px;"></div>
-
-                    <select id="sectionFilter" class="form-control form-control-sm mr-3" style="width:160px;">
+                    <!-- Section filter -->
+                    <select id="sectionFilter" class="form-control form-control-sm mr-2 mr-md-3 mb-2 mb-md-0" style="width:150px; border-radius:8px; font-size:0.82rem;">
                         <option value="">All Sections</option>
                     </select>
 
+                    <!-- Force Checkout -->
                     <button id="btnForceCheckout"
-                            class="btn btn-sm text-white fw-semibold px-3 mr-3"
-                            style="background:#d97706;"
+                            class="btn btn-sm text-white fw-semibold px-3 mr-2 mr-md-3 mb-2 mb-md-0"
+                            style="background:#d97706; border-radius:8px; font-size:0.80rem; white-space:nowrap;"
                             title="Check out users who never checked out on previous days">
-                        <i class="fas fa-clock-rotate-left me-1"></i>&nbsp;&nbsp;Force Checkout
+                        <i class="fas fa-clock-rotate-left me-1"></i> Force Checkout
                     </button>
 
+                    <!-- Date badge -->
                     <span id="dateBadge"
-                          class="badge badge-pill badge-light border text-muted py-2 text-center"
-                          style="min-width:210px;">Today</span>
+                        class="badge badge-pill badge-light border text-muted py-2 px-3 text-center d-inline-flex align-items-center justify-content-center"
+                        style="min-width:180px; height:32px; border-radius:20px; background:#f8fafc; font-size:0.78rem;">
+                        Today
+                    </span>
                 </div>
-
             </div>
         </div>
 
         <div class="card-body p-0" style="min-height:285px;">
             <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0" style="font-size:.875rem;">
+                <table class="table table-hover align-middle mb-0" style="font-size:0.875rem;">
                     <thead class="table-light border-bottom">
                         <tr>
-                            <th class="px-4 py-3 fw-semibold text-muted text-uppercase" style="font-size:.7rem;letter-spacing:.06em;">ID No.</th>
-                            <th class="py-3 fw-semibold text-muted text-uppercase" style="font-size:.7rem;letter-spacing:.06em;">College</th>
-                            <th class="py-3 fw-semibold text-muted text-uppercase" style="font-size:.7rem;letter-spacing:.06em;">Course</th>
-                            <th class="py-3 fw-semibold text-muted text-uppercase" style="font-size:.7rem;letter-spacing:.06em;">Library</th>
-                            <th class="py-3 fw-semibold text-muted text-uppercase" style="font-size:.7rem;letter-spacing:.06em;">Check-In</th>
-                            <th class="py-3 fw-semibold text-muted text-uppercase" style="font-size:.7rem;letter-spacing:.06em;">Check-Out</th>
-                            <th class="py-3 fw-semibold text-muted text-uppercase" style="font-size:.7rem;letter-spacing:.06em;">Status</th>
+                            <th class="px-3 px-md-4 py-3 fw-semibold text-muted text-uppercase" style="font-size:0.70rem; letter-spacing:0.05em;">ID No.</th>
+                            <th class="py-3 fw-semibold text-muted text-uppercase" style="font-size:0.70rem; letter-spacing:0.05em;">College</th>
+                            <th class="py-3 fw-semibold text-muted text-uppercase" style="font-size:0.70rem; letter-spacing:0.05em;">Course</th>
+                            <th class="py-3 fw-semibold text-muted text-uppercase" style="font-size:0.70rem; letter-spacing:0.05em;">Library</th>
+                            <th class="py-3 fw-semibold text-muted text-uppercase" style="font-size:0.70rem; letter-spacing:0.05em;">Check-In</th>
+                            <th class="py-3 fw-semibold text-muted text-uppercase" style="font-size:0.70rem; letter-spacing:0.05em;">Check-Out</th>
+                            <th class="py-3 fw-semibold text-muted text-uppercase" style="font-size:0.70rem; letter-spacing:0.05em;">Status</th>
                         </tr>
                     </thead>
                     <tbody id="dailyLogs">
                         <tr><td colspan="7" class="text-center text-muted py-4">Loading…</td></tr>
-                        <tr><td colspan="7" class="text-center text-muted py-4">RIVZ</td></tr>
-                        <tr><td colspan="7" class="text-center text-muted py-4">RIVZ</td></tr>
                     </tbody>
                 </table>
             </div>
         </div>
 
-        <div class="card-footer bg-white border-top py-3 px-4">
-            <div class="d-flex flex-column align-items-center gap-1" id="logsPageInfo"></div>
+        <div class="card-footer bg-white border-top py-3 px-4 d-flex justify-content-center" style="border-radius:0 0 16px 16px;">
+            <div id="logsPageInfo"></div>
         </div>
     </div>
 
     <!-- CHARTS ROW -->
     <div class="row g-3 mb-3">
 
-        <div class="col-lg-6">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-white border-bottom px-4 py-3">
-                    <h6 class="mb-0 fw-bold text-dark">
+        <!-- Usage Trend -->
+        <div class="col-lg-6 mb-3 mb-lg-0">
+            <div class="card border-0 shadow-sm h-100" style="border-radius:16px; overflow:hidden;">
+                <div class="card-header bg-white border-bottom px-3 px-md-4 py-3" style="border-radius:16px 16px 0 0;">
+                    <h6 class="mb-0 fw-bold text-dark" style="font-size:0.95rem;">
                         <i class="fas fa-chart-bar me-2 text-success"></i>Usage Trend
                     </h6>
-                    <small class="text-muted">Monthly visit counts — driven by date range above</small>
+                    <small class="text-muted" style="font-size:0.75rem;">Monthly visit counts — driven by date range above</small>
                 </div>
-                <div class="card-body px-4 pb-4 pt-3">
-                    <div style="position:relative;height:220px;">
+                <div class="card-body px-3 px-md-4 pb-4 pt-3 d-flex align-items-center justify-content-center">
+                    <div style="position:relative; width:100%; height:220px;">
                         <canvas id="trendChart"></canvas>
                     </div>
                 </div>
             </div>
         </div>
 
+        <!-- College & Course Activity -->
         <div class="col-lg-6">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-white border-bottom px-4 py-3">
-                    <div class="d-flex justify-content-between align-items-start">
+            <div class="card border-0 shadow-sm h-100" style="border-radius:16px; overflow:hidden;">
+                <div class="card-header bg-white border-bottom px-3 px-md-4 py-3" style="border-radius:16px 16px 0 0;">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start">
                         <div>
-                            <h6 class="mb-0 fw-bold text-dark">
+                            <h6 class="mb-0 fw-bold text-dark" style="font-size:0.95rem;">
                                 <i class="fas fa-layer-group me-2 text-primary"></i>College &amp; Course Activity
                             </h6>
-                            <small class="text-muted">Visit distribution by college &amp; course</small>
+                            <small class="text-muted" style="font-size:0.75rem;">Visit distribution by college &amp; course</small>
                         </div>
                         <span id="chartSectionBadge"
-                              class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-3 ms-2"
-                              style="font-size:.72rem;white-space:nowrap;">All Sections</span>
+                              class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-3 ms-2 mt-1"
+                              style="font-size:0.72rem; white-space:nowrap; background:#f1f5f9; border-radius:12px;">
+                            All Sections
+                        </span>
                     </div>
                 </div>
-                <div class="card-body px-3 py-3">
-                    <div style="position:relative;" id="activityChartWrap">
+                <div class="card-body px-3 py-3 d-flex align-items-center justify-content-center">
+                    <div style="position:relative; width:100%;" id="activityChartWrap">
                         <canvas id="activityChart"></canvas>
                     </div>
-                    <div id="activityEmpty" class="text-center text-muted py-4"
-                         style="font-size:.8rem;display:none;">
+                    <div id="activityEmpty" class="text-center text-muted py-4" style="font-size:0.8rem; display:none;">
                         No activity for selected range.
                     </div>
                 </div>
             </div>
         </div>
-
     </div>
-</div><!-- /container -->
+</div>
 <?php include 'LibModals.php'; ?>
 
 <script>
@@ -259,7 +252,7 @@ $(document).ready(function () {
             dataType: 'json',
             success(sections) {
                 $('.kpi-count').text('0');
-                $('.kpi-label').text(startDate === TODAY && endDate === TODAY ? 'active visits' : 'total visits');
+                $('.kpi-label').text(startDate === TODAY && endDate === TODAY ? 'active visits' : 'currently in attendance');
                 sections.forEach(s => {
                     $(`.kpi-count[data-section-code="${(s.SectionCode ?? '').trim()}"]`).text(s.total ?? 0);
                 });

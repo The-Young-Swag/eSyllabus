@@ -1,163 +1,177 @@
-<div class="container-fluid py-4" style="font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; max-width: 1100px; margin: 0 auto;">
+<div class="container-fluid py-4" style="font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; max-width: 1300px; margin: 0 auto; padding-left: 24px; padding-right: 24px;">
     
     <style>
-        @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-        @keyframes pulseDot{0%,100%{opacity:.9}50%{opacity:.35}}
-        @keyframes breatheBtn{0%,100%{box-shadow:0 0 0 0 rgba(6,78,59,.3)}50%{box-shadow:0 0 0 10px rgba(6,78,59,0)}}
-        @keyframes floatNudge{0%,100%{transform:translateY(-50%) translateX(0)}50%{transform:translateY(-50%) translateX(-4px)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pulseDot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.7)}}
+        @keyframes breatheBtn{0%,100%{box-shadow:0 0 0 0 rgba(6,78,59,0.4), 0 2px 8px rgba(6,78,59,0.2)}50%{box-shadow:0 0 0 12px rgba(6,78,59,0), 0 2px 8px rgba(6,78,59,0.2)}}
+        @keyframes floatNudge{0%,100%{transform:translateY(-50%) translateX(0)}50%{transform:translateY(-50%) translateX(-5px)}}
+        @keyframes subtlePop{0%{transform:scale(1)}50%{transform:scale(1.02)}100%{transform:scale(1)}}
+        .kpi-card:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,0.08)!important;transition:all 0.2s ease;}
     </style>
 
     <!-- HEADER -->
-    <div style="display:flex;align-items:center;gap:14px;padding:18px 22px;background:#fff;border-radius:16px;box-shadow:0 1px 4px rgba(0,0,0,.05);margin-bottom:16px;border:1px solid #f1f5f9;animation:fadeUp .45s ease-out;">
-        <div style="width:11px;height:11px;border-radius:50%;background:#10b981;flex-shrink:0;animation:pulseDot 2.2s ease-in-out infinite;"></div>
+    <div style="display:flex;align-items:center;gap:14px;padding:20px 24px;background:#fff;border-radius:18px;box-shadow:0 2px 8px rgba(0,0,0,0.04),0 1px 2px rgba(0,0,0,0.02);margin-bottom:16px;border:1px solid #f1f5f9;animation:fadeUp .45s ease-out;">
+        <div style="width:12px;height:12px;border-radius:50%;background:#10b981;flex-shrink:0;animation:pulseDot 2s ease-in-out infinite;"></div>
         <div>
-            <div style="font-size:1.05rem;font-weight:700;color:#0f172a;letter-spacing:-.3px;line-height:1.2;">Library Attendance Dashboard</div>
-            <div style="font-size:.76rem;color:#64748b;font-weight:450;">Real-time monitoring of today's attendance activity</div>
+            <div style="font-size:1.15rem;font-weight:700;color:#0f172a;letter-spacing:-0.3px;line-height:1.2;">Library Attendance Dashboard</div>
+            <div style="font-size:0.78rem;color:#64748b;font-weight:450;">Real-time monitoring of today's attendance activity</div>
         </div>
     </div>
 
     <!-- MAIN CARD -->
-    <div style="background:#fff;border-radius:20px;box-shadow:0 4px 24px rgba(0,0,0,.06),0 1px 4px rgba(0,0,0,.03);border:1px solid #f1f5f9;overflow:hidden;margin-bottom:16px;animation:fadeUp .5s ease-out .05s both;">
-        <div style="padding:24px 26px;background:linear-gradient(175deg,#fafdfb 0%,#f8fcf9 35%,#f9fbfa 65%,#fafdfb 100%);">
+    <div style="background:#fff;border-radius:22px;box-shadow:0 6px 24px rgba(0,0,0,0.06),0 2px 6px rgba(0,0,0,0.04);border:1px solid #f1f5f9;overflow:hidden;margin-bottom:16px;animation:fadeUp .5s ease-out .05s both;">
+        <div style="padding:28px 30px;background:linear-gradient(175deg,#fafdfb 0%,#f8fcf9 35%,#f9fbfa 65%,#fafdfb 100%);">
             
             <!-- TOP ROW -->
-            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;padding-bottom:18px;margin-bottom:18px;border-bottom:1px solid #e8f0eb;">
-                <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:#fff;border-radius:14px;border:1px solid #d1fae5;box-shadow:0 1px 3px rgba(0,0,0,.04);min-width:250px;">
-                    <div style="width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,#d1fae5,#a7f3d0);display:flex;align-items:center;justify-content:center;color:#047857;font-size:.85rem;flex-shrink:0;">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;padding-bottom:20px;margin-bottom:20px;border-bottom:1px solid #e8f0eb;">
+                <div style="display:flex;align-items:center;gap:14px;padding:14px 20px;background:#fff;border-radius:16px;border:1px solid #d1fae5;box-shadow:0 1px 4px rgba(0,0,0,0.04);min-width:270px;">
+                    <div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#d1fae5,#a7f3d0);display:flex;align-items:center;justify-content:center;color:#047857;font-size:1rem;flex-shrink:0;">
                         <i class="fas fa-book-open"></i>
                     </div>
                     <div>
-                        <div style="font-size:.58rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#6ee7b7;margin-bottom:2px;">Library Section</div>
-                        <div id="currentLibraryDisplay" style="font-size:.88rem;font-weight:700;color:#064e3b;letter-spacing:-.2px;white-space:nowrap;">Main Library</div>
+                        <div style="font-size:0.62rem;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:#059669;margin-bottom:2px;">Library Section</div>
+                        <div id="currentLibraryDisplay" style="font-size:0.95rem;font-weight:700;color:#064e3b;letter-spacing:-0.3px;white-space:nowrap;">Main Library</div>
                     </div>
                 </div>
-                <div style="display:flex;flex-direction:column;padding:12px 18px;background:#fff;border-radius:14px;border:1px solid #d1fae5;box-shadow:0 1px 3px rgba(0,0,0,.04);min-width:250px;">
-                    <span style="font-size:.58rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#6ee7b7;margin-bottom:4px;">Current Date &amp; Time</span>
-                    <span id="kpiCurrentTime" style="font-size:.95rem;font-weight:650;color:#064e3b;letter-spacing:-.2px;">—</span>
+                <div style="display:flex;flex-direction:column;padding:14px 22px;background:#fff;border-radius:16px;border:1px solid #d1fae5;box-shadow:0 1px 4px rgba(0,0,0,0.04);min-width:270px;">
+                    <span style="font-size:0.62rem;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:#059669;margin-bottom:4px;">Current Date &amp; Time</span>
+                    <span id="kpiCurrentTime" style="font-size:1rem;font-weight:650;color:#064e3b;letter-spacing:-0.3px;">—</span>
                 </div>
             </div>
 
             <!-- FORM -->
             <form id="logForm" autocomplete="off">
-                <div style="margin-bottom:10px;font-size:.65rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#4b7c6b;">
+                <div style="margin-bottom:10px;font-size:0.68rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#4b7c6b;">
                     Students &amp; Employees — use your ID number below
                 </div>
-                <div style="display:flex;align-items:stretch;border-radius:14px;border:2px solid #d1fae5;background:#fff;overflow:hidden;transition:all .2s;box-shadow:0 1px 3px rgba(0,0,0,.04);">
-                    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:0 14px;background:#f9fefb;border-right:1.5px solid #d1fae5;min-width:58px;flex-shrink:0;">
-                        <i class="fas fa-id-card" style="color:#10b981;font-size:.9rem;"></i>
-                        <span style="font-size:.48rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#6ee7b7;white-space:nowrap;">ID No.</span>
+                <div style="display:flex;align-items:stretch;border-radius:16px;border:2px solid #d1fae5;background:#fff;overflow:hidden;transition:all 0.2s;box-shadow:0 1px 4px rgba(0,0,0,0.04);">
+                    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:0 16px;background:#f9fefb;border-right:1.5px solid #d1fae5;min-width:62px;flex-shrink:0;">
+                        <i class="fas fa-id-card" style="color:#10b981;font-size:1rem;"></i>
+                        <span style="font-size:0.5rem;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:#059669;white-space:nowrap;">ID No.</span>
                     </div>
                     <input type="password" id="inputIDNumber" placeholder="Enter student/employee number here" autocomplete="new-password" spellcheck="false"
-                        style="flex:1;border:none;outline:none;background:transparent;padding:14px 15px;font-size:.92rem;color:#0f172a;letter-spacing:.2px;font-family:inherit;">
-                    <button type="button" id="toggleIdVisibility" style="background:transparent;border:none;outline:none;padding:0 14px;color:#94a3b8;cursor:pointer;font-size:.9rem;flex-shrink:0;transition:color .15s;">
+                        style="flex:1;border:none;outline:none;background:transparent;padding:16px 18px;font-size:0.98rem;color:#0f172a;letter-spacing:0.2px;font-family:inherit;">
+                    <button type="button" id="toggleIdVisibility" style="background:transparent;border:none;outline:none;padding:0 16px;color:#94a3b8;cursor:pointer;font-size:1rem;flex-shrink:0;transition:color 0.15s;">
                         <i class="fas fa-eye" id="toggleIcon"></i>
                     </button>
                 </div>
-                <hr style="margin:22px 0;border:none;height:1px;background:#e4efe9;">
+                <hr style="margin:24px 0;border:none;height:1px;background:#e4efe9;">
                 
-                <!-- Animated confirm button -->
-                <button type="submit" style="width:100%;padding:14px;background:#064e3b;border:none;border-radius:12px;font-size:.88rem;font-weight:650;color:#fff;letter-spacing:.02em;cursor:pointer;transition:all .18s;display:flex;align-items:center;justify-content:center;gap:8px;font-family:inherit;box-shadow:0 2px 8px rgba(6,78,59,.15);animation:breatheBtn 2.8s ease-in-out infinite;">
-                    <i class="fas fa-check-circle"></i> Confirm Access
-                </button>
+                <!-- Distinctively animated confirm button -->
+                <button type="submit" style="width:100%;padding:16px;background:#009900;border:none;border-radius:14px;font-size:0.95rem;font-weight:650;color:#fff;letter-spacing:0.02em;cursor:pointer;transition:all 0.25s;display:flex;align-items:center;justify-content:center;gap:10px;font-family:inherit;box-shadow:0 4px 16px rgba(0,153,0,0.35);animation:breatheBtn 3.2s ease-in-out infinite, subtlePop 3.2s ease-in-out infinite;">
+    <i class="fas fa-check-circle"></i> Confirm Access
+</button>
             </form>
 
-            <!-- GUEST SECTION with thought float box -->
-            <div style="margin-top:22px;border-top:1px dashed #c8e6d8;padding-top:14px;">
-                <details style="font-size:.76rem;color:#4b5563;font-family:inherit;">
-                    <summary style="cursor:pointer;font-weight:600;color:#6b7280;padding:8px 0;outline:none;user-select:none;list-style:none;">
-                        <span style="text-decoration:none;border-bottom:1px dashed #9ca3af;">Not a student or employee? Click here for visitor access</span>
+            <!-- GUEST SECTION with colourful summary & floating thought box -->
+            <div style="margin-top:24px;border-top:1px dashed #c8e6d8;padding-top:16px;">
+                <details style="font-size:0.78rem;color:#4b5563;font-family:inherit;">
+                    <summary style="cursor:pointer;font-weight:600;padding:8px 0;outline:none;user-select:none;list-style:none;display:inline-flex;align-items:center;gap:6px;">
+                        <span style="background:linear-gradient(135deg,#e0f2fe,#bae6fd);color:#0369a1;padding:6px 14px;border-radius:20px;font-weight:700;letter-spacing:0.03em;box-shadow:0 1px 4px rgba(14,165,233,0.15);transition:all 0.2s;">
+                            <i class="fas fa-chevron-right" style="font-size:0.65rem;margin-right:4px;"></i> Not a student or employee? Click here for visitor access
+                        </span>
                     </summary>
-                    <div style="margin-top:10px;background:#f9fafb;border-radius:14px;padding:14px 16px;border:1px solid #e5e7eb;">
-                        <div style="font-size:.68rem;color:#6b7280;margin-bottom:10px;text-align:center;">
+                    <div style="margin-top:12px;background:#f9fafb;border-radius:16px;padding:16px 20px;border:1px solid #e5e7eb;">
+                        <div style="font-size:0.7rem;color:#6b7280;margin-bottom:12px;text-align:center;">
                             <i class="fas fa-info-circle" style="color:#059669;margin-right:4px;"></i> 
                             Visitors only — no ID required. Please use the ID field above if you have one.
                         </div>
-                        <div style="display:flex;justify-content:center;align-items:center;gap:12px;flex-wrap:wrap;">
-                            <!-- Guest Check In with nudge float box -->
+                        <div style="display:flex;justify-content:center;align-items:center;gap:14px;flex-wrap:wrap;">
                             <div style="position:relative;display:inline-flex;">
-                                <button type="button" id="guestCheckIn" style="display:inline-flex;align-items:center;gap:7px;padding:8px 16px;border-radius:999px;border:1.5px solid #a7f3d0;background:#f0fdf6;color:#047857;font-size:.78rem;font-weight:650;cursor:pointer;font-family:inherit;transition:all .15s;box-shadow:0 1px 2px rgba(0,0,0,.03);">
-                                    <i class="fas fa-user-plus" style="font-size:.7rem;"></i> Guest Check In
+                                <button type="button" id="guestCheckIn" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:999px;border:1.5px solid #a7f3d0;background:#f0fdf6;color:#047857;font-size:0.82rem;font-weight:650;cursor:pointer;font-family:inherit;transition:all 0.15s;box-shadow:0 2px 6px rgba(0,0,0,0.05);">
+                                    <i class="fas fa-user-plus" style="font-size:0.8rem;"></i> Guest Check In
                                 </button>
-                                <!-- Floating thought box -->
-                                <div id="guestNudge" style="position:absolute;right:calc(100% + 14px);top:50%;transform:translateY(-50%);background:#fff;border:1.5px solid #a7f3d0;border-radius:10px;padding:6px 12px;font-size:.72rem;color:#047857;font-weight:600;white-space:nowrap;box-shadow:0 3px 12px rgba(6,78,59,.1);pointer-events:none;z-index:5;animation:floatNudge 3s ease-in-out infinite;">
+                                <div id="guestNudge" style="position:absolute;right:calc(100% + 16px);top:50%;transform:translateY(-50%);background:#fff;border:1.5px solid #a7f3d0;border-radius:12px;padding:7px 14px;font-size:0.74rem;color:#047857;font-weight:600;white-space:nowrap;box-shadow:0 4px 14px rgba(6,78,59,0.12);pointer-events:none;z-index:5;animation:floatNudge 3s ease-in-out infinite;">
                                     <span style="position:absolute;right:-7px;top:50%;transform:translateY(-50%);border-top:6px solid transparent;border-bottom:6px solid transparent;border-left:7px solid #a7f3d0;"></span>
                                     👋 Not a student? Just visiting?
                                 </div>
                             </div>
-                            <button type="button" id="guestCheckOut" style="display:inline-flex;align-items:center;gap:7px;padding:8px 16px;border-radius:999px;border:1.5px solid #fca5a5;background:#fffbfb;color:#dc2626;font-size:.78rem;font-weight:650;cursor:pointer;font-family:inherit;transition:all .15s;box-shadow:0 1px 2px rgba(0,0,0,.03);">
-                                <i class="fas fa-sign-out-alt" style="font-size:.7rem;"></i> Guest Check Out
+                            <button type="button" id="guestCheckOut" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:999px;border:1.5px solid #fca5a5;background:#fffbfb;color:#dc2626;font-size:0.82rem;font-weight:650;cursor:pointer;font-family:inherit;transition:all 0.15s;box-shadow:0 2px 6px rgba(0,0,0,0.05);">
+                                <i class="fas fa-sign-out-alt" style="font-size:0.8rem;"></i> Guest Check Out
                             </button>
                         </div>
                     </div>
                 </details>
             </div>
 
-            <!-- Morse -->
-            <div style="text-align:center;margin-top:16px;user-select:none;pointer-events:none;">
-                <span style="font-size:.6rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#b8dccb;font-style:italic;white-space:nowrap;">
+            <!---->
+            <div style="text-align:center;margin-top:18px;user-select:none;pointer-events:none;">
+                <span style="font-size:0.62rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#b8dccb;font-style:italic;white-space:nowrap;">
                     .--. .-. --- .--- . -.-. - / -... -.-- ---... / .. ...- .- -. / .... .- .-. ...- . -.-- / -.. .- -. .- --- / .-. .. ...- . .-. .-
                 </span>
             </div>
         </div>
     </div>
 
-    <!-- KPI CARDS (perfectly centered, consistently rounded) -->
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;animation:fadeUp .55s ease-out .1s both;">
-        
-        <!-- KPI 1 -->
-        <div style="background:#fff;border-radius:16px;box-shadow:0 1px 4px rgba(0,0,0,.05);border:1px solid #f1f5f9;padding:18px 16px;text-align:center;min-height:130px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;position:relative;overflow:hidden;transition:box-shadow .2s,transform .2s;">
-            <div style="position:absolute;top:0;left:12px;right:12px;height:3px;border-radius:0 0 3px 3px;background:#10b981;"></div>
-            <div style="font-size:.62rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#94a3b8;">Total Check-Ins Today</div>
-            <div id="kpiTotalCheckins" style="font-size:1.8rem;font-weight:700;color:#10b981;letter-spacing:-.4px;line-height:1;">—</div>
+    <!-- ═ KPI CARDS ═ -->
+  <div class="row g-3">
+    <div class="col-12 col-sm-6 col-lg-3">
+      <div class="card border-0 rounded-4 overflow-hidden"
+           style="box-shadow:0 1px 6px rgba(0,0,0,.07);border-top:3px solid #10b981 !important;height:130px;">
+        <div class="card-body d-flex flex-column align-items-center text-center" style="padding:14px 12px;">
+          <div class="text-uppercase fw-bold text-muted" style="font-size:.64rem;letter-spacing:.09em;">Total Check-Ins Today</div>
+          <div class="flex-grow-1 d-flex align-items-center justify-content-center">
+            <div id="kpiTotalCheckins" style="font-size:1.75rem;font-weight:600;color:#10b981;line-height:1;">—</div>
+          </div>
         </div>
-        
-        <!-- KPI 2 -->
-        <div style="background:#fff;border-radius:16px;box-shadow:0 1px 4px rgba(0,0,0,.05);border:1px solid #f1f5f9;padding:18px 16px;text-align:center;min-height:130px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;position:relative;overflow:hidden;transition:box-shadow .2s,transform .2s;">
-            <div style="position:absolute;top:0;left:12px;right:12px;height:3px;border-radius:0 0 3px 3px;background:#3b82f6;"></div>
-            <div style="font-size:.62rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#94a3b8;">Currently In Attendance</div>
-            <div id="kpiActiveStudents" style="font-size:1.8rem;font-weight:700;color:#3b82f6;letter-spacing:-.4px;line-height:1;">—</div>
-        </div>
-        
-        <!-- KPI 3: Top Colleges -->
-        <div style="background:#fff;border-radius:16px;box-shadow:0 1px 4px rgba(0,0,0,.05);border:1px solid #f1f5f9;padding:18px 16px;text-align:center;min-height:130px;display:flex;flex-direction:column;justify-content:center;gap:10px;position:relative;overflow:hidden;transition:box-shadow .2s,transform .2s;">
-            <div style="position:absolute;top:0;left:12px;right:12px;height:3px;border-radius:0 0 3px 3px;background:#f59e0b;"></div>
-            <div style="font-size:.62rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#94a3b8;">Top 3 Colleges Today</div>
-            <div id="topColleges" style="display:flex;flex-direction:column;gap:4px;width:100%;padding:0 4px;">
-                <div style="display:flex;align-items:baseline;gap:8px;font-size:.74rem;color:#4b5563;font-weight:500;">
-                    <span style="font-weight:700;color:#9ca3af;font-size:.64rem;width:14px;flex-shrink:0;text-align:right;">1.</span>
-                    <span style="color:#d97706;font-weight:600;">Loading...</span>
-                </div>
-                <div style="display:flex;align-items:baseline;gap:8px;font-size:.74rem;color:#4b5563;font-weight:500;">
-                    <span style="font-weight:700;color:#9ca3af;font-size:.64rem;width:14px;flex-shrink:0;text-align:right;">2.</span>
-                    <span style="color:#d97706;font-weight:600;">Loading...</span>
-                </div>
-                <div style="display:flex;align-items:baseline;gap:8px;font-size:.74rem;color:#4b5563;font-weight:500;">
-                    <span style="font-weight:700;color:#9ca3af;font-size:.64rem;width:14px;flex-shrink:0;text-align:right;">3.</span>
-                    <span style="color:#d97706;font-weight:600;">Loading...</span>
-                </div>
-            </div>
-        </div>
-        
-        <!-- KPI 4: Top Courses -->
-        <div style="background:#fff;border-radius:16px;box-shadow:0 1px 4px rgba(0,0,0,.05);border:1px solid #f1f5f9;padding:18px 16px;text-align:center;min-height:130px;display:flex;flex-direction:column;justify-content:center;gap:10px;position:relative;overflow:hidden;transition:box-shadow .2s,transform .2s;">
-            <div style="position:absolute;top:0;left:12px;right:12px;height:3px;border-radius:0 0 3px 3px;background:#06b6d4;"></div>
-            <div style="font-size:.62rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#94a3b8;">Top 3 Courses Today</div>
-            <div id="topCourses" style="display:flex;flex-direction:column;gap:4px;width:100%;padding:0 4px;">
-                <div style="display:flex;align-items:baseline;gap:8px;font-size:.74rem;color:#4b5563;font-weight:500;">
-                    <span style="font-weight:700;color:#9ca3af;font-size:.64rem;width:14px;flex-shrink:0;text-align:right;">1.</span>
-                    <span style="color:#0891b2;font-weight:600;">Loading...</span>
-                </div>
-                <div style="display:flex;align-items:baseline;gap:8px;font-size:.74rem;color:#4b5563;font-weight:500;">
-                    <span style="font-weight:700;color:#9ca3af;font-size:.64rem;width:14px;flex-shrink:0;text-align:right;">2.</span>
-                    <span style="color:#0891b2;font-weight:600;">Loading...</span>
-                </div>
-                <div style="display:flex;align-items:baseline;gap:8px;font-size:.74rem;color:#4b5563;font-weight:500;">
-                    <span style="font-weight:700;color:#9ca3af;font-size:.64rem;width:14px;flex-shrink:0;text-align:right;">3.</span>
-                    <span style="color:#0891b2;font-weight:600;">Loading...</span>
-                </div>
-            </div>
-        </div>
+      </div>
     </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+      <div class="card border-0 rounded-4 overflow-hidden"
+           style="box-shadow:0 1px 6px rgba(0,0,0,.07);border-top:3px solid #3b82f6 !important;height:130px;">
+        <div class="card-body d-flex flex-column align-items-center text-center" style="padding:14px 12px;">
+          <div class="text-uppercase fw-bold text-muted" style="font-size:.64rem;letter-spacing:.09em;">Currently In Attendance</div>
+          <div class="flex-grow-1 d-flex align-items-center justify-content-center">
+            <div id="kpiActiveStudents" style="font-size:1.75rem;font-weight:600;color:#3b82f6;line-height:1;">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+      <div class="card border-0 rounded-4 overflow-hidden"
+           style="box-shadow:0 1px 6px rgba(0,0,0,.07);border-top:3px solid #f59e0b !important;height:130px;">
+        <div class="card-body d-flex flex-column justify-content-center" style="padding:14px 16px;">
+          <div class="text-uppercase fw-bold text-muted mb-2 text-center" style="font-size:.64rem;letter-spacing:.09em;">Top 3 Colleges Today</div>
+          <div id="topColleges">
+            <div class="d-flex align-items-baseline gap-2 mb-1">
+              <span class="fw-bold text-muted" style="font-size:.67rem;width:14px;flex-shrink:0;">1.</span>
+              <span class="text-warning fw-semibold" style="font-size:.75rem;">Loading...</span>
+            </div>
+            <div class="d-flex align-items-baseline gap-2 mb-1">
+              <span class="fw-bold text-muted" style="font-size:.67rem;width:14px;flex-shrink:0;">2.</span>
+              <span class="text-warning fw-semibold" style="font-size:.75rem;">Loading...</span>
+            </div>
+            <div class="d-flex align-items-baseline gap-2">
+              <span class="fw-bold text-muted" style="font-size:.67rem;width:14px;flex-shrink:0;">3.</span>
+              <span class="text-warning fw-semibold" style="font-size:.75rem;">Loading...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+      <div class="card border-0 rounded-4 overflow-hidden"
+           style="box-shadow:0 1px 6px rgba(0,0,0,.07);border-top:3px solid #06b6d4 !important;height:130px;">
+        <div class="card-body d-flex flex-column justify-content-center" style="padding:14px 16px;">
+          <div class="text-uppercase fw-bold text-muted mb-2 text-center" style="font-size:.64rem;letter-spacing:.09em;">Top 3 Courses Today</div>
+          <div id="topCourses">
+            <div class="d-flex align-items-baseline gap-2 mb-1">
+              <span class="fw-bold text-muted" style="font-size:.67rem;width:14px;flex-shrink:0;">1.</span>
+              <span class="text-info fw-semibold" style="font-size:.75rem;">Loading...</span>
+            </div>
+            <div class="d-flex align-items-baseline gap-2 mb-1">
+              <span class="fw-bold text-muted" style="font-size:.67rem;width:14px;flex-shrink:0;">2.</span>
+              <span class="text-info fw-semibold" style="font-size:.75rem;">Loading...</span>
+            </div>
+            <div class="d-flex align-items-baseline gap-2">
+              <span class="fw-bold text-muted" style="font-size:.67rem;width:14px;flex-shrink:0;">3.</span>
+              <span class="text-info fw-semibold" style="font-size:.75rem;">Loading...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div><!-- /KPI row -->
 
 </div>
 
@@ -184,15 +198,6 @@ setInterval(function () {
         year: "numeric", month: "short", day: "numeric", hour12: true
     }));
 }, 1000);
-
-// Nudge animation
-setTimeout(function cycle() {
-    $("#guestNudge").css("opacity", "1");
-    setTimeout(function () {
-        $("#guestNudge").css("opacity", "0");
-        setTimeout(cycle, 2000);
-    }, 5000);
-}, 2000);
 
 // Hover effects
 function applyHover(selector, enterStyles, leaveStyles) {
