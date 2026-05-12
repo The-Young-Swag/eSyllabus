@@ -46,7 +46,7 @@
                 </div>
 
                 <!-- ID input wrapper -->
-                <div style="display:flex; align-items:stretch; border-radius:14px; border:2px solid #006700; background:linear-gradient(135deg,#d1fae5,#a7f3d0); overflow:hidden; transition:all 0.25s; box-shadow:0 2px 8px rgba(16,185,129,0.1), 0 1px 3px rgba(0,0,0,0.04);">
+                <div style="display:flex; align-items:stretch; border-radius:14px; border:2px solid #059669; background:linear-gradient(135deg,#d1fae5,#a7f3d0); overflow:hidden; transition:all 0.25s; box-shadow:0 2px 8px rgba(16,185,129,0.1), 0 1px 3px rgba(0,0,0,0.04);">
                     <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; padding:0 16px; background:transparent; border-right:1px solid rgba(16,185,129,0.2); min-width:62px; flex-shrink:0;">
                         <i class="fas fa-id-card" style="color:#047857; font-size:1rem;"></i>
                         <span style="font-size:0.5rem; font-weight:800; letter-spacing:0.1em; text-transform:uppercase; color:#047857; white-space:nowrap;">ID No.</span>
@@ -62,8 +62,8 @@
                 <hr style="margin:22px 0; border:none; height:1px; background:linear-gradient(to right, #10b981, transparent);">
 
                 <!-- Confirm button -->
-                <button type="submit" style="width:100%; padding:16px; background:linear-gradient(135deg, #009900 0%, #006600 100%); border:none; border-radius:12px; font-size:0.95rem; font-weight:650; color:#fff; letter-spacing:0.02em; cursor:pointer; transition:all 0.25s; display:flex; align-items:center; justify-content:center; gap:10px; font-family:inherit; box-shadow:0 6px 20px rgba(0,102,0,0.45), 0 2px 4px rgba(0,0,0,0.2); text-shadow:0 1px 2px rgba(0,0,0,0.25); animation:breatheBtn 3.2s ease-in-out infinite, subtlePop 3.2s ease-in-out infinite;">
-                    <i class="fas fa-check-circle" style="font-size:1.1rem;"></i> Confirm Access
+                <button type="submit" style="width:100%; padding:16px; background:linear-gradient(135deg, #009900 0%, #149950 100%); border:none; border-radius:12px; font-size:0.95rem; font-weight:650; color:#fff; letter-spacing:0.02em; cursor:pointer; transition:all 0.25s; display:flex; align-items:center; justify-content:center; gap:10px; font-family:inherit; box-shadow:0 6px 20px rgba(0,102,0,0.45), 0 2px 4px rgba(0,0,0,0.2); text-shadow:0 1px 2px rgba(0,0,0,0.25); animation:breatheBtn 3.2s ease-in-out infinite, subtlePop 3.2s ease-in-out infinite;">
+                     Confirm Access<i class="fas fa-check-circle" style="font-size:1.1rem;"></i>
                 </button>
             </form>
 
