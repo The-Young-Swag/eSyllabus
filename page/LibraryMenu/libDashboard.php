@@ -252,7 +252,7 @@ $(document).ready(function () {
             dataType: 'json',
             success(sections) {
                 $('.kpi-count').text('0');
-                $('.kpi-label').text(startDate === TODAY && endDate === TODAY ? 'active visits' : 'currently in attendance');
+                $('.kpi-label').text(startDate === TODAY && endDate === TODAY ? 'currently in attendance' : 'total visits');
                 sections.forEach(s => {
                     $(`.kpi-count[data-section-code="${(s.SectionCode ?? '').trim()}"]`).text(s.total ?? 0);
                 });

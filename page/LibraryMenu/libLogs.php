@@ -10,7 +10,7 @@
     </style>
 
     <!-- HEADER -->
-    <div style="display:flex;align-items:center;gap:14px;padding:20px 24px;background:#fff;border-radius:18px;box-shadow:0 2px 8px rgba(0,0,0,0.04),0 1px 2px rgba(0,0,0,0.02);margin-bottom:16px;border:1px solid #f1f5f9;animation:fadeUp .45s ease-out;">
+    <div style="display:flex;align-items:center;gap:14px;padding:20px 24px;background:#fff;border-radius:18px;box-shadow:0 2px 8px rgba(0,0,0,0.04),0 1px 2px rgba(0,0,0,0.02);margin-bottom:16px;border:1px solid #42ff5f;animation:fadeUp .45s ease-out;">
         <div style="width:12px;height:12px;border-radius:50%;background:#10b981;flex-shrink:0;animation:pulseDot 2s ease-in-out infinite;"></div>
         <div>
             <div style="font-size:1.15rem;font-weight:700;color:#0f172a;letter-spacing:-0.3px;line-height:1.2;">Library Attendance Dashboard</div>
@@ -18,75 +18,79 @@
         </div>
     </div>
 
-    <!-- MAIN CARD -->
-    <div style="background:#fff;border-radius:22px;box-shadow:0 6px 24px rgba(0,0,0,0.06),0 2px 6px rgba(0,0,0,0.04);border:1px solid #f1f5f9;overflow:hidden;margin-bottom:16px;animation:fadeUp .5s ease-out .05s both;">
-        <div style="padding:28px 30px;background:linear-gradient(175deg,#fafdfb 0%,#f8fcf9 35%,#f9fbfa 65%,#fafdfb 100%);">
+    <!-- Main Card -->
+    <div style="background:#f0fdf4; border-radius:22px; box-shadow:0 6px 24px rgba(0,0,0,0.06),0 2px 6px rgba(0,0,0,0.04); border:1px solid #42ff5f; overflow:hidden; margin-bottom:16px; animation:fadeUp .5s ease-out .05s both;">
+        <div style="padding:28px 30px; background:linear-gradient(175deg, #f0fdf4 0%, #e8faf3 40%, #f0fdf4 100%);">
             
             <!-- TOP ROW -->
-            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;padding-bottom:20px;margin-bottom:20px;border-bottom:1px solid #e8f0eb;">
-                <div style="display:flex;align-items:center;gap:14px;padding:14px 20px;background:#fff;border-radius:16px;border:1px solid #d1fae5;box-shadow:0 1px 4px rgba(0,0,0,0.04);min-width:270px;">
-                    <div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#d1fae5,#a7f3d0);display:flex;align-items:center;justify-content:center;color:#047857;font-size:1rem;flex-shrink:0;">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px; padding-bottom:20px; margin-bottom:20px; border-bottom:1px solid #d1fae5;">
+                <div style="display:flex; align-items:center; gap:14px; padding:14px 20px; background:#ffffff; border-radius:16px; border:1px solid #a7f3d0; box-shadow:0 1px 4px rgba(0,0,0,0.04); min-width:270px;">
+                    <div style="width:42px; height:42px; border-radius:12px; background:linear-gradient(135deg,#d1fae5,#a7f3d0); display:flex; align-items:center; justify-content:center; color:#047857; font-size:1rem; flex-shrink:0;">
                         <i class="fas fa-book-open"></i>
                     </div>
                     <div>
-                        <div style="font-size:0.62rem;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:#059669;margin-bottom:2px;">Library Section</div>
-                        <div id="currentLibraryDisplay" style="font-size:0.95rem;font-weight:700;color:#064e3b;letter-spacing:-0.3px;white-space:nowrap;">Main Library</div>
+                        <div style="font-size:0.62rem; font-weight:800; letter-spacing:0.1em; text-transform:uppercase; color:#059669; margin-bottom:2px;">Library Section</div>
+                        <div id="currentLibraryDisplay" style="font-size:0.95rem; font-weight:700; color:#064e3b; letter-spacing:-0.3px; white-space:nowrap;">Main Library</div>
                     </div>
                 </div>
-                <div style="display:flex;flex-direction:column;padding:14px 22px;background:#fff;border-radius:16px;border:1px solid #d1fae5;box-shadow:0 1px 4px rgba(0,0,0,0.04);min-width:270px;">
-                    <span style="font-size:0.62rem;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:#059669;margin-bottom:4px;">Current Date &amp; Time</span>
-                    <span id="kpiCurrentTime" style="font-size:1rem;font-weight:650;color:#064e3b;letter-spacing:-0.3px;">—</span>
+                <div style="display:flex; flex-direction:column; padding:14px 22px; background:#ffffff; border-radius:16px; border:1px solid #a7f3d0; box-shadow:0 1px 4px rgba(0,0,0,0.04); min-width:270px;">
+                    <span style="font-size:0.62rem; font-weight:800; letter-spacing:0.1em; text-transform:uppercase; color:#059669; margin-bottom:4px;">Current Date &amp; Time</span>
+                    <span id="kpiCurrentTime" style="font-size:1rem; font-weight:650; color:#064e3b; letter-spacing:-0.3px;">—</span>
                 </div>
             </div>
 
-            <!-- FORM -->
             <form id="logForm" autocomplete="off">
-                <div style="margin-bottom:10px;font-size:0.68rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#4b7c6b;">
+                <!-- Label -->
+                <div style="margin-bottom:10px; font-size:0.68rem; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:#047857;">
                     Students &amp; Employees — use your ID number below
                 </div>
-                <div style="display:flex;align-items:stretch;border-radius:16px;border:2px solid #d1fae5;background:#fff;overflow:hidden;transition:all 0.2s;box-shadow:0 1px 4px rgba(0,0,0,0.04);">
-                    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:0 16px;background:#f9fefb;border-right:1.5px solid #d1fae5;min-width:62px;flex-shrink:0;">
-                        <i class="fas fa-id-card" style="color:#10b981;font-size:1rem;"></i>
-                        <span style="font-size:0.5rem;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:#059669;white-space:nowrap;">ID No.</span>
+
+                <!-- ID input wrapper -->
+                <div style="display:flex; align-items:stretch; border-radius:14px; border:2px solid #006700; background:linear-gradient(135deg,#d1fae5,#a7f3d0); overflow:hidden; transition:all 0.25s; box-shadow:0 2px 8px rgba(16,185,129,0.1), 0 1px 3px rgba(0,0,0,0.04);">
+                    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; padding:0 16px; background:transparent; border-right:1px solid rgba(16,185,129,0.2); min-width:62px; flex-shrink:0;">
+                        <i class="fas fa-id-card" style="color:#047857; font-size:1rem;"></i>
+                        <span style="font-size:0.5rem; font-weight:800; letter-spacing:0.1em; text-transform:uppercase; color:#047857; white-space:nowrap;">ID No.</span>
                     </div>
                     <input type="password" id="inputIDNumber" placeholder="Enter student/employee number here" autocomplete="new-password" spellcheck="false"
-                        style="flex:1;border:none;outline:none;background:transparent;padding:16px 18px;font-size:0.98rem;color:#0f172a;letter-spacing:0.2px;font-family:inherit;">
-                    <button type="button" id="toggleIdVisibility" style="background:transparent;border:none;outline:none;padding:0 16px;color:#94a3b8;cursor:pointer;font-size:1rem;flex-shrink:0;transition:color 0.15s;">
+                        style="flex:1; border:none; outline:none; background:transparent; padding:16px 18px; font-size:0.96rem; color:#0f172a; letter-spacing:0.2px; font-family:inherit;">
+                    <button type="button" id="toggleIdVisibility" style="background:transparent; border:none; outline:none; padding:0 16px; color:#6b7280; cursor:pointer; font-size:1rem; flex-shrink:0; transition:color 0.15s;">
                         <i class="fas fa-eye" id="toggleIcon"></i>
                     </button>
                 </div>
-                <hr style="margin:24px 0;border:none;height:1px;background:#e4efe9;">
-                
-                <!-- Distinctively animated confirm button -->
-                <button type="submit" style="width:100%;padding:16px;background:#009900;border:none;border-radius:14px;font-size:0.95rem;font-weight:650;color:#fff;letter-spacing:0.02em;cursor:pointer;transition:all 0.25s;display:flex;align-items:center;justify-content:center;gap:10px;font-family:inherit;box-shadow:0 4px 16px rgba(0,153,0,0.35);animation:breatheBtn 3.2s ease-in-out infinite, subtlePop 3.2s ease-in-out infinite;">
-    <i class="fas fa-check-circle"></i> Confirm Access
-</button>
+
+                <!-- Subtle green gradient divider -->
+                <hr style="margin:22px 0; border:none; height:1px; background:linear-gradient(to right, #10b981, transparent);">
+
+                <!-- Confirm button -->
+                <button type="submit" style="width:100%; padding:16px; background:linear-gradient(135deg, #009900 0%, #006600 100%); border:none; border-radius:12px; font-size:0.95rem; font-weight:650; color:#fff; letter-spacing:0.02em; cursor:pointer; transition:all 0.25s; display:flex; align-items:center; justify-content:center; gap:10px; font-family:inherit; box-shadow:0 6px 20px rgba(0,102,0,0.45), 0 2px 4px rgba(0,0,0,0.2); text-shadow:0 1px 2px rgba(0,0,0,0.25); animation:breatheBtn 3.2s ease-in-out infinite, subtlePop 3.2s ease-in-out infinite;">
+                    <i class="fas fa-check-circle" style="font-size:1.1rem;"></i> Confirm Access
+                </button>
             </form>
 
-            <!-- GUEST SECTION with colourful summary & floating thought box -->
-            <div style="margin-top:24px;border-top:1px dashed #c8e6d8;padding-top:16px;">
-                <details style="font-size:0.78rem;color:#4b5563;font-family:inherit;">
-                    <summary style="cursor:pointer;font-weight:600;padding:8px 0;outline:none;user-select:none;list-style:none;display:inline-flex;align-items:center;gap:6px;">
-                        <span style="background:linear-gradient(135deg,#e0f2fe,#bae6fd);color:#0369a1;padding:6px 14px;border-radius:20px;font-weight:700;letter-spacing:0.03em;box-shadow:0 1px 4px rgba(14,165,233,0.15);transition:all 0.2s;">
-                            <i class="fas fa-chevron-right" style="font-size:0.65rem;margin-right:4px;"></i> Not a student or employee? Click here for visitor access
+            <!-- GUEST SECTION -->
+            <div style="margin-top:24px; border-top:1px dashed #a7f3d0; padding-top:16px;">
+                <details style="font-size:0.78rem; color:#4b5563; font-family:inherit;">
+                    <summary style="cursor:pointer; font-weight:600; padding:8px 0; outline:none; user-select:none; list-style:none; display:inline-flex; align-items:center; gap:6px;">
+                        <span style="background:linear-gradient(135deg,#e0f2fe,#bae6fd); color:#0369a1; padding:6px 14px; border-radius:20px; font-weight:700; letter-spacing:0.03em; box-shadow:0 1px 4px rgba(14,165,233,0.15); transition:all 0.2s;">
+                            <i class="fas fa-chevron-right" style="font-size:0.65rem; margin-right:4px;"></i> Not a student or employee? Click here for visitor access
                         </span>
                     </summary>
-                    <div style="margin-top:12px;background:#f9fafb;border-radius:16px;padding:16px 20px;border:1px solid #e5e7eb;">
-                        <div style="font-size:0.7rem;color:#6b7280;margin-bottom:12px;text-align:center;">
-                            <i class="fas fa-info-circle" style="color:#059669;margin-right:4px;"></i> 
+                    <div style="margin-top:12px; background:#f9fafb; border-radius:16px; padding:16px 20px; border:1px solid #10b981;">
+                        <div style="font-size:0.7rem; color:#6b7280; margin-bottom:12px; text-align:center;">
+                            <i class="fas fa-info-circle" style="color:#059669; margin-right:4px;"></i> 
                             Visitors only — no ID required. Please use the ID field above if you have one.
                         </div>
-                        <div style="display:flex;justify-content:center;align-items:center;gap:14px;flex-wrap:wrap;">
-                            <div style="position:relative;display:inline-flex;">
-                                <button type="button" id="guestCheckIn" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:999px;border:1.5px solid #a7f3d0;background:#f0fdf6;color:#047857;font-size:0.82rem;font-weight:650;cursor:pointer;font-family:inherit;transition:all 0.15s;box-shadow:0 2px 6px rgba(0,0,0,0.05);">
+                        <div style="display:flex; justify-content:center; align-items:center; gap:14px; flex-wrap:wrap;">
+                            <div style="position:relative; display:inline-flex;">
+                                <button type="button" id="guestCheckIn" style="display:inline-flex; align-items:center; gap:8px; padding:10px 20px; border-radius:999px; border:1.5px solid #a7f3d0; background:#f0fdf6; color:#047857; font-size:0.82rem; font-weight:650; cursor:pointer; font-family:inherit; transition:all 0.15s; box-shadow:0 2px 6px rgba(0,0,0,0.05);">
                                     <i class="fas fa-user-plus" style="font-size:0.8rem;"></i> Guest Check In
                                 </button>
-                                <div id="guestNudge" style="position:absolute;right:calc(100% + 16px);top:50%;transform:translateY(-50%);background:#fff;border:1.5px solid #a7f3d0;border-radius:12px;padding:7px 14px;font-size:0.74rem;color:#047857;font-weight:600;white-space:nowrap;box-shadow:0 4px 14px rgba(6,78,59,0.12);pointer-events:none;z-index:5;animation:floatNudge 3s ease-in-out infinite;">
-                                    <span style="position:absolute;right:-7px;top:50%;transform:translateY(-50%);border-top:6px solid transparent;border-bottom:6px solid transparent;border-left:7px solid #a7f3d0;"></span>
+                                <div id="guestNudge" style="position:absolute; right:calc(100% + 16px); top:50%; transform:translateY(-50%); background:#fff; border:1.5px solid #a7f3d0; border-radius:12px; padding:7px 14px; font-size:0.74rem; color:#047857; font-weight:600; white-space:nowrap; box-shadow:0 4px 14px rgba(6,78,59,0.12); pointer-events:none; z-index:5; animation:floatNudge 3s ease-in-out infinite;">
+                                    <span style="position:absolute; right:-7px; top:50%; transform:translateY(-50%); border-top:6px solid transparent; border-bottom:6px solid transparent; border-left:7px solid #a7f3d0;"></span>
                                     👋 Not a student? Just visiting?
                                 </div>
                             </div>
-                            <button type="button" id="guestCheckOut" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:999px;border:1.5px solid #fca5a5;background:#fffbfb;color:#dc2626;font-size:0.82rem;font-weight:650;cursor:pointer;font-family:inherit;transition:all 0.15s;box-shadow:0 2px 6px rgba(0,0,0,0.05);">
+                            <button type="button" id="guestCheckOut" style="display:inline-flex; align-items:center; gap:8px; padding:10px 20px; border-radius:999px; border:1.5px solid #fca5a5; background:#fffbfb; color:#dc2626; font-size:0.82rem; font-weight:650; cursor:pointer; font-family:inherit; transition:all 0.15s; box-shadow:0 2px 6px rgba(0,0,0,0.05);">
                                 <i class="fas fa-sign-out-alt" style="font-size:0.8rem;"></i> Guest Check Out
                             </button>
                         </div>
@@ -94,12 +98,6 @@
                 </details>
             </div>
 
-            <!---->
-            <div style="text-align:center;margin-top:18px;user-select:none;pointer-events:none;">
-                <span style="font-size:0.62rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#b8dccb;font-style:italic;white-space:nowrap;">
-                    .--. .-. --- .--- . -.-. - / -... -.-- ---... / .. ...- .- -. / .... .- .-. ...- . -.-- / -.. .- -. .- --- / .-. .. ...- . .-. .-
-                </span>
-            </div>
         </div>
     </div>
 
